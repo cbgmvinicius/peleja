@@ -1,0 +1,11 @@
+{
+  "name": "Study — Learning Cockpit",
+  "short_name": "Study",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#120b0a",
+  "theme_color": "#934137",
+  "description": "Cockpit pessoal de aprendizagem com sessões, avaliações e insights.",
+  "icons": []
+}

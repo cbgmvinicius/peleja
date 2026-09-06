@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#8f3f35" />
+  <meta name="description" content="Study — seu cockpit pessoal de aprendizagem, sessões, avaliações e insights." />
+  <title>Study — Learning Cockpit</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-home" viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8"/><path d="M5 9.8V21h14V9.8"/><path d="M9 21v-7h6v7"/></symbol>
+    <symbol id="icon-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.8"/><path d="M9 2h6"/><path d="M12 2v3"/></symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22Z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22Z"/></symbol>
+    <symbol id="icon-exam" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8.5 15 2 2 4-4"/></symbol>
+    <symbol id="icon-performance" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/><path d="M2 19h21"/></symbol>
+    <symbol id="icon-insights" viewBox="0 0 24 24"><path d="M3 17 9 11l4 4 8-9"/><path d="M15 6h6v6"/></symbol>
+    <symbol id="icon-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.4a2 2 0 0 0 1.6-3.2 2 2 0 0 1 1.6-3.2H18a3 3 0 0 0 3-3C21 6.9 17 3 12 3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="10" cy="6.5" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="17" cy="11" r="1"/></symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></symbol>
+    <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  </svg>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-toggle" id="sidebarCollapseBtn" type="button" aria-label="Recolher barra lateral" aria-expanded="true" title="Recolher barra lateral">
+        <svg class="ui-icon"><use href="#icon-chevron-left"></use></svg>
+      </button>
+
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">S</div>
+        <div class="brand-copy">
+          <strong>Study</strong>
+          <span>Learning cockpit</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="dashboard" data-label="Hoje" title="Hoje"><svg class="nav-icon"><use href="#icon-home"></use></svg><span class="nav-label">Hoje</span></button>
+        <button class="nav-item" data-view="timer" data-label="Timer" title="Timer"><svg class="nav-icon"><use href="#icon-timer"></use></svg><span class="nav-label">Timer</span></button>
+        <button class="nav-item" data-view="materials" data-label="Apostilas" title="Apostilas"><svg class="nav-icon"><use href="#icon-book"></use></svg><span class="nav-label">Apostilas</span></button>
+        <button class="nav-item" data-view="exams" data-label="Provas" title="Provas"><svg class="nav-icon"><use href="#icon-exam"></use></svg><span class="nav-label">Provas</span></button>
+        <button class="nav-item" data-view="performance" data-label="Desempenho" title="Desempenho"><svg class="nav-icon"><use href="#icon-performance"></use></svg><span class="nav-label">Desempenho</span></button>
+        <button class="nav-item" data-view="insights" data-label="Insights" title="Insights"><svg class="nav-icon"><use href="#icon-insights"></use></svg><span class="nav-label">Insights</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="ghost-button sidebar-footer-action" id="appearanceBtn" title="Aparência"><svg class="footer-icon"><use href="#icon-palette"></use></svg><span class="sidebar-footer-label">Aparência</span></button>
+        <button class="ghost-button sidebar-footer-action" id="exportBtn" title="Exportar dados"><svg class="footer-icon"><use href="#icon-download"></use></svg><span class="sidebar-footer-label">Exportar dados</span></button>
+        <label class="ghost-button sidebar-footer-action file-label" for="importInput" title="Importar dados"><svg class="footer-icon"><use href="#icon-upload"></use></svg><span class="sidebar-footer-label">Importar dados</span></label>
+        <input id="importInput" type="file" accept="application/json" hidden />
+        <p id="storageStatus">● Study Core · preparando banco local</p>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="icon-button menu-button" id="menuButton" aria-label="Abrir menu"><svg class="ui-icon"><use href="#icon-menu"></use></svg></button>
+        <div>
+          <p class="eyebrow" id="todayLabel"></p>
+          <h1 id="pageTitle">Hoje</h1>
+        </div>
+        <button class="primary-button" id="primaryActionBtn">+ Nova apostila</button>
+      </header>
+
+      <section class="view active" id="dashboardView">
+        <div class="today-hero panel-v2">
+          <div class="today-hero-copy">
+            <span class="v2-kicker">HOJE</span>
+            <div class="today-focus-number" id="todayFocusHero">0 min</div>
+            <p id="todayHeroCopy">Nenhuma sessão registrada hoje. Um clique e o relógio começa.</p>
+            <div class="hero-actions-v2">
+              <button class="primary-button hero-start" type="button" data-action="go-timer">▶ Iniciar sessão</button>
+              <button class="ghost-button" type="button" data-go-view="insights">Ver insights</button>
+            </div>
+          </div>
+          <div class="week-score-card">
+            <span>ESTA SEMANA</span>
+            <strong id="weekFocusHero">0h</strong>
+            <small id="weekDeltaHero">Sem comparação ainda</small>
+            <div class="week-progress-track"><span id="weekProgressBar" style="width:0%"></span></div>
+            <em id="weekProgressLabel">Comece sua primeira sessão</em>
+          </div>
+        </div>
+
+        <div class="stats-grid today-kpis">
+          <article class="stat-card"><span>Foco na semana</span><strong id="todayWeekFocus">0h</strong><small id="todayWeekSessions">0 sessões</small></article>
+          <article class="stat-card"><span>Questões hoje</span><strong id="todayQuestions">0</strong><small id="todayQuestionLabel">nenhuma registrada</small></article>
+          <article class="stat-card"><span>Acerto hoje</span><strong id="todayAccuracy">—</strong><small id="todayAnswered">0 respondidas</small></article>
+          <article class="stat-card accent"><span>Constância</span><strong id="todayStreak">0</strong><small id="todayStreakLabel">dias de sequência</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel session-panel">
+            <div class="panel-header"><div><p class="eyebrow">SESSÕES</p><h3>Seu dia até agora</h3></div><button class="text-button" data-go-view="timer">Abrir timer</button></div>
+            <div id="todaySessionList" class="session-list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><p class="eyebrow">PROVAS</p><h3>Próximas avaliações</h3></div><button class="text-button" data-go-view="exams">Ver provas</button></div>
+            <div id="upcomingExamQueue" class="queue-list"></div>
+          </article>
+        </div>
+
+        <div class="section-label-v2"><span>BASE ACADÊMICA</span><p>O organizador antigo continua inteiro — agora conectado às sessões.</p></div>
+        <div class="stats-grid academic-kpis">
+          <article class="stat-card"><span>Total de apostilas</span><strong id="totalMaterials">0</strong><small id="totalSubjects">0 disciplinas</small></article>
+          <article class="stat-card"><span>Apostilas lidas</span><strong id="readMaterials">0</strong><small id="readRate">0% do total</small></article>
+          <article class="stat-card"><span>Questões feitas</span><strong id="totalQuestions">0</strong><small id="questionsPerMaterial">0 por apostila</small></article>
+          <article class="stat-card"><span>Taxa de acerto</span><strong id="accuracyRate">0%</strong><small id="correctSummary">0 acertos</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-header"><div><p class="eyebrow">PRÓXIMOS PASSOS</p><h3>Fila de leitura</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
+            <div id="readingQueue" class="queue-list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><p class="eyebrow">QUESTÕES</p><h3>Acertos e erros</h3></div></div>
+            <div class="question-chart">
+              <div class="question-donut" id="questionDonut" style="--accuracy: 0%"><div><strong id="donutPercent">0%</strong><span>acerto</span></div></div>
+              <div class="chart-legend">
+                <div><span class="legend-dot correct"></span><b id="legendCorrect">0</b> acertos</div>
+                <div><span class="legend-dot wrong"></span><b id="legendWrong">0</b> erros</div>
+                <div><span class="legend-dot unanswered"></span><b id="legendUnanswered">0</b> sem resultado</div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel hero-progress-panel">
+            <div class="panel-header"><div><p class="eyebrow">LEITURA</p><h3>Progresso das apostilas</h3></div></div>
+            <div class="progress-ring" id="heroRing" style="--progress: 0%"><div><strong id="heroPercent">0%</strong><span>concluído</span></div></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><p class="eyebrow">DISCIPLINAS</p><h3>Desempenho por matéria</h3></div></div>
+            <div id="subjectOverview" class="subject-overview"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="timerView">
+        <div class="timer-layout">
+          <article class="timer-card panel-v2">
+            <div class="timer-topline">
+              <div><span class="v2-kicker">LOCKED IN</span><h2 id="timerContextTitle">Sessão livre</h2><p id="timerContextSub">Escolha um assunto ou apenas comece.</p></div>
+              <span class="timer-state-pill" id="timerStatePill">PRONTO</span>
+            </div>
+            <div class="timer-ring" id="timerRing">
+              <div><strong id="timerDisplay">00:00:00</strong><span id="timerModeLabel">Cronômetro livre</span></div>
+            </div>
+            <div class="timer-presets" role="group" aria-label="Modo do timer">
+              <button class="timer-preset active" type="button" data-timer-mode="stopwatch">Livre</button>
+              <button class="timer-preset" type="button" data-timer-mode="25">25 min</button>
+              <button class="timer-preset" type="button" data-timer-mode="50">50 min</button>
+            </div>
+            <button class="timer-play" id="timerPlayBtn" type="button">▶</button>
+            <div class="timer-secondary-actions">
+              <button class="ghost-button" id="timerFinishBtn" type="button" disabled>Finalizar sessão</button>
+              <button class="text-button" id="timerResetBtn" type="button">Limpar</button>
+            </div>
+          </article>
+
+          <aside class="timer-side">
+            <article class="panel timer-config-panel">
+              <p class="eyebrow">CONTEXTO</p>
+              <label class="v2-field"><span>Apostila / assunto</span><select id="timerMaterialSelect"><option value="">Sessão livre</option></select></label>
+              <label class="v2-field"><span>Tipo de estudo</span><select id="timerActivitySelect"><option>Apostila</option><option>Questões</option><option>Anki</option><option>Revisão</option><option>Outro</option></select></label>
+              <small>Ao iniciar por uma apostila, disciplina e assunto são vinculados automaticamente.</small>
+            </article>
+            <article class="panel">
+              <div class="panel-header"><div><p class="eyebrow">HOJE</p><h3>Sessões registradas</h3></div></div>
+              <div id="timerTodayList" class="session-list compact"></div>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="materialsView">
+        <div class="toolbar">
+          <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar apostila, disciplina ou query..." /></div>
+          <select id="subjectFilter" aria-label="Filtrar por disciplina"><option value="all">Todas as disciplinas</option></select>
+          <select id="statusFilter" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="pending">Não lidas</option><option value="read">Lidas</option></select>
+          <select id="materialExamFilter" aria-label="Filtrar por situação da prova"><option value="active" selected>Em uso</option><option value="all">Todas</option><option value="pending-exam">Com prova pendente</option><option value="completed-exam">Prova concluída</option><option value="no-exam">Sem prova</option></select>
+          <select id="sortSelect" aria-label="Ordenar apostilas"><option value="class">Ordem das aulas</option><option value="newest">Mais recentes</option><option value="oldest">Mais antigas</option><option value="subject">Disciplina</option></select>
+        </div>
+        <div id="materialsList" class="materials-list"></div>
+      </section>
+
+      <section class="view" id="examsView">
+        <div class="analysis-toolbar panel exams-intro">
+          <div>
+            <p class="eyebrow">CALENDÁRIO DE PROVAS</p>
+            <h3>Provas por disciplina</h3>
+            <p>Cadastre cada prova uma única vez, escolha a disciplina e vincule as apostilas que fazem parte dela. Depois da avaliação, lance os resultados no mesmo registro.</p>
+          </div>
+          <div class="analysis-controls">
+            <label><span>Disciplina</span><select id="examSubjectFilter"><option value="all">Todas as disciplinas</option></select></label>
+            <label><span>Mostrar</span><select id="examStatusFilter"><option value="all">Todas</option><option value="upcoming">Próximas</option><option value="completed">Com resultado</option><option value="pending-result">Sem resultado</option></select></label>
+          </div>
+        </div>
+
+        <div class="performance-kpi-grid exams-kpi-grid">
+          <article class="stat-card"><span>Provas cadastradas</span><strong id="examCountKpi">0</strong><small id="examUpcomingKpi">0 próximas</small></article>
+          <article class="stat-card"><span>Próxima prova</span><strong class="compact-kpi" id="nextExamKpi">—</strong><small id="nextExamDateKpi">Nenhuma agendada</small></article>
+          <article class="stat-card"><span>Questões em provas</span><strong id="examQuestionsKpi">0</strong><small id="examCompletedKpi">0 com resultado</small></article>
+          <article class="stat-card accent"><span>Aproveitamento em provas</span><strong id="examAccuracyKpi">—</strong><small id="examCorrectKpi">0 acertos</small></article>
+        </div>
+
+        <div id="examsList" class="exams-list"></div>
+      </section>
+
+      <section class="view" id="performanceView">
+        <div class="analysis-toolbar panel">
+          <div>
+            <p class="eyebrow">ANÁLISE</p>
+            <h3>Desempenho por assunto</h3>
+            <p>Cada apostila é tratada como um assunto. Filtre por disciplina e veja o que está forte, o que precisa de revisão e onde você mais praticou.</p>
+          </div>
+          <div class="analysis-controls">
+            <label><span>Disciplina</span><select id="performanceSubjectFilter"><option value="all">Todas as disciplinas</option></select></label>
+            <label><span>Ordenar assuntos</span><select id="performanceTopicSort"><option value="priority">Prioridade de revisão</option><option value="accuracy-asc">Menor aproveitamento</option><option value="accuracy-desc">Maior aproveitamento</option><option value="questions">Mais questões</option><option value="class">Ordem das aulas</option><option value="name">Nome do assunto</option></select></label>
+          </div>
+        </div>
+
+        <div class="performance-kpi-grid">
+          <article class="stat-card"><span>Aproveitamento</span><strong id="performanceAccuracy">0%</strong><small id="performanceAnswered">0 respondidas</small></article>
+          <article class="stat-card"><span>Questões feitas</span><strong id="performanceQuestions">0</strong><small id="performanceQuestionAverage">0 por assunto</small></article>
+          <article class="stat-card"><span>Assuntos</span><strong id="performanceTopics">0</strong><small id="performanceTopicsPracticed">0 com questões</small></article>
+          <article class="stat-card accent"><span>Leitura concluída</span><strong id="performanceReadRate">0%</strong><small id="performanceReadCount">0/0 assuntos</small></article>
+        </div>
+
+        <div class="performance-grid">
+          <article class="panel performance-highlight">
+            <p class="eyebrow">QUESTÕES RESPONDIDAS</p>
+            <div class="large-metric"><strong id="performanceAccuracyHero">0%</strong><span>de acerto no recorte selecionado</span></div>
+            <div class="stacked-bar" aria-label="Distribuição de acertos e erros"><span id="correctBar"></span><span id="wrongBar"></span></div>
+            <div class="bar-labels"><span><b id="performanceCorrect">0</b> acertos</span><span><b id="performanceWrong">0</b> erros</span></div>
+          </article>
+          <article class="panel">
+            <p class="eyebrow">DIAGNÓSTICO RÁPIDO</p>
+            <div class="metric-list">
+              <div><span>Revisar primeiro</span><b id="weakestTopic">—</b></div>
+              <div><span>Melhor assunto</span><b id="bestTopic">—</b></div>
+              <div><span>Mais praticado</span><b id="mostPracticedTopic">—</b></div>
+              <div><span>Assuntos pendentes</span><b id="pendingMaterials">0</b></div>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel topic-panel">
+          <div class="panel-header"><div><p class="eyebrow">ASSUNTOS</p><h3>Mapa de desempenho</h3></div><span class="panel-hint">Cada cartão representa uma apostila. Clique para localizá-la na biblioteca.</span></div>
+          <div id="topicAnalysis" class="topic-analysis"></div>
+        </article>
+
+        <article class="panel performance-detail-panel">
+          <div class="panel-header"><div><p class="eyebrow">DETALHAMENTO</p><h3>Estatísticas por assunto</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Disciplina</th><th>Assunto</th><th>Status</th><th>Questões</th><th>Acertos</th><th>Erros</th><th>Aproveitamento</th></tr></thead><tbody id="topicTableBody"></tbody></table></div>
+        </article>
+
+        <article class="panel performance-detail-panel">
+          <div class="panel-header"><div><p class="eyebrow">VISÃO MACRO</p><h3>Resumo por disciplina</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Disciplina</th><th>Assuntos</th><th>Lidos</th><th>Questões</th><th>Acertos</th><th>Erros</th><th>Aproveitamento</th></tr></thead><tbody id="subjectTableBody"></tbody></table></div>
+        </article>
+      </section>
+      <section class="view" id="insightsView">
+        <div class="insights-header panel-v2">
+          <div><span class="v2-kicker">VOCÊ VS. VOCÊ</span><h2>Insights</h2><p>Seu histórico vira placar: tempo, consistência, questões e desempenho.</p></div>
+          <div class="range-switch" id="insightsRangeSwitch">
+            <button class="active" data-range="7">7D</button><button data-range="30">30D</button><button data-range="90">3M</button><button data-range="365">1A</button><button data-range="all">Tudo</button>
+          </div>
+        </div>
+
+        <div class="performance-kpi-grid insights-kpis">
+          <article class="stat-card accent"><span>Tempo de foco</span><strong id="insightFocus">0h</strong><small id="insightFocusDelta">—</small></article>
+          <article class="stat-card"><span>Sessões</span><strong id="insightSessions">0</strong><small id="insightSessionAvg">média 0 min</small></article>
+          <article class="stat-card"><span>Questões</span><strong id="insightQuestions">0</strong><small id="insightAccuracy">— de acerto</small></article>
+          <article class="stat-card"><span>Constância</span><strong id="insightStreak">0</strong><small id="insightStreakRecord">recorde 0 dias</small></article>
+        </div>
+
+        <article class="panel insight-panel heatmap-panel">
+          <div class="panel-header"><div><p class="eyebrow">HISTORY</p><h3>Seu ano em pixels</h3></div><div class="heatmap-legend"><span>menos</span><i></i><i></i><i></i><i></i><span>mais</span></div></div>
+          <div class="heatmap-scroll"><div id="focusHeatmap" class="focus-heatmap"></div></div>
+          <small class="insight-footnote">Cada quadrado representa um dia. A intensidade reflete minutos de foco.</small>
+        </article>
+
+        <div class="dashboard-grid">
+          <article class="panel insight-panel">
+            <div class="panel-header"><div><p class="eyebrow">MOMENTUM</p><h3>Constância</h3></div></div>
+            <div class="momentum-card"><strong id="momentumMain">Começando</strong><p id="momentumCopy">Faça sua primeira sessão para construir uma sequência.</p><div class="consistency-meter"><span id="consistencyBar" style="width:0%"></span></div><small id="consistencyLabel">0% de dias ativos no período</small></div>
+          </article>
+          <article class="panel insight-panel">
+            <div class="panel-header"><div><p class="eyebrow">WEEKLY RHYTHM</p><h3>Ritmo semanal</h3></div></div>
+            <div id="weeklyRhythm" class="rhythm-list"></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel insight-panel">
+            <div class="panel-header"><div><p class="eyebrow">ALLOCATION</p><h3>Onde foi seu tempo</h3></div></div>
+            <div class="allocation-wrap"><div id="allocationDonut" class="allocation-donut"><strong id="allocationCenter">0h</strong></div><div id="allocationLegend" class="allocation-legend"></div></div>
+          </article>
+          <article class="panel insight-panel">
+            <div class="panel-header"><div><p class="eyebrow">PLACAR</p><h3>Você vs. período anterior</h3></div></div>
+            <div id="versusScore" class="versus-score"><strong>0–0</strong><span>sem dados suficientes</span></div>
+            <div id="versusRows" class="versus-rows"></div>
+          </article>
+        </div>
+
+        <article class="panel insight-panel">
+          <div class="panel-header"><div><p class="eyebrow">PERSONAL BESTS</p><h3>Seus recordes</h3></div><button class="text-button" data-go-view="performance">Abrir desempenho acadêmico</button></div>
+          <div class="records-grid">
+            <div><span>Melhor dia</span><strong id="recordDay">—</strong><small id="recordDayDate">sem dados</small></div>
+            <div><span>Melhor semana</span><strong id="recordWeek">—</strong><small id="recordWeekDate">sem dados</small></div>
+            <div><span>Maior sessão</span><strong id="recordSession">—</strong><small id="recordSessionLabel">sem dados</small></div>
+            <div><span>Maior sequência</span><strong id="recordStreak">0 dias</strong><small>constância histórica</small></div>
+          </div>
+        </article>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="materialModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header"><div><p class="eyebrow">APOSTILA</p><h2 id="modalTitle">Adicionar nova apostila</h2></div><button class="icon-button" id="closeModal" aria-label="Fechar">×</button></div>
+      <form id="materialForm">
+        <input type="hidden" id="materialId" />
+        <div class="form-grid">
+          <label><span>Disciplina *</span><input id="subjectInput" required placeholder="Ex.: Pediatria" /></label>
+          <label><span>Título da apostila *</span><input id="titleInput" required placeholder="Ex.: PED02 ANEMIAS EM PEDIATRIA" /></label>
+          <label><span>Data da aula</span><input id="classDateInput" type="date" /></label>
+          <label><span>Número/ordem da aula</span><input id="classOrderInput" type="number" min="0" step="1" placeholder="Ex.: 3" /></label>
+          <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea><small>Cole a query completa do Anki. No cartão, os NIDs ficam ocultos; aparece apenas o total de notas e o botão para copiar a query.</small></label>
+          <div class="full-width question-history-section">
+            <div class="question-history-heading"><div><span>HISTÓRICO DE QUESTÕES</span><small>Os totais são calculados automaticamente a partir das entradas registradas.</small></div><button type="button" class="ghost-button" id="openQuestionManagerFromMaterial">Gerenciar entradas</button></div>
+            <div class="question-summary question-summary-editor" aria-label="Resumo de questões desta apostila"><div><span>QUESTÕES</span><b id="modalQuestionsTotal">0</b></div><div class="good"><span>ACERTOS</span><b id="modalCorrectTotal">0</b></div><div class="bad"><span>ERROS</span><b id="modalWrongTotal">0</b></div></div>
+            <small id="questionHistoryHint">Salve a apostila primeiro; depois use o botão +Q no cartão para registrar suas sessões.</small>
+          </div>
+          <label class="checkbox-label made-checkbox"><input id="madeInput" type="checkbox" /><span>Apostila confeccionada</span></label>
+          <label class="checkbox-label"><input id="readInput" type="checkbox" /><span>Já concluí a leitura</span></label>
+          <label class="full-width"><span>Observações</span><textarea id="notesInput" rows="3" placeholder="Pontos para revisar, dificuldade, páginas importantes..."></textarea></label>
+        </div>
+        <div class="validation-message" id="validationMessage" role="alert"></div>
+        <div class="modal-actions"><button type="button" class="ghost-button" id="cancelModal">Cancelar</button><button type="submit" class="primary-button">Salvar apostila</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="questionModal" aria-hidden="true">
+    <div class="modal question-modal" role="dialog" aria-modal="true" aria-labelledby="questionModalTitle">
+      <div class="modal-header"><div><p class="eyebrow">QUESTÕES</p><h2 id="questionModalTitle">Registrar questões</h2><p class="question-modal-subtitle" id="questionModalSubtitle"></p></div><button class="icon-button" id="closeQuestionModal" aria-label="Fechar">×</button></div>
+      <div class="question-entry-overview" aria-label="Totais do assunto"><div><span>QUESTÕES</span><b id="questionModalTotal">0</b></div><div class="good"><span>ACERTOS</span><b id="questionModalCorrect">0</b></div><div class="bad"><span>ERROS</span><b id="questionModalWrong">0</b></div><div><span>APROVEITAMENTO</span><b id="questionModalAccuracy">0%</b></div></div>
+      <form id="questionEntryForm" class="question-entry-form">
+        <input type="hidden" id="questionMaterialId" /><input type="hidden" id="questionEntryId" />
+        <div class="question-entry-form-heading"><div><span id="questionEntryFormKicker">NOVA ENTRADA</span><small>Informe os resultados desta sessão. A data já vem preenchida com o dia de hoje.</small></div></div>
+        <div class="form-grid question-entry-form-grid">
+          <label><span>Data *</span><input id="questionDateInput" type="date" required /></label>
+          <label><span>Questões feitas *</span><input id="questionTotalInput" type="number" min="1" step="1" required /></label>
+          <label><span>Acertos *</span><input id="questionCorrectInput" type="number" min="0" step="1" required /></label>
+          <label><span>Erros *</span><input id="questionWrongInput" type="number" min="0" step="1" required /></label>
+        </div>
+        <div class="validation-message" id="questionValidationMessage" role="alert"></div>
+        <div class="modal-actions question-entry-actions"><button type="button" class="ghost-button" id="cancelQuestionEntryEdit" hidden>Cancelar edição</button><button type="submit" class="primary-button" id="saveQuestionEntry">Adicionar entrada</button></div>
+      </form>
+      <div class="question-entry-history"><div class="question-history-list-heading"><div><p class="eyebrow">HISTÓRICO</p><h3>Entradas registradas</h3></div><small id="questionEntryCount">0 entradas</small></div><div id="questionEntryList" class="question-entry-list"></div></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="examFormModal" aria-hidden="true">
+    <div class="modal exam-form-modal" role="dialog" aria-modal="true" aria-labelledby="examFormTitle">
+      <div class="modal-header"><div><p class="eyebrow">PROVA</p><h2 id="examFormTitle">Adicionar prova</h2><p class="question-modal-subtitle">Cadastre a avaliação e vincule o conteúdo diretamente às apostilas da biblioteca.</p></div><button class="icon-button" id="closeExamFormModal" aria-label="Fechar">×</button></div>
+      <form id="examForm">
+        <input type="hidden" id="examId" />
+        <div class="form-grid">
+          <label><span>Disciplina *</span><select id="examSubjectInput" required><option value="">Selecione...</option></select></label>
+          <label><span>Prova *</span><select id="examTypeInput" required><option value="">Selecione...</option><option value="PR1.1">PR1.1</option><option value="PR1.2">PR1.2</option><option value="PR2.1">PR2.1</option><option value="PR2.2">PR2.2</option><option value="PR1">PR1</option><option value="PR2">PR2</option><option value="Segunda chamada">Segunda chamada</option><option value="Prova final">Prova final</option><option value="Prova">Prova (sem subdivisão)</option></select></label>
+          <label><span>Data da prova *</span><input id="examDateInput" type="date" required /></label>
+          <div class="full-width exam-material-selector">
+            <div class="exam-material-selector-heading"><div><span>APOSTILAS DA PROVA *</span><small>Marque as apostilas desta disciplina que entram nesta avaliação.</small></div><small id="examMaterialSelectionCount">0 selecionadas</small></div>
+            <div id="examMaterialOptions" class="exam-material-options"></div>
+          </div>
+          <div class="full-width exam-results-section">
+            <div class="exam-material-selector-heading"><div><span>RESULTADO DA PROVA</span><small>Opcional no cadastro. Depois de fazer a prova, volte aqui e lance o resultado.</small></div></div>
+            <div class="form-grid exam-result-grid">
+              <label><span>Total de questões</span><input id="examTotalInput" type="number" min="1" step="1" placeholder="Ex.: 20" /></label>
+              <label><span>Acertos</span><input id="examCorrectInput" type="number" min="0" step="1" placeholder="Ex.: 16" /></label>
+              <label><span>Erros</span><input id="examWrongInput" type="number" min="0" step="1" placeholder="Ex.: 4" /></label>
+            </div>
+          </div>
+        </div>
+        <div class="validation-message" id="examValidationMessage" role="alert"></div>
+        <div class="modal-actions"><button type="button" class="ghost-button" id="cancelExamForm">Cancelar</button><button type="submit" class="primary-button">Salvar prova</button></div>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="modal-backdrop" id="appearanceModal" aria-hidden="true">
+    <div class="modal appearance-modal" role="dialog" aria-modal="true" aria-labelledby="appearanceTitle">
+      <div class="modal-header"><div><p class="eyebrow">APARÊNCIA</p><h2 id="appearanceTitle">Seu Study, do seu jeito</h2><p class="question-modal-subtitle">Poucas opções, só as que mudam de verdade a sensação do app.</p></div><button class="icon-button" id="closeAppearanceModal" aria-label="Fechar">×</button></div>
+      <div class="appearance-section"><span class="appearance-label">MODO</span><div class="appearance-options" id="themeModeOptions"><button data-theme-choice="system">Sistema</button><button data-theme-choice="light">Claro</button><button data-theme-choice="dark">Escuro</button><button data-theme-choice="amoled">AMOLED</button></div></div>
+      <div class="appearance-section"><span class="appearance-label">TEMA DE COR</span><div class="color-theme-grid" id="colorThemeOptions">
+        <button data-color-choice="sessions"><i class="swatch sessions"></i><span>Sessions</span></button>
+        <button data-color-choice="medstudy"><i class="swatch medstudy"></i><span>MedStudy</span></button>
+        <button data-color-choice="lagoon"><i class="swatch lagoon"></i><span>Lagoon</span></button>
+        <button data-color-choice="grove"><i class="swatch grove"></i><span>Grove</span></button>
+        <button data-color-choice="twilight"><i class="swatch twilight"></i><span>Twilight</span></button>
+        <button data-color-choice="sakura"><i class="swatch sakura"></i><span>Sakura</span></button>
+      </div></div>
+    </div>
+  </div>
+
+  <nav class="mobile-bottom-nav" aria-label="Navegação móvel">
+    <button class="bottom-nav-item active" data-view="dashboard"><svg class="bottom-nav-icon"><use href="#icon-home"></use></svg><b>Hoje</b></button>
+    <button class="bottom-nav-item" data-view="timer"><svg class="bottom-nav-icon"><use href="#icon-timer"></use></svg><b>Timer</b></button>
+    <button class="bottom-nav-item" data-view="materials"><svg class="bottom-nav-icon"><use href="#icon-book"></use></svg><b>Estudos</b></button>
+    <button class="bottom-nav-item" data-view="exams"><svg class="bottom-nav-icon"><use href="#icon-exam"></use></svg><b>Provas</b></button>
+    <button class="bottom-nav-item" data-view="insights"><svg class="bottom-nav-icon"><use href="#icon-insights"></use></svg><b>Insights</b></button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
