@@ -3,113 +3,137 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#8f3f35" />
-  <meta name="description" content="Study — seu cockpit pessoal de aprendizagem, sessões, avaliações e insights." />
-  <title>Study — Learning Cockpit</title>
+  <meta name="theme-color" content="#3f5847" />
+  <meta name="description" content="Organizador acadêmico para acompanhar apostilas, provas, leituras e desempenho em questões." />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/peleja-icon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/peleja-icon-16.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="./assets/peleja-icon-192.png" />
+  <title>Peleja — Organizador de Estudos</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <svg class="icon-sprite" aria-hidden="true" focusable="false">
-    <symbol id="icon-home" viewBox="0 0 24 24"><path d="M3 10.8 12 3l9 7.8"/><path d="M5 9.8V21h14V9.8"/><path d="M9 21v-7h6v7"/></symbol>
-    <symbol id="icon-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.8"/><path d="M9 2h6"/><path d="M12 2v3"/></symbol>
-    <symbol id="icon-book" viewBox="0 0 24 24"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22Z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22Z"/></symbol>
-    <symbol id="icon-exam" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8.5 15 2 2 4-4"/></symbol>
-    <symbol id="icon-performance" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/><path d="M2 19h21"/></symbol>
-    <symbol id="icon-insights" viewBox="0 0 24 24"><path d="M3 17 9 11l4 4 8-9"/><path d="M15 6h6v6"/></symbol>
-    <symbol id="icon-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.4a2 2 0 0 0 1.6-3.2 2 2 0 0 1 1.6-3.2H18a3 3 0 0 0 3-3C21 6.9 17 3 12 3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="10" cy="6.5" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="17" cy="11" r="1"/></symbol>
-    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
-    <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></symbol>
-    <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
-    <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
-    <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
-  </svg>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-toggle" id="sidebarCollapseBtn" type="button" aria-label="Recolher barra lateral" aria-expanded="true" title="Recolher barra lateral">
-        <svg class="ui-icon"><use href="#icon-chevron-left"></use></svg>
-      </button>
-
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">S</div>
-        <div class="brand-copy">
-          <strong>Study</strong>
-          <span>Learning cockpit</span>
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"><img src="./assets/peleja-icon-192.png" alt="" /></div>
+          <div class="brand-copy">
+            <strong class="brand-title">peleja</strong>
+          </div>
         </div>
       </div>
 
+      <button class="icon-button sidebar-toggle" id="sidebarCollapseButton" type="button" aria-label="Colapsar barra lateral" title="Colapsar barra lateral">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M14.5 6.5 9 12l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+
       <nav class="nav" aria-label="Navegação principal">
-        <button class="nav-item active" data-view="dashboard" data-label="Hoje" title="Hoje"><svg class="nav-icon"><use href="#icon-home"></use></svg><span class="nav-label">Hoje</span></button>
-        <button class="nav-item" data-view="timer" data-label="Timer" title="Timer"><svg class="nav-icon"><use href="#icon-timer"></use></svg><span class="nav-label">Timer</span></button>
-        <button class="nav-item" data-view="materials" data-label="Apostilas" title="Apostilas"><svg class="nav-icon"><use href="#icon-book"></use></svg><span class="nav-label">Apostilas</span></button>
-        <button class="nav-item" data-view="exams" data-label="Provas" title="Provas"><svg class="nav-icon"><use href="#icon-exam"></use></svg><span class="nav-label">Provas</span></button>
-        <button class="nav-item" data-view="performance" data-label="Desempenho" title="Desempenho"><svg class="nav-icon"><use href="#icon-performance"></use></svg><span class="nav-label">Desempenho</span></button>
-        <button class="nav-item" data-view="insights" data-label="Insights" title="Insights"><svg class="nav-icon"><use href="#icon-insights"></use></svg><span class="nav-label">Insights</span></button>
+        <button class="nav-item active" data-view="dashboard" title="Painel">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <rect x="3.5" y="3.5" width="7" height="7" rx="1.6"></rect>
+              <rect x="13.5" y="3.5" width="7" height="5" rx="1.6"></rect>
+              <rect x="13.5" y="11.5" width="7" height="9" rx="1.6"></rect>
+              <rect x="3.5" y="13.5" width="7" height="7" rx="1.6"></rect>
+            </svg>
+          </span>
+          <span class="nav-label">Painel</span>
+        </button>
+        <button class="nav-item" data-view="materials" title="Apostilas">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5A2.5 2.5 0 0 0 16.5 16H5z"></path>
+              <path d="M5 5.5v13A2.5 2.5 0 0 0 7.5 21H19"></path>
+              <path d="M8.5 7.5h7"></path>
+              <path d="M8.5 11h7"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Apostilas</span>
+        </button>
+        <button class="nav-item" data-view="exams" title="Provas">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <rect x="4" y="4" width="16" height="17" rx="2.4"></rect>
+              <path d="M8 4V2.75"></path>
+              <path d="M16 4V2.75"></path>
+              <path d="M7.5 10h9"></path>
+              <path d="m8.5 14 2 2 5-5"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Provas</span>
+        </button>
+        <button class="nav-item" data-view="performance" title="Desempenho">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M4 19.25h16"></path>
+              <path d="M7 16V11.5"></path>
+              <path d="M12 16V8"></path>
+              <path d="M17 16V5"></path>
+              <path d="m5 8 4-3.5L13 7l6-4"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Desempenho</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
-        <button class="ghost-button sidebar-footer-action" id="appearanceBtn" title="Aparência"><svg class="footer-icon"><use href="#icon-palette"></use></svg><span class="sidebar-footer-label">Aparência</span></button>
-        <button class="ghost-button sidebar-footer-action" id="exportBtn" title="Exportar dados"><svg class="footer-icon"><use href="#icon-download"></use></svg><span class="sidebar-footer-label">Exportar dados</span></button>
-        <label class="ghost-button sidebar-footer-action file-label" for="importInput" title="Importar dados"><svg class="footer-icon"><use href="#icon-upload"></use></svg><span class="sidebar-footer-label">Importar dados</span></label>
+        <button class="ghost-button full sidebar-footer-button" id="exportBtn" type="button" title="Exportar dados" aria-label="Exportar dados">
+          <span class="sidebar-footer-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 14.75V5"></path>
+              <path d="m8.5 8.5 3.5-3.5 3.5 3.5"></path>
+              <path d="M5 15.5v2.25A2.25 2.25 0 0 0 7.25 20h9.5A2.25 2.25 0 0 0 19 17.75V15.5"></path>
+            </svg>
+          </span>
+          <span class="sidebar-footer-text">Exportar dados</span>
+        </button>
+        <label class="ghost-button full file-label sidebar-footer-button" for="importInput" title="Importar dados" aria-label="Importar dados">
+          <span class="sidebar-footer-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 5.25v9.75"></path>
+              <path d="m8.5 11.5 3.5 3.5 3.5-3.5"></path>
+              <path d="M5 15.5v2.25A2.25 2.25 0 0 0 7.25 20h9.5A2.25 2.25 0 0 0 19 17.75V15.5"></path>
+            </svg>
+          </span>
+          <span class="sidebar-footer-text">Importar dados</span>
+        </label>
         <input id="importInput" type="file" accept="application/json" hidden />
-        <p id="storageStatus">● Study Core · preparando banco local</p>
+        <p>Seus dados ficam salvos neste navegador.</p>
       </div>
     </aside>
 
     <main class="main-content">
       <header class="topbar">
-        <button class="icon-button menu-button" id="menuButton" aria-label="Abrir menu"><svg class="ui-icon"><use href="#icon-menu"></use></svg></button>
+        <button class="icon-button menu-button" id="menuButton" aria-label="Abrir menu">☰</button>
         <div>
           <p class="eyebrow" id="todayLabel"></p>
-          <h1 id="pageTitle">Hoje</h1>
+          <h1 id="pageTitle">Painel de estudos</h1>
         </div>
         <button class="primary-button" id="primaryActionBtn">+ Nova apostila</button>
       </header>
 
       <section class="view active" id="dashboardView">
-        <div class="today-hero panel-v2">
-          <div class="today-hero-copy">
-            <span class="v2-kicker">HOJE</span>
-            <div class="today-focus-number" id="todayFocusHero">0 min</div>
-            <p id="todayHeroCopy">Nenhuma sessão registrada hoje. Um clique e o relógio começa.</p>
-            <div class="hero-actions-v2">
-              <button class="primary-button hero-start" type="button" data-action="go-timer">▶ Iniciar sessão</button>
-              <button class="ghost-button" type="button" data-go-view="insights">Ver insights</button>
+        <div class="hero-card">
+          <div>
+            <span class="pill">VISÃO GERAL</span>
+            <h2>Transforme cada aula em progresso visível.</h2>
+            <p>Organize apostilas, registre sessões de questões, planeje provas e acompanhe seu desempenho por assunto.</p>
+          </div>
+          <div class="hero-progress">
+            <div class="progress-ring" id="heroRing" style="--progress: 0%">
+              <div><strong id="heroPercent">0%</strong><span>concluído</span></div>
             </div>
           </div>
-          <div class="week-score-card">
-            <span>ESTA SEMANA</span>
-            <strong id="weekFocusHero">0h</strong>
-            <small id="weekDeltaHero">Sem comparação ainda</small>
-            <div class="week-progress-track"><span id="weekProgressBar" style="width:0%"></span></div>
-            <em id="weekProgressLabel">Comece sua primeira sessão</em>
-          </div>
         </div>
 
-        <div class="stats-grid today-kpis">
-          <article class="stat-card"><span>Foco na semana</span><strong id="todayWeekFocus">0h</strong><small id="todayWeekSessions">0 sessões</small></article>
-          <article class="stat-card"><span>Questões hoje</span><strong id="todayQuestions">0</strong><small id="todayQuestionLabel">nenhuma registrada</small></article>
-          <article class="stat-card"><span>Acerto hoje</span><strong id="todayAccuracy">—</strong><small id="todayAnswered">0 respondidas</small></article>
-          <article class="stat-card accent"><span>Constância</span><strong id="todayStreak">0</strong><small id="todayStreakLabel">dias de sequência</small></article>
-        </div>
-
-        <div class="dashboard-grid">
-          <article class="panel session-panel">
-            <div class="panel-header"><div><p class="eyebrow">SESSÕES</p><h3>Seu dia até agora</h3></div><button class="text-button" data-go-view="timer">Abrir timer</button></div>
-            <div id="todaySessionList" class="session-list"></div>
-          </article>
-          <article class="panel">
-            <div class="panel-header"><div><p class="eyebrow">PROVAS</p><h3>Próximas avaliações</h3></div><button class="text-button" data-go-view="exams">Ver provas</button></div>
-            <div id="upcomingExamQueue" class="queue-list"></div>
-          </article>
-        </div>
-
-        <div class="section-label-v2"><span>BASE ACADÊMICA</span><p>O organizador antigo continua inteiro — agora conectado às sessões.</p></div>
-        <div class="stats-grid academic-kpis">
+        <div class="stats-grid">
           <article class="stat-card"><span>Total de apostilas</span><strong id="totalMaterials">0</strong><small id="totalSubjects">0 disciplinas</small></article>
           <article class="stat-card"><span>Apostilas lidas</span><strong id="readMaterials">0</strong><small id="readRate">0% do total</small></article>
           <article class="stat-card"><span>Questões feitas</span><strong id="totalQuestions">0</strong><small id="questionsPerMaterial">0 por apostila</small></article>
-          <article class="stat-card"><span>Taxa de acerto</span><strong id="accuracyRate">0%</strong><small id="correctSummary">0 acertos</small></article>
+          <article class="stat-card accent"><span>Taxa de acerto</span><strong id="accuracyRate">0%</strong><small id="correctSummary">0 acertos</small></article>
         </div>
 
         <div class="dashboard-grid">
@@ -117,6 +141,13 @@
             <div class="panel-header"><div><p class="eyebrow">PRÓXIMOS PASSOS</p><h3>Fila de leitura</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
             <div id="readingQueue" class="queue-list"></div>
           </article>
+          <article class="panel">
+            <div class="panel-header"><div><p class="eyebrow">PROVAS</p><h3>Próximas avaliações</h3></div><button class="text-button" data-go-view="exams">Ver provas</button></div>
+            <div id="upcomingExamQueue" class="queue-list"></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
           <article class="panel">
             <div class="panel-header"><div><p class="eyebrow">QUESTÕES</p><h3>Acertos e erros</h3></div></div>
             <div class="question-chart">
@@ -128,54 +159,10 @@
               </div>
             </div>
           </article>
-        </div>
-
-        <div class="dashboard-grid">
-          <article class="panel hero-progress-panel">
-            <div class="panel-header"><div><p class="eyebrow">LEITURA</p><h3>Progresso das apostilas</h3></div></div>
-            <div class="progress-ring" id="heroRing" style="--progress: 0%"><div><strong id="heroPercent">0%</strong><span>concluído</span></div></div>
-          </article>
           <article class="panel">
             <div class="panel-header"><div><p class="eyebrow">DISCIPLINAS</p><h3>Desempenho por matéria</h3></div></div>
             <div id="subjectOverview" class="subject-overview"></div>
           </article>
-        </div>
-      </section>
-
-      <section class="view" id="timerView">
-        <div class="timer-layout">
-          <article class="timer-card panel-v2">
-            <div class="timer-topline">
-              <div><span class="v2-kicker">LOCKED IN</span><h2 id="timerContextTitle">Sessão livre</h2><p id="timerContextSub">Escolha um assunto ou apenas comece.</p></div>
-              <span class="timer-state-pill" id="timerStatePill">PRONTO</span>
-            </div>
-            <div class="timer-ring" id="timerRing">
-              <div><strong id="timerDisplay">00:00:00</strong><span id="timerModeLabel">Cronômetro livre</span></div>
-            </div>
-            <div class="timer-presets" role="group" aria-label="Modo do timer">
-              <button class="timer-preset active" type="button" data-timer-mode="stopwatch">Livre</button>
-              <button class="timer-preset" type="button" data-timer-mode="25">25 min</button>
-              <button class="timer-preset" type="button" data-timer-mode="50">50 min</button>
-            </div>
-            <button class="timer-play" id="timerPlayBtn" type="button">▶</button>
-            <div class="timer-secondary-actions">
-              <button class="ghost-button" id="timerFinishBtn" type="button" disabled>Finalizar sessão</button>
-              <button class="text-button" id="timerResetBtn" type="button">Limpar</button>
-            </div>
-          </article>
-
-          <aside class="timer-side">
-            <article class="panel timer-config-panel">
-              <p class="eyebrow">CONTEXTO</p>
-              <label class="v2-field"><span>Apostila / assunto</span><select id="timerMaterialSelect"><option value="">Sessão livre</option></select></label>
-              <label class="v2-field"><span>Tipo de estudo</span><select id="timerActivitySelect"><option>Apostila</option><option>Questões</option><option>Anki</option><option>Revisão</option><option>Outro</option></select></label>
-              <small>Ao iniciar por uma apostila, disciplina e assunto são vinculados automaticamente.</small>
-            </article>
-            <article class="panel">
-              <div class="panel-header"><div><p class="eyebrow">HOJE</p><h3>Sessões registradas</h3></div></div>
-              <div id="timerTodayList" class="session-list compact"></div>
-            </article>
-          </aside>
         </div>
       </section>
 
@@ -222,7 +209,6 @@
           </div>
           <div class="analysis-controls">
             <label><span>Disciplina</span><select id="performanceSubjectFilter"><option value="all">Todas as disciplinas</option></select></label>
-            <label><span>Ordenar assuntos</span><select id="performanceTopicSort"><option value="priority">Prioridade de revisão</option><option value="accuracy-asc">Menor aproveitamento</option><option value="accuracy-desc">Maior aproveitamento</option><option value="questions">Mais questões</option><option value="class">Ordem das aulas</option><option value="name">Nome do assunto</option></select></label>
           </div>
         </div>
 
@@ -251,76 +237,11 @@
           </article>
         </div>
 
-        <article class="panel topic-panel">
-          <div class="panel-header"><div><p class="eyebrow">ASSUNTOS</p><h3>Mapa de desempenho</h3></div><span class="panel-hint">Cada cartão representa uma apostila. Clique para localizá-la na biblioteca.</span></div>
-          <div id="topicAnalysis" class="topic-analysis"></div>
-        </article>
-
-        <article class="panel performance-detail-panel">
-          <div class="panel-header"><div><p class="eyebrow">DETALHAMENTO</p><h3>Estatísticas por assunto</h3></div></div>
-          <div class="table-wrap"><table><thead><tr><th>Disciplina</th><th>Assunto</th><th>Status</th><th>Questões</th><th>Acertos</th><th>Erros</th><th>Aproveitamento</th></tr></thead><tbody id="topicTableBody"></tbody></table></div>
-        </article>
-
         <article class="panel performance-detail-panel">
           <div class="panel-header"><div><p class="eyebrow">VISÃO MACRO</p><h3>Resumo por disciplina</h3></div></div>
           <div class="table-wrap"><table><thead><tr><th>Disciplina</th><th>Assuntos</th><th>Lidos</th><th>Questões</th><th>Acertos</th><th>Erros</th><th>Aproveitamento</th></tr></thead><tbody id="subjectTableBody"></tbody></table></div>
         </article>
       </section>
-      <section class="view" id="insightsView">
-        <div class="insights-header panel-v2">
-          <div><span class="v2-kicker">VOCÊ VS. VOCÊ</span><h2>Insights</h2><p>Seu histórico vira placar: tempo, consistência, questões e desempenho.</p></div>
-          <div class="range-switch" id="insightsRangeSwitch">
-            <button class="active" data-range="7">7D</button><button data-range="30">30D</button><button data-range="90">3M</button><button data-range="365">1A</button><button data-range="all">Tudo</button>
-          </div>
-        </div>
-
-        <div class="performance-kpi-grid insights-kpis">
-          <article class="stat-card accent"><span>Tempo de foco</span><strong id="insightFocus">0h</strong><small id="insightFocusDelta">—</small></article>
-          <article class="stat-card"><span>Sessões</span><strong id="insightSessions">0</strong><small id="insightSessionAvg">média 0 min</small></article>
-          <article class="stat-card"><span>Questões</span><strong id="insightQuestions">0</strong><small id="insightAccuracy">— de acerto</small></article>
-          <article class="stat-card"><span>Constância</span><strong id="insightStreak">0</strong><small id="insightStreakRecord">recorde 0 dias</small></article>
-        </div>
-
-        <article class="panel insight-panel heatmap-panel">
-          <div class="panel-header"><div><p class="eyebrow">HISTORY</p><h3>Seu ano em pixels</h3></div><div class="heatmap-legend"><span>menos</span><i></i><i></i><i></i><i></i><span>mais</span></div></div>
-          <div class="heatmap-scroll"><div id="focusHeatmap" class="focus-heatmap"></div></div>
-          <small class="insight-footnote">Cada quadrado representa um dia. A intensidade reflete minutos de foco.</small>
-        </article>
-
-        <div class="dashboard-grid">
-          <article class="panel insight-panel">
-            <div class="panel-header"><div><p class="eyebrow">MOMENTUM</p><h3>Constância</h3></div></div>
-            <div class="momentum-card"><strong id="momentumMain">Começando</strong><p id="momentumCopy">Faça sua primeira sessão para construir uma sequência.</p><div class="consistency-meter"><span id="consistencyBar" style="width:0%"></span></div><small id="consistencyLabel">0% de dias ativos no período</small></div>
-          </article>
-          <article class="panel insight-panel">
-            <div class="panel-header"><div><p class="eyebrow">WEEKLY RHYTHM</p><h3>Ritmo semanal</h3></div></div>
-            <div id="weeklyRhythm" class="rhythm-list"></div>
-          </article>
-        </div>
-
-        <div class="dashboard-grid">
-          <article class="panel insight-panel">
-            <div class="panel-header"><div><p class="eyebrow">ALLOCATION</p><h3>Onde foi seu tempo</h3></div></div>
-            <div class="allocation-wrap"><div id="allocationDonut" class="allocation-donut"><strong id="allocationCenter">0h</strong></div><div id="allocationLegend" class="allocation-legend"></div></div>
-          </article>
-          <article class="panel insight-panel">
-            <div class="panel-header"><div><p class="eyebrow">PLACAR</p><h3>Você vs. período anterior</h3></div></div>
-            <div id="versusScore" class="versus-score"><strong>0–0</strong><span>sem dados suficientes</span></div>
-            <div id="versusRows" class="versus-rows"></div>
-          </article>
-        </div>
-
-        <article class="panel insight-panel">
-          <div class="panel-header"><div><p class="eyebrow">PERSONAL BESTS</p><h3>Seus recordes</h3></div><button class="text-button" data-go-view="performance">Abrir desempenho acadêmico</button></div>
-          <div class="records-grid">
-            <div><span>Melhor dia</span><strong id="recordDay">—</strong><small id="recordDayDate">sem dados</small></div>
-            <div><span>Melhor semana</span><strong id="recordWeek">—</strong><small id="recordWeekDate">sem dados</small></div>
-            <div><span>Maior sessão</span><strong id="recordSession">—</strong><small id="recordSessionLabel">sem dados</small></div>
-            <div><span>Maior sequência</span><strong id="recordStreak">0 dias</strong><small>constância histórica</small></div>
-          </div>
-        </article>
-      </section>
-
     </main>
   </div>
 
@@ -337,10 +258,14 @@
           <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea><small>Cole a query completa do Anki. No cartão, os NIDs ficam ocultos; aparece apenas o total de notas e o botão para copiar a query.</small></label>
           <div class="full-width question-history-section">
             <div class="question-history-heading"><div><span>HISTÓRICO DE QUESTÕES</span><small>Os totais são calculados automaticamente a partir das entradas registradas.</small></div><button type="button" class="ghost-button" id="openQuestionManagerFromMaterial">Gerenciar entradas</button></div>
-            <div class="question-summary question-summary-editor" aria-label="Resumo de questões desta apostila"><div><span>QUESTÕES</span><b id="modalQuestionsTotal">0</b></div><div class="good"><span>ACERTOS</span><b id="modalCorrectTotal">0</b></div><div class="bad"><span>ERROS</span><b id="modalWrongTotal">0</b></div></div>
+            <div class="question-summary question-summary-editor" aria-label="Resumo de questões desta apostila">
+              <div class="question-summary-total"><span>QUESTÕES</span><b id="modalQuestionsTotal">0</b></div>
+              <div class="question-summary-correct good"><span>ACERTOS</span><b id="modalCorrectTotal">0</b></div>
+              <div class="question-summary-wrong bad"><span>ERROS</span><b id="modalWrongTotal">0</b></div>
+            </div>
             <small id="questionHistoryHint">Salve a apostila primeiro; depois use o botão +Q no cartão para registrar suas sessões.</small>
           </div>
-          <label class="checkbox-label made-checkbox"><input id="madeInput" type="checkbox" /><span>Apostila confeccionada</span></label>
+          <label class="checkbox-label made-checkbox"><input id="madeInput" type="checkbox" /><span>Apostila produzida</span></label>
           <label class="checkbox-label"><input id="readInput" type="checkbox" /><span>Já concluí a leitura</span></label>
           <label class="full-width"><span>Observações</span><textarea id="notesInput" rows="3" placeholder="Pontos para revisar, dificuldade, páginas importantes..."></textarea></label>
         </div>
@@ -398,32 +323,7 @@
     </div>
   </div>
 
-
-  <div class="modal-backdrop" id="appearanceModal" aria-hidden="true">
-    <div class="modal appearance-modal" role="dialog" aria-modal="true" aria-labelledby="appearanceTitle">
-      <div class="modal-header"><div><p class="eyebrow">APARÊNCIA</p><h2 id="appearanceTitle">Seu Study, do seu jeito</h2><p class="question-modal-subtitle">Poucas opções, só as que mudam de verdade a sensação do app.</p></div><button class="icon-button" id="closeAppearanceModal" aria-label="Fechar">×</button></div>
-      <div class="appearance-section"><span class="appearance-label">MODO</span><div class="appearance-options" id="themeModeOptions"><button data-theme-choice="system">Sistema</button><button data-theme-choice="light">Claro</button><button data-theme-choice="dark">Escuro</button><button data-theme-choice="amoled">AMOLED</button></div></div>
-      <div class="appearance-section"><span class="appearance-label">TEMA DE COR</span><div class="color-theme-grid" id="colorThemeOptions">
-        <button data-color-choice="sessions"><i class="swatch sessions"></i><span>Sessions</span></button>
-        <button data-color-choice="medstudy"><i class="swatch medstudy"></i><span>MedStudy</span></button>
-        <button data-color-choice="lagoon"><i class="swatch lagoon"></i><span>Lagoon</span></button>
-        <button data-color-choice="grove"><i class="swatch grove"></i><span>Grove</span></button>
-        <button data-color-choice="twilight"><i class="swatch twilight"></i><span>Twilight</span></button>
-        <button data-color-choice="sakura"><i class="swatch sakura"></i><span>Sakura</span></button>
-      </div></div>
-    </div>
-  </div>
-
-  <nav class="mobile-bottom-nav" aria-label="Navegação móvel">
-    <button class="bottom-nav-item active" data-view="dashboard"><svg class="bottom-nav-icon"><use href="#icon-home"></use></svg><b>Hoje</b></button>
-    <button class="bottom-nav-item" data-view="timer"><svg class="bottom-nav-icon"><use href="#icon-timer"></use></svg><b>Timer</b></button>
-    <button class="bottom-nav-item" data-view="materials"><svg class="bottom-nav-icon"><use href="#icon-book"></use></svg><b>Estudos</b></button>
-    <button class="bottom-nav-item" data-view="exams"><svg class="bottom-nav-icon"><use href="#icon-exam"></use></svg><b>Provas</b></button>
-    <button class="bottom-nav-item" data-view="insights"><svg class="bottom-nav-icon"><use href="#icon-insights"></use></svg><b>Insights</b></button>
-  </nav>
-
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="storage.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

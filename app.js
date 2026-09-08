@@ -1,11 +1,9 @@
-(async () => {
+(() => {
   'use strict';
 
   const MATERIALS_KEY = 'medstudy_materials_v1';
   const EXAMS_KEY = 'medstudy_exams_v1';
-  const SESSIONS_KEY = 'medstudy_sessions_v2';
-  const SETTINGS_KEY = 'medstudy_settings_v2';
-  const ACTIVE_TIMER_KEY = 'medstudy_active_timer_v2';
+  const SIDEBAR_COLLAPSED_KEY = 'medstudy_sidebar_collapsed_v1';
   const EXAM_TYPES = ['PR1.1', 'PR1.2', 'PR2.1', 'PR2.2', 'PR1', 'PR2', 'Segunda chamada', 'Prova final', 'Prova'];
 
   const $ = (selector) => document.querySelector(selector);
@@ -18,7 +16,7 @@
     return local.toISOString().slice(0, 10);
   }
 
-  function parseLegacyStoredArray(key) {
+  function parseStoredArray(key) {
     try {
       const parsed = JSON.parse(localStorage.getItem(key) || '[]');
       return Array.isArray(parsed) ? parsed : [];
@@ -138,59 +136,6 @@
     };
   }
 
-
-  function normalizeSession(item = {}) {
-    const startTime = item.startTime && !Number.isNaN(new Date(item.startTime).getTime()) ? item.startTime : new Date().toISOString();
-    const endTime = item.endTime && !Number.isNaN(new Date(item.endTime).getTime()) ? item.endTime : startTime;
-    return {
-      id: String(item.id || makeId('s')),
-      materialId: item.materialId ? String(item.materialId) : '',
-      subject: String(item.subject || 'Sessão livre').trim() || 'Sessão livre',
-      materialTitle: String(item.materialTitle || '').trim(),
-      activityType: String(item.activityType || 'Apostila').trim() || 'Apostila',
-      startTime,
-      endTime,
-      durationSec: Math.max(1, Math.round(Number(item.durationSec) || ((new Date(endTime) - new Date(startTime)) / 1000) || 1)),
-      createdAt: item.createdAt || endTime || new Date().toISOString(),
-    };
-  }
-
-  function parseLegacyStoredObject(key, fallback = {}) {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
-    } catch (error) {
-      console.warn(`Não foi possível carregar ${key}:`, error);
-      return fallback;
-    }
-  }
-
-  function normalizeSettings(value = {}) {
-    const theme = ['system', 'light', 'dark', 'amoled'].includes(value.theme) ? value.theme : 'system';
-    const colorTheme = ['sessions', 'medstudy', 'lagoon', 'grove', 'twilight', 'sakura'].includes(value.colorTheme) ? value.colorTheme : 'sessions';
-    const sidebarCollapsed = Boolean(value.sidebarCollapsed);
-    return { theme, colorTheme, sidebarCollapsed };
-  }
-
-  function normalizeActiveTimer(item) {
-    if (!item || typeof item !== 'object' || !item.startTime) return null;
-    const start = new Date(item.startTime).getTime();
-    if (Number.isNaN(start)) return null;
-    return {
-      id: String(item.id || makeId('timer')),
-      startTime: new Date(start).toISOString(),
-      mode: ['stopwatch', '25', '50'].includes(String(item.mode)) ? String(item.mode) : 'stopwatch',
-      targetSec: Math.max(0, Number(item.targetSec) || 0),
-      materialId: item.materialId ? String(item.materialId) : '',
-      subject: String(item.subject || 'Sessão livre'),
-      materialTitle: String(item.materialTitle || ''),
-      activityType: String(item.activityType || 'Apostila'),
-      paused: Boolean(item.paused),
-      pausedAt: item.pausedAt || null,
-      totalPausedSec: Math.max(0, Number(item.totalPausedSec) || 0),
-    };
-  }
-
   function migrateLegacyExams(rawMaterials, normalizedMaterials) {
     const groups = new Map();
 
@@ -245,53 +190,17 @@
     }));
   }
 
-  if (!window.StudyStorage) throw new Error('StudyStorage não foi carregado.');
-
-  const storageSnapshot = await window.StudyStorage.loadSnapshot();
-  const hasIndexedData = storageSnapshot.initialized || storageSnapshot.materials.length || storageSnapshot.exams.length || storageSnapshot.sessions.length;
-
-  let rawMaterialsAtStart = storageSnapshot.materials;
-  let rawExamsAtStart = storageSnapshot.exams;
-  let rawSessionsAtStart = storageSnapshot.sessions;
-  let settingsAtStartRaw = storageSnapshot.settings || {};
-  let activeTimerAtStartRaw = storageSnapshot.activeTimer || null;
-  let migratedFromLegacyStorage = false;
-  let hadExamStorage = true;
-
-  // Migração automática quando a versão IndexedDB é aberta pela primeira vez NA MESMA ORIGEM
-  // em que o MedStudy antigo usava localStorage. Ao mover para uma nova URL, será necessária
-  // apenas uma importação de backup; depois disso as atualizações deixam de depender da pasta.
-  if (!hasIndexedData) {
-    const legacyMaterials = parseLegacyStoredArray(MATERIALS_KEY);
-    const legacyExams = parseLegacyStoredArray(EXAMS_KEY);
-    const legacySessions = parseLegacyStoredArray(SESSIONS_KEY);
-    const legacySettings = parseLegacyStoredObject(SETTINGS_KEY, {});
-    const legacyActiveTimer = parseLegacyStoredObject(ACTIVE_TIMER_KEY, null);
-    const hasLegacy = legacyMaterials.length || legacyExams.length || legacySessions.length || localStorage.getItem(SETTINGS_KEY) !== null || localStorage.getItem(ACTIVE_TIMER_KEY) !== null;
-    if (hasLegacy) {
-      rawMaterialsAtStart = legacyMaterials;
-      rawExamsAtStart = legacyExams;
-      rawSessionsAtStart = legacySessions;
-      settingsAtStartRaw = legacySettings;
-      activeTimerAtStartRaw = legacyActiveTimer;
-      hadExamStorage = localStorage.getItem(EXAMS_KEY) !== null;
-      migratedFromLegacyStorage = true;
-    }
-  }
-
+  const rawMaterialsAtStart = parseStoredArray(MATERIALS_KEY);
   const normalizedMaterialsAtStart = rawMaterialsAtStart.map(normalizeMaterial);
-  const settingsAtStart = normalizeSettings(settingsAtStartRaw);
-  const activeTimerAtStart = normalizeActiveTimer(activeTimerAtStartRaw);
+  const hadExamStorage = localStorage.getItem(EXAMS_KEY) !== null;
+  const rawExamsAtStart = parseStoredArray(EXAMS_KEY);
 
   const state = {
     materials: normalizedMaterialsAtStart,
     exams: rawExamsAtStart.map(normalizeExam),
-    sessions: rawSessionsAtStart.map(normalizeSession),
-    settings: settingsAtStart,
-    activeTimer: activeTimerAtStart,
     currentView: 'dashboard',
-    insightsRange: '7',
-    timerMode: activeTimerAtStart?.mode || 'stopwatch',
+    sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1',
+    expandedExamIds: new Set(),
   };
 
   if (!hadExamStorage && !state.exams.length) {
@@ -299,35 +208,19 @@
   }
 
   const els = {
-    sidebar: $('#sidebar'), sidebarCollapseBtn: $('#sidebarCollapseBtn'), menuButton: $('#menuButton'), navItems: $$('[data-view]'), views: $$('.view'), pageTitle: $('#pageTitle'), todayLabel: $('#todayLabel'), primaryActionBtn: $('#primaryActionBtn'),
+    sidebar: $('#sidebar'), menuButton: $('#menuButton'), sidebarCollapseButton: $('#sidebarCollapseButton'), navItems: $$('.nav-item'), views: $$('.view'), pageTitle: $('#pageTitle'), todayLabel: $('#todayLabel'), primaryActionBtn: $('#primaryActionBtn'),
     materialModal: $('#materialModal'), closeModal: $('#closeModal'), cancelModal: $('#cancelModal'), materialForm: $('#materialForm'), materialId: $('#materialId'), modalTitle: $('#modalTitle'), subjectInput: $('#subjectInput'), titleInput: $('#titleInput'), classDateInput: $('#classDateInput'), classOrderInput: $('#classOrderInput'), sketchyTagsInput: $('#sketchyTagsInput'), madeInput: $('#madeInput'), readInput: $('#readInput'), notesInput: $('#notesInput'), validationMessage: $('#validationMessage'),
     openQuestionManagerFromMaterial: $('#openQuestionManagerFromMaterial'), modalQuestionsTotal: $('#modalQuestionsTotal'), modalCorrectTotal: $('#modalCorrectTotal'), modalWrongTotal: $('#modalWrongTotal'), questionHistoryHint: $('#questionHistoryHint'),
     questionModal: $('#questionModal'), closeQuestionModal: $('#closeQuestionModal'), questionModalTitle: $('#questionModalTitle'), questionModalSubtitle: $('#questionModalSubtitle'), questionEntryForm: $('#questionEntryForm'), questionMaterialId: $('#questionMaterialId'), questionEntryId: $('#questionEntryId'), questionDateInput: $('#questionDateInput'), questionTotalInput: $('#questionTotalInput'), questionCorrectInput: $('#questionCorrectInput'), questionWrongInput: $('#questionWrongInput'), questionValidationMessage: $('#questionValidationMessage'), questionEntryFormKicker: $('#questionEntryFormKicker'), saveQuestionEntry: $('#saveQuestionEntry'), cancelQuestionEntryEdit: $('#cancelQuestionEntryEdit'), questionModalTotal: $('#questionModalTotal'), questionModalCorrect: $('#questionModalCorrect'), questionModalWrong: $('#questionModalWrong'), questionModalAccuracy: $('#questionModalAccuracy'), questionEntryCount: $('#questionEntryCount'), questionEntryList: $('#questionEntryList'),
     searchInput: $('#searchInput'), subjectFilter: $('#subjectFilter'), statusFilter: $('#statusFilter'), materialExamFilter: $('#materialExamFilter'), sortSelect: $('#sortSelect'), materialsList: $('#materialsList'),
     examSubjectFilter: $('#examSubjectFilter'), examStatusFilter: $('#examStatusFilter'), examsList: $('#examsList'), examFormModal: $('#examFormModal'), closeExamFormModal: $('#closeExamFormModal'), cancelExamForm: $('#cancelExamForm'), examForm: $('#examForm'), examId: $('#examId'), examFormTitle: $('#examFormTitle'), examSubjectInput: $('#examSubjectInput'), examTypeInput: $('#examTypeInput'), examDateInput: $('#examDateInput'), examMaterialOptions: $('#examMaterialOptions'), examMaterialSelectionCount: $('#examMaterialSelectionCount'), examTotalInput: $('#examTotalInput'), examCorrectInput: $('#examCorrectInput'), examWrongInput: $('#examWrongInput'), examValidationMessage: $('#examValidationMessage'),
-    performanceSubjectFilter: $('#performanceSubjectFilter'), performanceTopicSort: $('#performanceTopicSort'),
-    timerMaterialSelect: $('#timerMaterialSelect'), timerActivitySelect: $('#timerActivitySelect'), timerDisplay: $('#timerDisplay'), timerModeLabel: $('#timerModeLabel'), timerContextTitle: $('#timerContextTitle'), timerContextSub: $('#timerContextSub'), timerStatePill: $('#timerStatePill'), timerPlayBtn: $('#timerPlayBtn'), timerFinishBtn: $('#timerFinishBtn'), timerResetBtn: $('#timerResetBtn'), timerTodayList: $('#timerTodayList'),
-    insightsRangeSwitch: $('#insightsRangeSwitch'), focusHeatmap: $('#focusHeatmap'),
-    appearanceBtn: $('#appearanceBtn'), appearanceModal: $('#appearanceModal'), closeAppearanceModal: $('#closeAppearanceModal'), themeModeOptions: $('#themeModeOptions'), colorThemeOptions: $('#colorThemeOptions'),
-    toast: $('#toast'), exportBtn: $('#exportBtn'), importInput: $('#importInput'), storageStatus: $('#storageStatus'),
+    performanceSubjectFilter: $('#performanceSubjectFilter'),
+    toast: $('#toast'), exportBtn: $('#exportBtn'), importInput: $('#importInput'),
   };
 
-  let persistQueue = Promise.resolve();
-  function queuePersist(task) {
-    persistQueue = persistQueue.then(task).catch((error) => {
-      console.error('Falha ao salvar no Study Core:', error);
-      showToast?.('Não foi possível salvar os dados localmente.');
-    });
-    return persistQueue;
-  }
-  function saveMaterials() { return queuePersist(() => window.StudyStorage.replaceAll('materials', state.materials)); }
-  function saveExams() { return queuePersist(() => window.StudyStorage.replaceAll('exams', state.exams)); }
-  function saveSessions() { return queuePersist(() => window.StudyStorage.replaceAll('sessions', state.sessions)); }
-  function saveSettings() { return queuePersist(() => window.StudyStorage.setKV('settings', state.settings)); }
-  function saveActiveTimer() { return queuePersist(() => state.activeTimer ? window.StudyStorage.setKV('activeTimer', state.activeTimer) : window.StudyStorage.deleteKV('activeTimer')); }
-  function saveAll() {
-    return queuePersist(() => window.StudyStorage.saveSnapshot({ materials: state.materials, exams: state.exams, sessions: state.sessions, settings: state.settings, activeTimer: state.activeTimer }));
-  }
+  function saveMaterials() { localStorage.setItem(MATERIALS_KEY, JSON.stringify(state.materials)); }
+  function saveExams() { localStorage.setItem(EXAMS_KEY, JSON.stringify(state.exams)); }
+  function saveAll() { saveMaterials(); saveExams(); }
 
   function escapeHtml(value = '') {
     return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -360,11 +253,79 @@
   function accuracy(correct, wrong) { const answered = Number(correct || 0) + Number(wrong || 0); return answered > 0 ? Math.round((Number(correct || 0) / answered) * 100) : 0; }
   function hasExamResult(exam) { return exam.total != null && exam.correct != null && exam.wrong != null && exam.total > 0 && exam.correct + exam.wrong === exam.total; }
 
+  function icon(name) {
+    const icons = {
+      kebab: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="5.5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="18.5" r="1.8"></circle></svg>',
+      edit: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4.2l10.05-10.05a1.8 1.8 0 0 0 0-2.55l-1.65-1.65a1.8 1.8 0 0 0-2.55 0L4 15.8V20z"></path><path d="m12.9 6.85 4.25 4.25"></path></svg>',
+      trash: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.75 4.75h6.5"></path><path d="M4.75 6.75h14.5"></path><path d="m6.2 0.25 0.65-2h10.8l0.65 2" transform="translate(-3.5 4.5)"></path><path d="M6.8 6.75 7.7 18a2 2 0 0 0 1.99 1.84h4.62A2 2 0 0 0 16.3 18l0.9-11.25"></path><path d="M10 10v5.5"></path><path d="M14 10v5.5"></path></svg>',
+      addQuestions: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6.5h8"></path><path d="M8 10.5h5"></path><path d="M6 3.75h12A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75z"></path><path d="M15.5 14.25v5"></path><path d="M13 16.75h5"></path></svg>',
+      madeOn: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.5 3.75H7A2.25 2.25 0 0 0 4.75 6v12A2.25 2.25 0 0 0 7 20.25h10A2.25 2.25 0 0 0 19.25 18V8.5z"></path><path d="M14.5 3.75V8.5h4.75"></path><path d="m8.5 14 2.15 2.15 4.85-5"></path></svg>',
+      madeOff: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13.5 3.75H7A2.25 2.25 0 0 0 4.75 6v12A2.25 2.25 0 0 0 7 20.25h10A2.25 2.25 0 0 0 19.25 18V9.5z"></path><path d="M13.5 3.75V9.5h5.75"></path><path d="m9 15.75 5.85-5.85 1.75 1.75-5.85 5.85-2.35.6z"></path></svg>',
+      readOn: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.75 5.75A2.25 2.25 0 0 1 6 3.5h3.25A2.75 2.75 0 0 1 12 6.25v13.25a2.75 2.75 0 0 0-2.75-2.75H6A2.25 2.25 0 0 0 3.75 19z"></path><path d="M20.25 5.75A2.25 2.25 0 0 0 18 3.5h-3.25A2.75 2.75 0 0 0 12 6.25v13.25a2.75 2.75 0 0 1 2.75-2.75H18A2.25 2.25 0 0 1 20.25 19z"></path><path d="m14.25 11.75 1.55 1.55 3-3.25"></path></svg>',
+      readOff: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.75 5.75A2.25 2.25 0 0 1 6 3.5h3.25A2.75 2.75 0 0 1 12 6.25v13.25a2.75 2.75 0 0 0-2.75-2.75H6A2.25 2.25 0 0 0 3.75 19z"></path><path d="M20.25 5.75A2.25 2.25 0 0 0 18 3.5h-3.25A2.75 2.75 0 0 0 12 6.25v13.25a2.75 2.75 0 0 1 2.75-2.75H18A2.25 2.25 0 0 1 20.25 19z"></path></svg>',
+    };
+    return icons[name] || '';
+  }
+
+  function buildActionMenu(items = [], label = 'Mais ações') {
+    return `<div class="action-menu"><button class="action-button action-menu-toggle" type="button" aria-label="${label}" title="${label}" aria-haspopup="true" aria-expanded="false">${icon('kebab')}</button><div class="action-menu-popover">${items.join('')}</div></div>`;
+  }
+
+  function actionMenuItem({ action, id, label, iconName, variant = '', entryId = null }) {
+    return `<button class="action-menu-item ${variant}" type="button" data-action="${action}" data-id="${id}"${entryId ? ` data-entry-id="${entryId}"` : ''}>${icon(iconName)}<span>${label}</span></button>`;
+  }
+
+  function closeActionMenus() {
+    $$('.action-menu.open').forEach((menu) => menu.classList.remove('open'));
+    $$('.action-menu-toggle[aria-expanded="true"]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  }
+
+  function toggleActionMenu(button) {
+    const menu = button?.closest('.action-menu');
+    if (!menu) return;
+    const shouldOpen = !menu.classList.contains('open');
+    closeActionMenus();
+    menu.classList.toggle('open', shouldOpen);
+    button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+  }
+
+  function saveSidebarCollapsed() {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, state.sidebarCollapsed ? '1' : '0');
+  }
+
+  function applySidebarCollapsedState() {
+    document.body.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+    if (!els.sidebarCollapseButton) return;
+    const label = state.sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral';
+    els.sidebarCollapseButton.setAttribute('aria-label', label);
+    els.sidebarCollapseButton.setAttribute('title', label);
+  }
+
+  function toggleSidebarCollapsed() {
+    if (window.innerWidth <= 820) {
+      els.sidebar.classList.toggle('open');
+      return;
+    }
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    saveSidebarCollapsed();
+    applySidebarCollapsedState();
+  }
+
   function getMaterialExamState(materialId) {
     const linkedExams = state.exams.filter((exam) => exam.materialIds.includes(materialId));
     const hasPendingExam = linkedExams.some((exam) => !hasExamResult(exam));
     const completedOnly = linkedExams.length > 0 && linkedExams.every(hasExamResult);
     return { linkedExams, hasPendingExam, completedOnly };
+  }
+
+
+  function renderExamMaterialList(exam, materials) {
+    if (!materials.length) return '<span class="exam-no-materials">Nenhuma apostila vinculada</span>';
+    const isExpanded = state.expandedExamIds.has(exam.id);
+    const visibleMaterials = isExpanded ? materials : materials.slice(0, 3);
+    const chips = visibleMaterials.map((m) => `<button type="button" class="exam-material-chip" data-action="open-topic" data-id="${m.id}">${escapeHtml(m.title)}</button>`).join('');
+    const toggle = materials.length > 3 ? `<button type="button" class="exam-material-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-exam-materials" data-id="${exam.id}">${isExpanded ? 'Mostrar menos' : `Ver todas (${materials.length})`}</button>` : '';
+    return `${chips}${toggle}`;
   }
 
   function classSort(a, b) {
@@ -383,73 +344,6 @@
     const bFuture = b.date >= today;
     if (aFuture !== bFuture) return aFuture ? -1 : 1;
     return aFuture ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
-  }
-
-
-  function localDateKey(value = new Date()) {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-    return local.toISOString().slice(0, 10);
-  }
-
-  function dateFromKey(key) { return new Date(`${key}T12:00:00`); }
-  function addDaysKey(key, delta) { const d = dateFromKey(key); d.setDate(d.getDate() + delta); return localDateKey(d); }
-  function secondsToClock(seconds = 0) {
-    const total = Math.max(0, Math.floor(Number(seconds) || 0));
-    const h = Math.floor(total / 3600); const m = Math.floor((total % 3600) / 60); const sec = total % 60;
-    return [h, m, sec].map((n) => String(n).padStart(2, '0')).join(':');
-  }
-  function formatDuration(seconds = 0, compact = false) {
-    const total = Math.max(0, Math.round(Number(seconds) || 0));
-    const h = Math.floor(total / 3600); const m = Math.floor((total % 3600) / 60);
-    if (h && m) return compact ? `${h}h${String(m).padStart(2, '0')}` : `${h}h ${m}min`;
-    if (h) return `${h}h`;
-    if (total > 0 && m === 0) return '<1 min';
-    return `${Math.max(0, m)} min`;
-  }
-  function sessionsOnDate(key) { return state.sessions.filter((session) => localDateKey(session.startTime) === key); }
-  function sessionSeconds(sessions = []) { return sessions.reduce((sum, session) => sum + Math.max(0, Number(session.durationSec) || 0), 0); }
-  function questionEntriesBetween(startKey, endKey) {
-    return state.materials.flatMap((material) => (material.questionEntries || []).filter((entry) => (!startKey || entry.date >= startKey) && (!endKey || entry.date <= endKey)).map((entry) => ({ ...entry, materialId: material.id, subject: material.subject, title: material.title })));
-  }
-  function questionStatsBetween(startKey, endKey) {
-    const entries = questionEntriesBetween(startKey, endKey);
-    const totals = getQuestionTotals(entries);
-    return { ...totals, answered: totals.correct + totals.wrong, accuracy: accuracy(totals.correct, totals.wrong), entries };
-  }
-  function sessionsBetween(startKey, endKey) { return state.sessions.filter((s) => { const key = localDateKey(s.startTime); return (!startKey || key >= startKey) && (!endKey || key <= endKey); }); }
-  function startOfWeekKey(key = todayDateValue()) {
-    const d = dateFromKey(key); const day = d.getDay(); const mondayDelta = day === 0 ? -6 : 1 - day; d.setDate(d.getDate() + mondayDelta); return localDateKey(d);
-  }
-  function getStreakStats() {
-    const active = new Set(state.sessions.map((s) => localDateKey(s.startTime)).filter(Boolean));
-    const today = todayDateValue(); const yesterday = addDaysKey(today, -1);
-    let cursor = active.has(today) ? today : (active.has(yesterday) ? yesterday : null); let current = 0;
-    while (cursor && active.has(cursor)) { current += 1; cursor = addDaysKey(cursor, -1); }
-    const sorted = [...active].sort(); let record = 0; let run = 0; let prev = null;
-    sorted.forEach((key) => { if (prev && addDaysKey(prev, 1) === key) run += 1; else run = 1; record = Math.max(record, run); prev = key; });
-    return { current, record, activeDays: active.size };
-  }
-  function percentDelta(current, previous) {
-    if (!previous) return current ? null : 0;
-    return Math.round(((current - previous) / previous) * 100);
-  }
-  function formatDelta(current, previous, suffix = '') {
-    const delta = percentDelta(current, previous);
-    if (delta == null) return 'novo período';
-    if (delta === 0) return `igual ao período anterior`;
-    return `${delta > 0 ? '+' : ''}${delta}% vs. anterior${suffix}`;
-  }
-  function periodRange(range = state.insightsRange) {
-    const end = todayDateValue();
-    if (range === 'all') {
-      const candidates = [state.sessions.map((s) => localDateKey(s.startTime)).sort()[0], ...state.materials.flatMap((m) => (m.questionEntries || []).map((e) => e.date)).sort().slice(0,1)].filter(Boolean).sort();
-      const start = candidates[0] || end;
-      return { start, end, previousStart: '', previousEnd: '', days: Math.max(1, Math.round((dateFromKey(end)-dateFromKey(start))/86400000)+1) };
-    }
-    const days = Number(range) || 7; const start = addDaysKey(end, -(days - 1)); const previousEnd = addDaysKey(start, -1); const previousStart = addDaysKey(previousEnd, -(days - 1));
-    return { start, end, previousStart, previousEnd, days };
   }
 
   function getStats(materials = state.materials) {
@@ -486,13 +380,10 @@
 
   function renderAll() {
     renderSubjectFilters();
-    renderTimerSelectors();
     renderDashboard();
     renderMaterials();
     renderExams();
     renderPerformance();
-    renderInsights();
-    renderTimer();
     updatePrimaryAction();
   }
 
@@ -513,7 +404,6 @@
   }
 
   function renderDashboard() {
-    renderTodayDashboard();
     const stats = getStats();
     $('#totalMaterials').textContent = stats.total;
     $('#totalSubjects').textContent = plural(stats.subjects, 'disciplina', 'disciplinas');
@@ -596,12 +486,15 @@
       return;
     }
     els.materialsList.innerHTML = materials.map((m, index) => {
-      const answeredAccuracy = accuracy(m.correct, m.wrong);
+      const actionMenu = buildActionMenu([
+        actionMenuItem({ action: 'edit', id: m.id, label: 'Editar apostila', iconName: 'edit' }),
+        actionMenuItem({ action: 'delete', id: m.id, label: 'Excluir apostila', iconName: 'trash', variant: 'danger' }),
+      ], 'Mais ações da apostila');
       return `<article class="material-card ${m.read ? 'read' : ''}">
         <div class="material-order">${m.classOrder !== '' ? escapeHtml(m.classOrder) : index + 1}</div>
-        <div class="material-info"><div class="material-title-row"><h3>${escapeHtml(m.title)}</h3><span class="status-badge ${m.read ? 'read' : 'pending'}">${m.read ? 'LIDA' : 'PENDENTE'}</span>${m.made ? '<span class="status-badge made">CONFECCIONADA</span>' : ''}</div><p class="material-meta">${escapeHtml(m.subject)} · Aula: ${formatDate(m.classDate)}</p>${m.sketchyTags ? `<div class="anki-notes-block"><div class="anki-notes-header"><span>AnKing Notes · ${getAnkiNoteCount(m.sketchyTags)} ${getAnkiNoteCount(m.sketchyTags) === 1 ? 'nota' : 'notas'}</span><button class="copy-query-button" type="button" data-action="copy-sketchy" data-id="${m.id}">Copiar query</button></div></div>` : ''}</div>
-        <div class="question-summary" aria-label="Resumo de questões"><div><span>QUESTÕES · ${m.questionEntries.length} ${m.questionEntries.length === 1 ? 'ENTRADA' : 'ENTRADAS'}</span><b>${m.questions}</b></div><div class="good"><span>ACERTOS</span><b>${m.correct}</b></div><div class="bad"><span>ERROS · ${answeredAccuracy}%</span><b>${m.wrong}</b></div></div>
-        <div class="material-actions"><button class="action-button study-action" data-action="start-study" data-id="${m.id}" title="Começar a estudar" aria-label="Começar a estudar">▶</button><button class="action-button question-add-action" data-action="add-questions" data-id="${m.id}" title="Registrar questões" aria-label="Registrar questões">+Q</button><button class="action-button made-action ${m.made ? 'active' : ''}" data-action="toggle-made" data-id="${m.id}" title="${m.made ? 'Marcar como não confeccionada' : 'Marcar como confeccionada'}" aria-label="${m.made ? 'Marcar como não confeccionada' : 'Marcar como confeccionada'}">${m.made ? '◆' : '◇'}</button><button class="action-button" data-action="toggle-read" data-id="${m.id}" title="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}" aria-label="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}">${m.read ? '✓' : '○'}</button><button class="action-button" data-action="edit" data-id="${m.id}" title="Editar" aria-label="Editar">✎</button><button class="action-button danger" data-action="delete" data-id="${m.id}" title="Excluir" aria-label="Excluir">⌫</button></div>
+        <div class="material-info"><div class="material-title-row"><h3>${escapeHtml(m.title)}</h3><span class="status-badge ${m.read ? 'read' : 'pending'}">${m.read ? 'LIDA' : 'PENDENTE'}</span>${m.made ? '<span class="status-badge made">PRODUZIDA</span>' : ''}</div><p class="material-meta">${escapeHtml(m.subject)} · Aula: ${formatDate(m.classDate)}</p>${m.sketchyTags ? `<div class="anki-notes-block"><div class="anki-notes-header"><span>AnKing Notes · ${getAnkiNoteCount(m.sketchyTags)} ${getAnkiNoteCount(m.sketchyTags) === 1 ? 'nota' : 'notas'}</span><button class="copy-query-button" type="button" data-action="copy-sketchy" data-id="${m.id}">Copiar query</button></div></div>` : ''}</div>
+        <div class="question-summary" aria-label="Resumo de questões"><div class="question-summary-total"><span>QUESTÕES</span><b>${m.questions}</b></div><div class="question-summary-correct good"><span>ACERTOS</span><b>${m.correct}</b></div><div class="question-summary-wrong bad"><span>ERROS</span><b>${m.wrong}</b></div></div>
+        <div class="material-actions"><button class="action-button question-add-action" data-action="add-questions" data-id="${m.id}" title="Registrar questões" aria-label="Registrar questões">${icon('addQuestions')}</button><button class="action-button made-action ${m.made ? 'active' : ''}" data-action="toggle-made" data-id="${m.id}" title="${m.made ? 'Marcar como não produzida' : 'Marcar como produzida'}" aria-label="${m.made ? 'Marcar como não produzida' : 'Marcar como produzida'}">${icon(m.made ? 'madeOn' : 'madeOff')}</button><button class="action-button read-action ${m.read ? 'active' : ''}" data-action="toggle-read" data-id="${m.id}" title="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}" aria-label="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}">${icon(m.read ? 'readOn' : 'readOff')}</button>${actionMenu}</div>
       </article>`;
     }).join('');
   }
@@ -658,10 +551,13 @@
       return `<article class="exam-card ${result ? 'has-result' : ''}">
         <div class="exam-card-main">
           <div class="exam-card-heading"><div><span class="exam-type-badge">${escapeHtml(exam.type)}</span><span class="exam-timing-badge">${examTimingLabel(exam)}</span></div><h3>${escapeHtml(exam.subject)}</h3><p>${formatDate(exam.date)}</p></div>
-          <div class="exam-syllabus"><span class="exam-section-label">APOSTILAS DA PROVA · ${materials.length}</span><div class="exam-material-chips">${materials.length ? materials.map((m) => `<button type="button" class="exam-material-chip" data-action="open-topic" data-id="${m.id}">${escapeHtml(m.title)}</button>`).join('') : '<span class="exam-no-materials">Nenhuma apostila vinculada</span>'}</div></div>
+          <div class="exam-syllabus"><span class="exam-section-label">APOSTILAS DA PROVA · ${materials.length}</span><div class="exam-material-chips">${renderExamMaterialList(exam, materials)}</div></div>
         </div>
         <div class="exam-result-box ${result ? '' : 'pending'}">${result ? `<div><span>QUESTÕES</span><b>${exam.total}</b></div><div class="good"><span>ACERTOS</span><b>${exam.correct}</b></div><div class="bad"><span>ERROS</span><b>${exam.wrong}</b></div><div><span>APROVEITAMENTO</span><b>${examAccuracy}%</b></div>` : '<div class="exam-result-pending-copy"><strong>Resultado ainda não lançado</strong><small>Edite a prova depois da avaliação para registrar total, acertos e erros.</small></div>'}</div>
-        <div class="exam-card-actions"><button class="ghost-button exam-edit-button" data-action="edit-exam" data-id="${exam.id}">${result ? 'Editar prova' : 'Lançar resultado / editar'}</button><button class="action-button danger" data-action="delete-exam" data-id="${exam.id}" title="Excluir prova">⌫</button></div>
+        <div class="exam-card-actions">${buildActionMenu([
+          actionMenuItem({ action: 'edit-exam', id: exam.id, label: result ? 'Editar prova' : 'Lançar resultado / editar', iconName: 'edit' }),
+          actionMenuItem({ action: 'delete-exam', id: exam.id, label: 'Excluir prova', iconName: 'trash', variant: 'danger' }),
+        ], 'Mais ações da prova')}</div>
       </article>`;
     }).join('');
   }
@@ -684,11 +580,10 @@
 
   function renderPerformance() {
     const selectedSubject = els.performanceSubjectFilter.value || 'all';
-    const topicSort = els.performanceTopicSort.value || 'priority';
     const scopedMaterials = state.materials.filter((m) => selectedSubject === 'all' || m.subject === selectedSubject);
     const stats = getStats(scopedMaterials);
     const subjectStats = getSubjectStats(scopedMaterials);
-    const topicStats = sortTopicRows(getTopicStats(scopedMaterials), topicSort);
+    const topicStats = getTopicStats(scopedMaterials);
     const answered = stats.correct + stats.wrong;
     const practicedTopics = topicStats.filter((row) => row.answered > 0);
 
@@ -700,202 +595,18 @@
     const mostPracticed = [...topicStats].sort((a, b) => b.questions - a.questions)[0];
     $('#weakestTopic').textContent = weakest ? `${weakest.topic} (${weakest.accuracy}%)` : '—'; $('#bestTopic').textContent = best ? `${best.topic} (${best.accuracy}%)` : '—'; $('#mostPracticedTopic').textContent = mostPracticed?.questions ? `${mostPracticed.topic} (${mostPracticed.questions})` : '—';
 
-    const analysis = $('#topicAnalysis');
-    if (!topicStats.length) analysis.innerHTML = '<div class="empty-state"><strong>Sem assuntos neste recorte.</strong>Cadastre apostilas para começar a análise.</div>';
-    else {
-      const grouped = new Map();
-      topicStats.forEach((row) => { if (!grouped.has(row.subject)) grouped.set(row.subject, []); grouped.get(row.subject).push(row); });
-      analysis.innerHTML = [...grouped.entries()].map(([subject, rows]) => `<section class="topic-subject-group"><div class="topic-group-header"><div><span>DISCIPLINA</span><h4>${escapeHtml(subject)}</h4></div><small>${plural(rows.length, 'assunto', 'assuntos')}</small></div><div class="topic-card-grid">${rows.map((row) => {
-        const hasAnswers = row.answered > 0; const priorityClass = !hasAnswers ? 'neutral' : row.accuracy < 60 ? 'danger' : row.accuracy < 80 ? 'warning' : 'good'; const readLabel = row.read ? 'LIDA' : 'PENDENTE';
-        return `<button class="topic-card ${priorityClass}" type="button" data-action="open-topic" data-id="${row.materialId}"><div class="topic-card-head"><div><span class="topic-card-kicker">${escapeHtml(row.subject)} · ${readLabel}</span><strong>${escapeHtml(row.topic)}</strong></div><b>${hasAnswers ? `${row.accuracy}%` : '—'}</b></div><div class="topic-progress"><span style="width:${hasAnswers ? row.accuracy : 0}%"></span></div><div class="topic-card-meta"><span>${row.questions} questões</span><span>${row.correct} ✓</span><span>${row.wrong} ✕</span>${row.ankiNoteCount ? `<span>${row.ankiNoteCount} ${row.ankiNoteCount === 1 ? 'nota Anki' : 'notas Anki'}</span>` : ''}</div></button>`;
-      }).join('')}</div></section>`).join('');
-    }
-
-    const topicBody = $('#topicTableBody');
-    topicBody.innerHTML = topicStats.length ? topicStats.map((row) => `<tr class="clickable-row" data-action="open-topic" data-id="${row.materialId}"><td>${escapeHtml(row.subject)}</td><td><strong>${escapeHtml(row.topic)}</strong></td><td><span class="status-badge ${row.read ? 'read' : 'pending'}">${row.read ? 'LIDA' : 'PENDENTE'}</span></td><td>${row.questions}</td><td>${row.correct}</td><td>${row.wrong}</td><td><span class="score-chip ${!row.answered ? 'muted' : row.accuracy < 60 ? 'danger' : row.accuracy < 80 ? 'warning' : 'good'}">${row.answered ? `${row.accuracy}%` : '—'}</span></td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:#66727f;padding:28px">Nenhum dado cadastrado.</td></tr>';
-
     const subjectBody = $('#subjectTableBody');
     subjectBody.innerHTML = subjectStats.length ? subjectStats.map((row) => `<tr><td><strong>${escapeHtml(row.subject)}</strong></td><td>${row.topics}</td><td>${row.read}</td><td>${row.questions}</td><td>${row.correct}</td><td>${row.wrong}</td><td><span class="score-chip">${row.correct + row.wrong ? `${row.accuracy}%` : '—'}</span></td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:#66727f;padding:28px">Nenhum dado cadastrado.</td></tr>';
   }
 
-
-  function renderTimerSelectors() {
-    if (!els.timerMaterialSelect) return;
-    const current = els.timerMaterialSelect.value;
-    const grouped = new Map();
-    [...state.materials].sort((a,b) => a.subject.localeCompare(b.subject,'pt-BR') || classSort(a,b)).forEach((m) => {
-      if (!grouped.has(m.subject)) grouped.set(m.subject, []);
-      grouped.get(m.subject).push(m);
-    });
-    els.timerMaterialSelect.innerHTML = '<option value="">Sessão livre</option>' + [...grouped.entries()].map(([subject, list]) => `<optgroup label="${escapeHtml(subject)}">${list.map((m) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`).join('')}</optgroup>`).join('');
-    const wanted = state.activeTimer?.materialId || current;
-    if ([...els.timerMaterialSelect.options].some((option) => option.value === wanted)) els.timerMaterialSelect.value = wanted;
-  }
-
-  function renderSessionList(container, sessions, emptyCopy = 'Nenhuma sessão registrada.') {
-    if (!container) return;
-    const ordered = [...sessions].sort((a,b) => b.startTime.localeCompare(a.startTime));
-    if (!ordered.length) { container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(emptyCopy)}</strong>Use o timer e seu histórico aparece aqui automaticamente.</div>`; return; }
-    container.innerHTML = ordered.map((s) => {
-      const time = new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(new Date(s.startTime));
-      const title = s.materialTitle || s.subject || 'Sessão livre';
-      return `<div class="session-row"><div class="session-icon">${s.activityType === 'Questões' ? '?' : s.activityType === 'Anki' ? 'A' : '▶'}</div><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(s.subject)} · ${escapeHtml(s.activityType)} · ${time}</small></div><div style="display:flex;align-items:center;gap:4px"><span class="session-duration">${formatDuration(s.durationSec,true)}</span><button class="session-delete" type="button" data-action="delete-session" data-id="${s.id}" aria-label="Excluir sessão">×</button></div></div>`;
-    }).join('');
-  }
-
-  function renderTodayDashboard() {
-    const today = todayDateValue(); const todaySessions = sessionsOnDate(today); const todaySec = sessionSeconds(todaySessions);
-    const weekStart = startOfWeekKey(today); const weekSessions = sessionsBetween(weekStart, today); const weekSec = sessionSeconds(weekSessions);
-    const prevWeekStart = addDaysKey(weekStart,-7); const prevWeekEnd = addDaysKey(weekStart,-1); const prevWeekSec = sessionSeconds(sessionsBetween(prevWeekStart, prevWeekEnd));
-    const q = questionStatsBetween(today,today); const streak = getStreakStats();
-    $('#todayFocusHero').textContent = formatDuration(todaySec);
-    $('#todayHeroCopy').textContent = todaySessions.length ? `${plural(todaySessions.length,'sessão registrada','sessões registradas')} hoje. Continue acumulando minutos reais.` : 'Nenhuma sessão registrada hoje. Um clique e o relógio começa.';
-    $('#weekFocusHero').textContent = formatDuration(weekSec);
-    $('#weekDeltaHero').textContent = prevWeekSec ? formatDelta(weekSec,prevWeekSec) : (weekSec ? 'primeira semana registrada' : 'Sem comparação ainda');
-    const reference = prevWeekSec || Math.max(weekSec, 1); const progress = Math.min(100, Math.round((weekSec/reference)*100)); $('#weekProgressBar').style.width = `${progress}%`;
-    $('#weekProgressLabel').textContent = prevWeekSec ? (weekSec >= prevWeekSec ? `Você já bateu ${progress}% da semana anterior` : `Faltam ${formatDuration(prevWeekSec-weekSec)} para igualar a semana anterior`) : 'Seu primeiro baseline semanal está sendo criado';
-    $('#todayWeekFocus').textContent = formatDuration(weekSec); $('#todayWeekSessions').textContent = plural(weekSessions.length,'sessão','sessões');
-    $('#todayQuestions').textContent = q.questions; $('#todayQuestionLabel').textContent = q.questions ? plural(q.entries.length,'entrada registrada','entradas registradas') : 'nenhuma registrada';
-    $('#todayAccuracy').textContent = q.answered ? `${q.accuracy}%` : '—'; $('#todayAnswered').textContent = `${q.answered} respondidas`;
-    $('#todayStreak').textContent = streak.current; $('#todayStreakLabel').textContent = streak.current === 1 ? 'dia de sequência' : 'dias de sequência';
-    renderSessionList($('#todaySessionList'), todaySessions, 'Seu dia ainda está zerado.');
-  }
-
-  function timerElapsedSeconds(timer = state.activeTimer) {
-    if (!timer) return 0;
-    const start = new Date(timer.startTime).getTime(); const end = timer.paused && timer.pausedAt ? new Date(timer.pausedAt).getTime() : Date.now();
-    return Math.max(0, Math.floor((end-start)/1000 - (timer.totalPausedSec || 0)));
-  }
-
-  function timerContextFromSelection() {
-    const material = state.materials.find((m) => m.id === els.timerMaterialSelect?.value);
-    return material ? { materialId: material.id, subject: material.subject, materialTitle: material.title } : { materialId:'', subject:'Sessão livre', materialTitle:'' };
-  }
-
-  function setTimerMode(mode) {
-    if (state.activeTimer) return;
-    state.timerMode = ['stopwatch','25','50'].includes(String(mode)) ? String(mode) : 'stopwatch';
-    renderTimer();
-  }
-
-  function startTimer(contextOverride = null) {
-    if (state.activeTimer) return;
-    const context = contextOverride || timerContextFromSelection(); const mode = state.timerMode; const targetSec = mode === '25' ? 1500 : mode === '50' ? 3000 : 0;
-    state.activeTimer = normalizeActiveTimer({ id:makeId('timer'), startTime:new Date().toISOString(), mode, targetSec, ...context, activityType:els.timerActivitySelect?.value || 'Apostila', paused:false, totalPausedSec:0 });
-    saveActiveTimer(); renderTimer(); showToast('Sessão iniciada.');
-  }
-
-  function pauseTimer() { if (!state.activeTimer || state.activeTimer.paused) return; state.activeTimer.paused = true; state.activeTimer.pausedAt = new Date().toISOString(); saveActiveTimer(); renderTimer(); }
-  function resumeTimer() { if (!state.activeTimer || !state.activeTimer.paused) return; const pausedFor = Math.max(0,(Date.now()-new Date(state.activeTimer.pausedAt).getTime())/1000); state.activeTimer.totalPausedSec += pausedFor; state.activeTimer.paused=false; state.activeTimer.pausedAt=null; saveActiveTimer(); renderTimer(); }
-  function completeTimer(auto = false) {
-    if (!state.activeTimer) return;
-    const timer = state.activeTimer; let elapsed = timerElapsedSeconds(timer); if (timer.targetSec) elapsed = Math.min(elapsed,timer.targetSec);
-    if (elapsed < 5 && !auto) { if (!window.confirm('Esta sessão tem menos de 5 segundos. Salvar mesmo assim?')) { state.activeTimer=null; saveActiveTimer(); renderTimer(); return; } }
-    const endTime = new Date().toISOString();
-    state.sessions.push(normalizeSession({ id:makeId('s'), materialId:timer.materialId, subject:timer.subject, materialTitle:timer.materialTitle, activityType:timer.activityType, startTime:timer.startTime, endTime, durationSec:Math.max(1,elapsed) }));
-    state.activeTimer=null; saveSessions(); saveActiveTimer(); renderAll(); showToast(auto ? 'Tempo concluído e sessão salva.' : 'Sessão salva.');
-  }
-  function clearTimer() { if (state.activeTimer && !window.confirm('Descartar a sessão em andamento?')) return; state.activeTimer=null; saveActiveTimer(); renderTimer(); }
-
-  function renderTimer() {
-    if (!els.timerDisplay) return;
-    const timer = state.activeTimer;
-    $$('.timer-preset').forEach((button) => button.classList.toggle('active', button.dataset.timerMode === (timer?.mode || state.timerMode)));
-    const context = timer || timerContextFromSelection();
-    els.timerContextTitle.textContent = context.materialTitle || context.subject || 'Sessão livre';
-    els.timerContextSub.textContent = context.materialTitle ? `${context.subject} · ${timer?.activityType || els.timerActivitySelect.value}` : 'Escolha um assunto ou apenas comece.';
-    if (timer) {
-      const elapsed = timerElapsedSeconds(timer); const shown = timer.targetSec ? Math.max(0,timer.targetSec-elapsed) : elapsed;
-      els.timerDisplay.textContent = secondsToClock(shown); els.timerModeLabel.textContent = timer.targetSec ? `${Math.round(timer.targetSec/60)} min de foco` : 'Cronômetro livre';
-      els.timerStatePill.textContent = timer.paused ? 'PAUSADO' : 'FOCO'; els.timerPlayBtn.textContent = timer.paused ? '▶' : 'Ⅱ'; els.timerFinishBtn.disabled = false; els.timerMaterialSelect.disabled = true; els.timerActivitySelect.disabled = true;
-      if (timer.targetSec && elapsed >= timer.targetSec && !timer.paused) { completeTimer(true); return; }
-    } else {
-      els.timerDisplay.textContent = state.timerMode === '25' ? '00:25:00' : state.timerMode === '50' ? '00:50:00' : '00:00:00'; els.timerModeLabel.textContent = state.timerMode === 'stopwatch' ? 'Cronômetro livre' : `${state.timerMode} min de foco`;
-      els.timerStatePill.textContent='PRONTO'; els.timerPlayBtn.textContent='▶'; els.timerFinishBtn.disabled=true; els.timerMaterialSelect.disabled=false; els.timerActivitySelect.disabled=false;
-    }
-    renderSessionList(els.timerTodayList, sessionsOnDate(todayDateValue()), 'Nenhuma sessão hoje.');
-  }
-
-  function rangeDatesForCalendar(start,end) {
-    const keys=[]; let cur=start; while (cur<=end && keys.length<5000) { keys.push(cur); cur=addDaysKey(cur,1); } return keys;
-  }
-
-  function renderInsights() {
-    if (!$('#insightFocus')) return;
-    const range = periodRange(); const currentSessions = sessionsBetween(range.start,range.end); const previousSessions = range.previousStart ? sessionsBetween(range.previousStart,range.previousEnd) : [];
-    const currentSec=sessionSeconds(currentSessions), previousSec=sessionSeconds(previousSessions); const currentQ=questionStatsBetween(range.start,range.end), previousQ=range.previousStart ? questionStatsBetween(range.previousStart,range.previousEnd) : {questions:0,answered:0,accuracy:0};
-    const streak=getStreakStats(); const activeDays=new Set(currentSessions.map((s)=>localDateKey(s.startTime))).size; const prevActiveDays=new Set(previousSessions.map((s)=>localDateKey(s.startTime))).size;
-    $('#insightFocus').textContent=formatDuration(currentSec); $('#insightFocusDelta').textContent=range.previousStart ? formatDelta(currentSec,previousSec) : 'histórico completo';
-    $('#insightSessions').textContent=currentSessions.length; $('#insightSessionAvg').textContent=`média ${formatDuration(currentSessions.length ? currentSec/currentSessions.length : 0)}`;
-    $('#insightQuestions').textContent=currentQ.questions; $('#insightAccuracy').textContent=currentQ.answered ? `${currentQ.accuracy}% de acerto` : '— de acerto';
-    $('#insightStreak').textContent=streak.current; $('#insightStreakRecord').textContent=`recorde ${streak.record} dias`;
-    els.insightsRangeSwitch?.querySelectorAll('[data-range]').forEach((b)=>b.classList.toggle('active',b.dataset.range===state.insightsRange));
-    renderHeatmap();
-    const consistency = Math.round((activeDays / Math.max(1,range.days))*100); $('#momentumMain').textContent=streak.current ? `🔥 ${streak.current} ${streak.current===1?'dia':'dias'}` : 'Começando'; $('#momentumCopy').textContent=streak.current ? `Seu recorde é ${streak.record} dias. Você estudou em ${activeDays} dias deste período.` : 'Faça sua primeira sessão para construir uma sequência.'; $('#consistencyBar').style.width=`${Math.min(100,consistency)}%`; $('#consistencyLabel').textContent=`${consistency}% de dias ativos no período`;
-    renderWeeklyRhythm(range,currentSessions); renderAllocation(currentSessions,currentSec); renderVersus({currentSec,previousSec,currentQ,previousQ,activeDays,prevActiveDays,currentSessions,previousSessions}); renderRecords();
-  }
-
-  function renderHeatmap() {
-    const end=todayDateValue(); const start=addDaysKey(end,-364); const startDate=dateFromKey(start); const mondayOffset=startDate.getDay()===0?6:startDate.getDay()-1; const gridStart=addDaysKey(start,-mondayOffset); const daily=new Map(); state.sessions.forEach((s)=>{const key=localDateKey(s.startTime); daily.set(key,(daily.get(key)||0)+s.durationSec);});
-    let html=''; for(let i=0;i<371;i++){const key=addDaysKey(gridStart,i); const seconds=daily.get(key)||0; const minutes=Math.round(seconds/60); const level=minutes===0?0:minutes<30?1:minutes<90?2:minutes<180?3:4; const d=dateFromKey(key); const row=d.getDay()===0?7:d.getDay(); const col=Math.floor(i/7)+1; html+=`<span class="heat-cell" data-level="${level}" style="grid-row:${row};grid-column:${col}" title="${formatDate(key)} · ${formatDuration(seconds)}"></span>`;} els.focusHeatmap.innerHTML=html;
-  }
-
-  function renderWeeklyRhythm(range,sessions) {
-    const labels=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']; const totals=Array(7).fill(0), counts=Array(7).fill(0); sessions.forEach((s)=>totals[new Date(s.startTime).getDay()]+=s.durationSec); rangeDatesForCalendar(range.start,range.end).forEach((key)=>counts[dateFromKey(key).getDay()]++); const avgs=totals.map((v,i)=>counts[i]?v/counts[i]:0); const max=Math.max(...avgs,1); const order=[1,2,3,4,5,6,0]; $('#weeklyRhythm').innerHTML=order.map((i)=>`<div class="rhythm-row"><span>${labels[i]}</span><div class="rhythm-track"><i style="width:${Math.round((avgs[i]/max)*100)}%"></i></div><b>${formatDuration(avgs[i],true)}</b></div>`).join('');
-  }
-
-  function renderAllocation(sessions,totalSec) {
-    const map=new Map(); sessions.forEach((s)=>map.set(s.subject,(map.get(s.subject)||0)+s.durationSec)); const rows=[...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6); const palette=['var(--accent)','var(--focus-secondary)','color-mix(in srgb,var(--accent) 70%,#7d8ca8)','color-mix(in srgb,var(--accent) 52%,#73a477)','color-mix(in srgb,var(--accent) 42%,#d4a55a)','#8d839f']; let acc=0; const parts=rows.map(([_,sec],i)=>{const start=acc; const pct=totalSec?sec/totalSec*100:0; acc+=pct; return `${palette[i]} ${start}% ${acc}%`;}); $('#allocationDonut').style.background=rows.length?`conic-gradient(${parts.join(',')})`:'var(--surface-v2-3)'; $('#allocationCenter').textContent=formatDuration(totalSec,true); $('#allocationLegend').innerHTML=rows.length?rows.map(([subject,sec],i)=>`<div class="allocation-row"><i style="--allocation-color:${palette[i]}"></i><span>${escapeHtml(subject)}</span><b>${totalSec?Math.round(sec/totalSec*100):0}%</b></div>`).join(''):'<div class="empty-state"><strong>Sem distribuição ainda.</strong>Registre sessões para ver onde seu tempo foi.</div>';
-  }
-
-  function renderVersus(data) {
-    const metrics=[['Tempo',data.currentSec,data.previousSec,(v)=>formatDuration(v,true)],['Sessões',data.currentSessions.length,data.previousSessions.length,(v)=>String(v)],['Questões',data.currentQ.questions,data.previousQ.questions,(v)=>String(v)],['Dias ativos',data.activeDays,data.prevActiveDays,(v)=>String(v)]]; let wins=0,losses=0; const rows=metrics.map(([label,c,p,fmt])=>{const diff=c-p; if(diff>0)wins++; else if(diff<0)losses++; const cls=diff>0?'good':diff<0?'bad':'neutral'; const delta=p?`${percentDelta(c,p)>0?'+':''}${percentDelta(c,p)}%`:c?'novo':'—'; return `<div class="versus-row"><span>${label}</span><b class="${cls}">${fmt(c)} · ${delta}</b></div>`;}); if(data.currentQ.answered||data.previousQ.answered){const diff=data.currentQ.accuracy-data.previousQ.accuracy;if(diff>0)wins++;else if(diff<0)losses++;rows.push(`<div class="versus-row"><span>Accuracy</span><b class="${diff>0?'good':diff<0?'bad':'neutral'}">${data.currentQ.answered?data.currentQ.accuracy+'%':'—'} · ${diff?`${diff>0?'+':''}${diff} pp`:'—'}</b></div>`);} $('#versusScore').innerHTML=`<strong>${wins}–${losses}</strong><span>${data.previousSessions.length||data.previousQ.questions?'contra o período anterior':'baseline em construção'}</span>`; $('#versusRows').innerHTML=rows.join('');
-  }
-
-  function renderRecords() {
-    const daily=new Map(); state.sessions.forEach((s)=>{const k=localDateKey(s.startTime);daily.set(k,(daily.get(k)||0)+s.durationSec);}); const bestDay=[...daily.entries()].sort((a,b)=>b[1]-a[1])[0]; $('#recordDay').textContent=bestDay?formatDuration(bestDay[1]):'—'; $('#recordDayDate').textContent=bestDay?formatDate(bestDay[0]):'sem dados';
-    const weekly=new Map(); state.sessions.forEach((s)=>{const k=startOfWeekKey(localDateKey(s.startTime));weekly.set(k,(weekly.get(k)||0)+s.durationSec);}); const bestWeek=[...weekly.entries()].sort((a,b)=>b[1]-a[1])[0]; $('#recordWeek').textContent=bestWeek?formatDuration(bestWeek[1]):'—'; $('#recordWeekDate').textContent=bestWeek?`semana de ${formatDate(bestWeek[0])}`:'sem dados';
-    const bestSession=[...state.sessions].sort((a,b)=>b.durationSec-a.durationSec)[0]; $('#recordSession').textContent=bestSession?formatDuration(bestSession.durationSec):'—'; $('#recordSessionLabel').textContent=bestSession?(bestSession.materialTitle||bestSession.subject):'sem dados'; $('#recordStreak').textContent=`${getStreakStats().record} dias`;
-  }
-
-  function applyAppearance() {
-    const {theme,colorTheme}=state.settings; let resolved=theme; if(theme==='system') resolved=window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'; document.body.dataset.resolvedTheme=resolved; document.body.dataset.colorTheme=colorTheme; document.documentElement.style.colorScheme=resolved==='light'?'light':'dark';
-    els.themeModeOptions?.querySelectorAll('[data-theme-choice]').forEach((b)=>b.classList.toggle('active',b.dataset.themeChoice===theme)); els.colorThemeOptions?.querySelectorAll('[data-color-choice]').forEach((b)=>b.classList.toggle('active',b.dataset.colorChoice===colorTheme));
-  }
-  function openAppearance(){ applyAppearance(); els.appearanceModal.classList.add('open'); els.appearanceModal.setAttribute('aria-hidden','false'); }
-  function closeAppearance(){ els.appearanceModal.classList.remove('open'); els.appearanceModal.setAttribute('aria-hidden','true'); }
-
-  function applySidebarState() {
-    const isDesktop = window.matchMedia('(min-width: 821px)').matches;
-    const collapsed = Boolean(state.settings.sidebarCollapsed) && isDesktop;
-    document.body.classList.toggle('sidebar-collapsed', collapsed);
-    if (!els.sidebarCollapseBtn) return;
-    els.sidebarCollapseBtn.setAttribute('aria-expanded', String(!collapsed));
-    els.sidebarCollapseBtn.setAttribute('aria-label', collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral');
-    els.sidebarCollapseBtn.title = collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral';
-    const use = els.sidebarCollapseBtn.querySelector('use');
-    if (use) use.setAttribute('href', collapsed ? '#icon-chevron-right' : '#icon-chevron-left');
-  }
-
-  function toggleSidebarCollapsed() {
-    if (!window.matchMedia('(min-width: 821px)').matches) return;
-    state.settings.sidebarCollapsed = !state.settings.sidebarCollapsed;
-    saveSettings();
-    applySidebarState();
-  }
-
   function updatePrimaryAction() {
-    els.primaryActionBtn.hidden = false;
     if (state.currentView === 'exams') els.primaryActionBtn.textContent = '+ Nova prova';
-    else if (state.currentView === 'materials') els.primaryActionBtn.textContent = '+ Nova apostila';
-    else if (state.currentView === 'dashboard') els.primaryActionBtn.textContent = '▶ Estudar agora';
-    else els.primaryActionBtn.hidden = true;
+    else els.primaryActionBtn.textContent = '+ Nova apostila';
   }
 
   function setView(view) {
-    const titles = { dashboard: 'Hoje', timer: 'Timer', materials: 'Apostilas', exams: 'Provas', performance: 'Desempenho', insights: 'Insights' };
+    const titles = { dashboard: 'Painel de estudos', materials: 'Biblioteca de apostilas', exams: 'Provas', performance: 'Análise de desempenho' };
     state.currentView = view;
-    document.body.dataset.currentView = view;
     els.navItems.forEach((item) => item.classList.toggle('active', item.dataset.view === view));
     els.views.forEach((section) => section.classList.toggle('active', section.id === `${view}View`));
     els.pageTitle.textContent = titles[view] || titles.dashboard;
@@ -904,15 +615,13 @@
     if (view === 'materials') renderMaterials();
     if (view === 'exams') renderExams();
     if (view === 'performance') renderPerformance();
-    if (view === 'timer') renderTimer();
-    if (view === 'insights') renderInsights();
   }
 
   function updateMaterialQuestionSummary(material = null) {
     const totals = material ? getQuestionTotals(material.questionEntries || []) : { questions: 0, correct: 0, wrong: 0 };
     els.modalQuestionsTotal.textContent = totals.questions; els.modalCorrectTotal.textContent = totals.correct; els.modalWrongTotal.textContent = totals.wrong;
     els.openQuestionManagerFromMaterial.disabled = !material; els.openQuestionManagerFromMaterial.dataset.id = material?.id || '';
-    els.questionHistoryHint.textContent = material ? `${plural(material.questionEntries?.length || 0, 'entrada registrada', 'entradas registradas')} · ${accuracy(totals.correct, totals.wrong)}% de aproveitamento.` : 'Salve a apostila primeiro; depois use o botão +Q no cartão para registrar suas sessões.';
+    els.questionHistoryHint.textContent = material ? 'Use o botão abaixo para gerenciar o histórico de questões desta apostila.' : 'Salve a apostila primeiro; depois use o botão de questões no cartão para registrar suas sessões.';
   }
 
   function openMaterialModal(material = null) {
@@ -961,7 +670,10 @@
     els.questionModalTitle.textContent = 'Registrar questões'; els.questionModalSubtitle.textContent = `${material.subject} · ${material.title}`; els.questionModalTotal.textContent = totals.questions; els.questionModalCorrect.textContent = totals.correct; els.questionModalWrong.textContent = totals.wrong; els.questionModalAccuracy.textContent = `${accuracy(totals.correct, totals.wrong)}%`;
     const entries = [...(material.questionEntries || [])].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)); els.questionEntryCount.textContent = plural(entries.length, 'entrada', 'entradas');
     if (!entries.length) { els.questionEntryList.innerHTML = '<div class="question-entry-empty">Nenhuma entrada registrada ainda. Preencha a sessão acima para começar o histórico deste assunto.</div>'; return; }
-    els.questionEntryList.innerHTML = entries.map((entry) => `<div class="question-entry-card"><div class="question-entry-date"><strong>${formatDate(entry.date)}</strong><small>Sessão registrada</small></div><div class="question-entry-metric"><span>QUESTÕES</span><b>${entry.questions}</b></div><div class="question-entry-metric good"><span>ACERTOS</span><b>${entry.correct}</b></div><div class="question-entry-metric bad"><span>ERROS</span><b>${entry.wrong}</b></div><div class="question-entry-metric"><span>APROVEITAMENTO</span><b>${entry.correct + entry.wrong ? `${accuracy(entry.correct, entry.wrong)}%` : '—'}</b></div><div class="question-entry-card-actions"><button class="action-button" type="button" data-action="edit-question-entry" data-id="${material.id}" data-entry-id="${entry.id}">✎</button><button class="action-button danger" type="button" data-action="delete-question-entry" data-id="${material.id}" data-entry-id="${entry.id}">⌫</button></div></div>`).join('');
+    els.questionEntryList.innerHTML = entries.map((entry) => `<div class="question-entry-card"><div class="question-entry-date"><strong>${formatDate(entry.date)}</strong><small>Sessão registrada</small></div><div class="question-entry-metric"><span>QUESTÕES</span><b>${entry.questions}</b></div><div class="question-entry-metric good"><span>ACERTOS</span><b>${entry.correct}</b></div><div class="question-entry-metric bad"><span>ERROS</span><b>${entry.wrong}</b></div><div class="question-entry-metric"><span>APROVEITAMENTO</span><b>${entry.correct + entry.wrong ? `${accuracy(entry.correct, entry.wrong)}%` : '—'}</b></div><div class="question-entry-card-actions">${buildActionMenu([
+      actionMenuItem({ action: 'edit-question-entry', id: material.id, entryId: entry.id, label: 'Editar entrada', iconName: 'edit' }),
+      actionMenuItem({ action: 'delete-question-entry', id: material.id, entryId: entry.id, label: 'Excluir entrada', iconName: 'trash', variant: 'danger' }),
+    ], 'Mais ações da entrada')}</div></div>`).join('');
   }
 
   function openQuestionModal(material) { if (!material) return; if (els.materialModal.classList.contains('open')) closeMaterialModal(); els.questionMaterialId.value = material.id; resetQuestionEntryForm(); renderQuestionModal(material.id); els.questionModal.classList.add('open'); els.questionModal.setAttribute('aria-hidden', 'false'); setTimeout(() => els.questionTotalInput.focus(), 30); }
@@ -1037,11 +749,9 @@
   }
 
   async function handleAction(action, id, entryId = null) {
-    if (action === 'go-timer') { setView('timer'); return; }
-    if (action === 'delete-session') { const session = state.sessions.find((item) => item.id === id); if (!session) return; if (!window.confirm(`Excluir esta sessão de ${formatDuration(session.durationSec)}?`)) return; state.sessions = state.sessions.filter((item) => item.id !== id); saveSessions(); renderAll(); showToast('Sessão excluída.'); return; }
-    if (action === 'start-study') { const target = state.materials.find((m) => m.id === id); if (!target) return; setView('timer'); renderTimerSelectors(); els.timerMaterialSelect.value = target.id; state.timerMode = 'stopwatch'; startTimer({ materialId:target.id, subject:target.subject, materialTitle:target.title }); return; }
     if (action === 'edit-exam') { const exam = state.exams.find((item) => item.id === id); if (exam) openExamForm(exam); return; }
-    if (action === 'delete-exam') { const exam = state.exams.find((item) => item.id === id); if (!exam) return; if (!window.confirm(`Excluir ${exam.type} de ${exam.subject}?`)) return; state.exams = state.exams.filter((item) => item.id !== id); saveExams(); renderAll(); showToast('Prova excluída.'); return; }
+    if (action === 'delete-exam') { const exam = state.exams.find((item) => item.id === id); if (!exam) return; if (!window.confirm(`Excluir ${exam.type} de ${exam.subject}?`)) return; state.exams = state.exams.filter((item) => item.id !== id); state.expandedExamIds.delete(id); saveExams(); renderAll(); showToast('Prova excluída.'); return; }
+    if (action === 'toggle-exam-materials') { if (state.expandedExamIds.has(id)) state.expandedExamIds.delete(id); else state.expandedExamIds.add(id); renderExams(); return; }
     if (action === 'open-topic') {
       const target = state.materials.find((m) => m.id === id); if (!target) return;
       els.searchInput.value = target.title; renderSubjectFilters(); els.subjectFilter.value = target.subject; els.statusFilter.value = 'all'; if (els.materialExamFilter) els.materialExamFilter.value = 'all'; setView('materials'); renderMaterials(); return;
@@ -1055,7 +765,7 @@
       if (!window.confirm(`Excluir a entrada de ${formatDate(entry.date)} com ${entry.questions} questões?`)) return;
       const updated = normalizeMaterial({ ...material, questionEntries: material.questionEntries.filter((item) => item.id !== entryId), updatedAt: new Date().toISOString() }); state.materials = state.materials.map((item) => item.id === material.id ? updated : item); saveMaterials(); renderAll(); renderQuestionModal(updated.id); resetQuestionEntryForm(); showToast('Entrada de questões excluída.'); return;
     }
-    if (action === 'toggle-made') { material.made = !material.made; material.updatedAt = new Date().toISOString(); saveMaterials(); renderAll(); showToast(material.made ? 'Apostila marcada como confeccionada.' : 'Apostila marcada como não confeccionada.'); return; }
+    if (action === 'toggle-made') { material.made = !material.made; material.updatedAt = new Date().toISOString(); saveMaterials(); renderAll(); showToast(material.made ? 'Apostila marcada como produzida.' : 'Apostila marcada como não produzida.'); return; }
     if (action === 'toggle-read') { material.read = !material.read; material.updatedAt = new Date().toISOString(); saveMaterials(); renderAll(); showToast(material.read ? 'Leitura concluída.' : 'Apostila marcada como pendente.'); return; }
     if (action === 'edit') { openMaterialModal(material); return; }
     if (action === 'delete') {
@@ -1069,8 +779,8 @@
   }
 
   function exportData() {
-    const payload = { app: 'Study', database: 'study-core', schemaVersion: window.StudyStorage.DATA_SCHEMA_VERSION, version: 22, exportedAt: new Date().toISOString(), note: 'Study V2.2: backup de segurança do banco local.', materials: state.materials, exams: state.exams, sessions: state.sessions, settings: state.settings };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `study-backup-${todayDateValue()}.json`; anchor.click(); URL.revokeObjectURL(url); showToast('Backup exportado.');
+    const payload = { app: 'Peleja', version: 12, exportedAt: new Date().toISOString(), note: 'Backup com apostilas, histórico de questões, status de produção e provas independentes vinculadas às apostilas.', materials: state.materials, exams: state.exams };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `peleja-backup-${todayDateValue()}.json`; anchor.click(); URL.revokeObjectURL(url); showToast('Backup exportado.');
   }
 
   async function importData(file) {
@@ -1080,23 +790,13 @@
       if (!window.confirm('Importar este backup substituirá os dados atuais. Continuar?')) return;
       const materials = rawMaterials.map(normalizeMaterial); let exams;
       if (!Array.isArray(parsed) && Array.isArray(parsed.exams)) exams = parsed.exams.map(normalizeExam); else exams = migrateLegacyExams(rawMaterials, materials);
-      const sessions = !Array.isArray(parsed) && Array.isArray(parsed.sessions) ? parsed.sessions.map(normalizeSession) : [];
-      const settings = !Array.isArray(parsed) && parsed.settings ? normalizeSettings(parsed.settings) : state.settings;
-      state.materials = materials; state.exams = exams; state.sessions = sessions; state.settings = settings; state.activeTimer = null; applyAppearance(); applySidebarState(); await saveAll(); renderAll(); showToast('Backup importado para o Study Core.');
+      state.materials = materials; state.exams = exams; saveAll(); renderAll(); showToast('Backup importado.');
     } catch (error) { console.error(error); showToast('Arquivo de backup inválido.'); }
     finally { els.importInput.value = ''; }
   }
 
   let toastTimer;
   function showToast(message) { clearTimeout(toastTimer); els.toast.textContent = message; els.toast.classList.add('show'); toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2800); }
-
-  function updateStorageStatus(result = {}) {
-    if (!els.storageStatus) return;
-    const secure = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (result.persisted) els.storageStatus.textContent = '● Study Core · armazenamento persistente';
-    else if (secure) els.storageStatus.textContent = '● Study Core · IndexedDB local';
-    else els.storageStatus.textContent = '● Study Core · publique em HTTPS para proteção completa';
-  }
 
   function initDate() {
     const text = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()); els.todayLabel.textContent = text.charAt(0).toUpperCase() + text.slice(1);
@@ -1106,9 +806,11 @@
     els.navItems.forEach((item) => item.addEventListener('click', () => setView(item.dataset.view)));
     $$('[data-go-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.goView)));
     els.menuButton.addEventListener('click', () => els.sidebar.classList.toggle('open'));
-    els.sidebarCollapseBtn?.addEventListener('click', toggleSidebarCollapsed);
-    window.addEventListener('resize', applySidebarState);
-    els.primaryActionBtn.addEventListener('click', () => { if (state.currentView === 'exams') openExamForm(); else if (state.currentView === 'materials') openMaterialModal(); else setView('timer'); });
+    els.sidebarCollapseButton?.addEventListener('click', toggleSidebarCollapsed);
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 820) els.sidebar.classList.remove('open');
+    });
+    els.primaryActionBtn.addEventListener('click', () => state.currentView === 'exams' ? openExamForm() : openMaterialModal());
     els.closeModal.addEventListener('click', closeMaterialModal); els.cancelModal.addEventListener('click', closeMaterialModal); els.materialForm.addEventListener('submit', handleMaterialSubmit);
     els.openQuestionManagerFromMaterial.addEventListener('click', () => { const material = state.materials.find((item) => item.id === els.openQuestionManagerFromMaterial.dataset.id); if (material) openQuestionModal(material); });
     els.closeQuestionModal.addEventListener('click', closeQuestionModal); els.cancelQuestionEntryEdit.addEventListener('click', resetQuestionEntryForm); els.questionEntryForm.addEventListener('submit', handleQuestionEntrySubmit);
@@ -1118,39 +820,36 @@
     els.materialModal.addEventListener('click', (event) => { if (event.target === els.materialModal) closeMaterialModal(); });
     els.questionModal.addEventListener('click', (event) => { if (event.target === els.questionModal) closeQuestionModal(); });
     els.examFormModal.addEventListener('click', (event) => { if (event.target === els.examFormModal) closeExamForm(); });
-    document.addEventListener('keydown', (event) => { if (event.key !== 'Escape') return; if (els.appearanceModal?.classList.contains('open')) closeAppearance(); else if (els.examFormModal.classList.contains('open')) closeExamForm(); else if (els.questionModal.classList.contains('open')) closeQuestionModal(); else if (els.materialModal.classList.contains('open')) closeMaterialModal(); });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if ($$('.action-menu.open').length) {
+        closeActionMenus();
+        return;
+      }
+      if (els.examFormModal.classList.contains('open')) closeExamForm();
+      else if (els.questionModal.classList.contains('open')) closeQuestionModal();
+      else if (els.materialModal.classList.contains('open')) closeMaterialModal();
+    });
     els.searchInput.addEventListener('input', renderMaterials); [els.subjectFilter, els.statusFilter, els.materialExamFilter, els.sortSelect].forEach((control) => control?.addEventListener('change', renderMaterials));
     [els.examSubjectFilter, els.examStatusFilter].forEach((control) => control.addEventListener('change', renderExams));
-    [els.performanceSubjectFilter, els.performanceTopicSort].forEach((control) => control.addEventListener('change', renderPerformance));
-    $$('.timer-preset').forEach((button) => button.addEventListener('click', () => setTimerMode(button.dataset.timerMode)));
-    els.timerMaterialSelect?.addEventListener('change', renderTimer); els.timerActivitySelect?.addEventListener('change', renderTimer);
-    els.timerPlayBtn?.addEventListener('click', () => { if (!state.activeTimer) startTimer(); else if (state.activeTimer.paused) resumeTimer(); else pauseTimer(); });
-    els.timerFinishBtn?.addEventListener('click', () => completeTimer(false)); els.timerResetBtn?.addEventListener('click', clearTimer);
-    els.insightsRangeSwitch?.addEventListener('click', (event) => { const button=event.target.closest('[data-range]'); if(!button)return; state.insightsRange=button.dataset.range; renderInsights(); });
-    els.appearanceBtn?.addEventListener('click', openAppearance); els.closeAppearanceModal?.addEventListener('click', closeAppearance); els.appearanceModal?.addEventListener('click',(event)=>{if(event.target===els.appearanceModal)closeAppearance();});
-    els.themeModeOptions?.addEventListener('click',(event)=>{const button=event.target.closest('[data-theme-choice]');if(!button)return;state.settings.theme=button.dataset.themeChoice;saveSettings();applyAppearance();});
-    els.colorThemeOptions?.addEventListener('click',(event)=>{const button=event.target.closest('[data-color-choice]');if(!button)return;state.settings.colorTheme=button.dataset.colorChoice;saveSettings();applyAppearance();});
-    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='system')applyAppearance();});
-    document.addEventListener('click', (event) => { const button = event.target.closest('[data-action]'); if (button) handleAction(button.dataset.action, button.dataset.id, button.dataset.entryId || null); });
+    els.performanceSubjectFilter.addEventListener('change', renderPerformance);
+    document.addEventListener('click', (event) => {
+      const toggle = event.target.closest('.action-menu-toggle');
+      if (toggle) {
+        toggleActionMenu(toggle);
+        return;
+      }
+      if (!event.target.closest('.action-menu')) closeActionMenus();
+      const button = event.target.closest('[data-action]');
+      if (button) {
+        closeActionMenus();
+        handleAction(button.dataset.action, button.dataset.id, button.dataset.entryId || null);
+      }
+    });
     els.exportBtn.addEventListener('click', exportData); els.importInput.addEventListener('change', () => { const file = els.importInput.files[0]; if (file) importData(file); });
   }
 
-  async function registerServiceWorker() { if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return; try { const registration = await navigator.serviceWorker.register('./sw.js'); registration.update().catch(() => {}); } catch (error) { console.warn('Service Worker:', error); } }
+  function registerServiceWorker() { if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('Service Worker:', error)); }
 
-  let timerTicker = null;
-  function startTimerTicker() { if (timerTicker) clearInterval(timerTicker); timerTicker = setInterval(() => { if (state.activeTimer) { renderTimer(); if (state.currentView === 'dashboard') renderTodayDashboard(); } }, 1000); }
-
-  applyAppearance();
-  applySidebarState();
-  document.body.dataset.currentView = state.currentView;
-  initDate();
-  bindEvents();
-  renderAll();
-  startTimerTicker();
-
-  const persistence = await window.StudyStorage.requestPersistentStorage();
-  updateStorageStatus(persistence);
-  await saveAll();
-  if (migratedFromLegacyStorage) showToast('Dados antigos migrados automaticamente para o Study Core.');
-  registerServiceWorker();
+  saveAll(); initDate(); bindEvents(); applySidebarCollapsedState(); renderAll(); registerServiceWorker();
 })();
