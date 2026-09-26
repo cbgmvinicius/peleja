@@ -1,0 +1,24 @@
+# Sistema / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.log
+
+# Segredos e configuração local privada
+.env
+.env.*
+!.env.example
+
+# Backups e arquivos temporários
+*.bak
+*.backup
+*.pre-*
+peleja-backup-*.json
+TEMP*
+
+# Artefatos comuns de ferramentas
+node_modules/
+dist/
+coverage/
