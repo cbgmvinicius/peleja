@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body data-access-state="locked">
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
@@ -65,21 +65,42 @@
           </span>
           <span class="nav-label">Provas</span>
         </button>
-        <button class="nav-item" data-view="performance" title="Desempenho">
+
+        <button class="nav-item" data-view="simulations" title="Simulados">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
-              <path d="M4 19.25h16"></path>
-              <path d="M7 16V11.5"></path>
-              <path d="M12 16V8"></path>
-              <path d="M17 16V5"></path>
-              <path d="m5 8 4-3.5L13 7l6-4"></path>
+              <path d="M5 4.5h14v15H5z"></path>
+              <path d="M8 8.5h8"></path>
+              <path d="M8 12h3"></path>
+              <path d="m13.5 15 1.5 1.5 3-3"></path>
             </svg>
           </span>
-          <span class="nav-label">Desempenho</span>
+          <span class="nav-label">Simulados</span>
+        </button>
+
+        <button class="nav-item" data-view="ranking" title="Ranking">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M5 20v-6h4v6"></path>
+              <path d="M10 20V9h4v11"></path>
+              <path d="M15 20V4h4v16"></path>
+              <path d="M4 20h16"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Ranking</span>
         </button>
       </nav>
 
       <div class="sidebar-footer">
+        <button class="ghost-button full sidebar-footer-button account-button" id="accountButton" type="button" title="Conta" aria-label="Conta">
+          <span class="sidebar-footer-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <circle cx="12" cy="8" r="3.25"></circle>
+              <path d="M5.5 20a6.5 6.5 0 0 1 13 0"></path>
+            </svg>
+          </span>
+          <span class="sidebar-footer-text" id="accountButtonText">Entrar</span>
+        </button>
         <button class="ghost-button full sidebar-footer-button" id="exportBtn" type="button" title="Exportar dados" aria-label="Exportar dados">
           <span class="sidebar-footer-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
@@ -101,7 +122,7 @@
           <span class="sidebar-footer-text">Importar dados</span>
         </label>
         <input id="importInput" type="file" accept="application/json" hidden />
-        <p>Seus dados ficam salvos neste navegador.</p>
+        <p>Estrutura acadêmica sincronizada pelo arquivo do Peleja; seu progresso continua salvo neste navegador.</p>
       </div>
     </aside>
 
@@ -110,58 +131,20 @@
         <button class="icon-button menu-button" id="menuButton" aria-label="Abrir menu">☰</button>
         <div>
           <p class="eyebrow" id="todayLabel"></p>
-          <h1 id="pageTitle">Painel de estudos</h1>
+          <h1 id="pageTitle">Painel</h1>
         </div>
         <button class="primary-button" id="primaryActionBtn">+ Nova apostila</button>
       </header>
 
       <section class="view active" id="dashboardView">
-        <div class="hero-card">
-          <div>
-            <span class="pill">VISÃO GERAL</span>
-            <h2>Transforme cada aula em progresso visível.</h2>
-            <p>Organize apostilas, registre sessões de questões, planeje provas e acompanhe seu desempenho por assunto.</p>
-          </div>
-          <div class="hero-progress">
-            <div class="progress-ring" id="heroRing" style="--progress: 0%">
-              <div><strong id="heroPercent">0%</strong><span>concluído</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="stats-grid">
-          <article class="stat-card"><span>Total de apostilas</span><strong id="totalMaterials">0</strong><small id="totalSubjects">0 disciplinas</small></article>
-          <article class="stat-card"><span>Apostilas lidas</span><strong id="readMaterials">0</strong><small id="readRate">0% do total</small></article>
-          <article class="stat-card"><span>Questões feitas</span><strong id="totalQuestions">0</strong><small id="questionsPerMaterial">0 por apostila</small></article>
-          <article class="stat-card accent"><span>Taxa de acerto</span><strong id="accuracyRate">0%</strong><small id="correctSummary">0 acertos</small></article>
-        </div>
-
-        <div class="dashboard-grid">
+        <div class="dashboard-grid dashboard-focus-grid">
           <article class="panel">
-            <div class="panel-header"><div><p class="eyebrow">PRÓXIMOS PASSOS</p><h3>Fila de leitura</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
+            <div class="panel-header"><div><p class="eyebrow">APOSTILAS</p><h3>Pendentes de leitura</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
             <div id="readingQueue" class="queue-list"></div>
           </article>
           <article class="panel">
             <div class="panel-header"><div><p class="eyebrow">PROVAS</p><h3>Próximas avaliações</h3></div><button class="text-button" data-go-view="exams">Ver provas</button></div>
             <div id="upcomingExamQueue" class="queue-list"></div>
-          </article>
-        </div>
-
-        <div class="dashboard-grid">
-          <article class="panel">
-            <div class="panel-header"><div><p class="eyebrow">QUESTÕES</p><h3>Acertos e erros</h3></div></div>
-            <div class="question-chart">
-              <div class="question-donut" id="questionDonut" style="--accuracy: 0%"><div><strong id="donutPercent">0%</strong><span>acerto</span></div></div>
-              <div class="chart-legend">
-                <div><span class="legend-dot correct"></span><b id="legendCorrect">0</b> acertos</div>
-                <div><span class="legend-dot wrong"></span><b id="legendWrong">0</b> erros</div>
-                <div><span class="legend-dot unanswered"></span><b id="legendUnanswered">0</b> sem resultado</div>
-              </div>
-            </div>
-          </article>
-          <article class="panel">
-            <div class="panel-header"><div><p class="eyebrow">DISCIPLINAS</p><h3>Desempenho por matéria</h3></div></div>
-            <div id="subjectOverview" class="subject-overview"></div>
           </article>
         </div>
       </section>
@@ -171,6 +154,7 @@
           <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar apostila, disciplina ou query..." /></div>
           <select id="subjectFilter" aria-label="Filtrar por disciplina"><option value="all">Todas as disciplinas</option></select>
           <select id="statusFilter" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="pending">Não lidas</option><option value="read">Lidas</option></select>
+          <select id="ankiFilter" aria-label="Filtrar por AnKing Notes"><option value="all">AnKing: todas</option><option value="with">Com AnKing Notes</option><option value="without">Sem AnKing Notes</option></select>
           <select id="materialExamFilter" aria-label="Filtrar por situação da prova"><option value="active" selected>Em uso</option><option value="all">Todas</option><option value="pending-exam">Com prova pendente</option><option value="completed-exam">Prova concluída</option><option value="no-exam">Sem prova</option></select>
           <select id="sortSelect" aria-label="Ordenar apostilas"><option value="class">Ordem das aulas</option><option value="newest">Mais recentes</option><option value="oldest">Mais antigas</option><option value="subject">Disciplina</option></select>
         </div>
@@ -200,48 +184,73 @@
         <div id="examsList" class="exams-list"></div>
       </section>
 
-      <section class="view" id="performanceView">
-        <div class="analysis-toolbar panel">
-          <div>
-            <p class="eyebrow">ANÁLISE</p>
-            <h3>Desempenho por assunto</h3>
-            <p>Cada apostila é tratada como um assunto. Filtre por disciplina e veja o que está forte, o que precisa de revisão e onde você mais praticou.</p>
+      <section class="view" id="simulationsView">
+        <article class="panel shared-events-panel">
+          <div class="panel-header shared-events-header">
+            <div><p class="eyebrow">RESIDÊNCIA · TURMA</p><h3>Eventos compartilhados</h3><p>O administrador cria o evento e publica o gabarito oficial. Cada participante envia apenas o próprio gabarito e pode sugerir a grande área de cada questão.</p></div>
+            <span class="shared-events-role" id="sharedEventsRole">Modo local</span>
           </div>
-          <div class="analysis-controls">
-            <label><span>Disciplina</span><select id="performanceSubjectFilter"><option value="all">Todas as disciplinas</option></select></label>
-          </div>
+          <div class="backend-notice" id="simulationOnlineNotice" hidden></div>
+          <div id="sharedSimulationEvents" class="shared-simulation-events"></div>
+        </article>
+        <div class="simulation-kpi-grid">
+          <article class="stat-card"><span>Simulados</span><strong id="simulationCountKpi">0</strong><small id="simulationCountNote">Nenhum registrado</small></article>
+          <article class="stat-card accent"><span>Aproveitamento geral</span><strong id="simulationAccuracyKpi">—</strong><small id="simulationAccuracyNote">0 questões corrigidas</small></article>
+          <article class="stat-card"><span>Menor aproveitamento</span><strong class="compact-kpi" id="simulationWeakAreaKpi">—</strong><small id="simulationWeakAreaNote">Sem dados por área</small></article>
+          <article class="stat-card"><span>Maior aproveitamento</span><strong class="compact-kpi" id="simulationStrongAreaKpi">—</strong><small id="simulationStrongAreaNote">Sem dados por área</small></article>
         </div>
-
-        <div class="performance-kpi-grid">
-          <article class="stat-card"><span>Aproveitamento</span><strong id="performanceAccuracy">0%</strong><small id="performanceAnswered">0 respondidas</small></article>
-          <article class="stat-card"><span>Questões feitas</span><strong id="performanceQuestions">0</strong><small id="performanceQuestionAverage">0 por assunto</small></article>
-          <article class="stat-card"><span>Assuntos</span><strong id="performanceTopics">0</strong><small id="performanceTopicsPracticed">0 com questões</small></article>
-          <article class="stat-card accent"><span>Leitura concluída</span><strong id="performanceReadRate">0%</strong><small id="performanceReadCount">0/0 assuntos</small></article>
+        <div class="simulation-overview-grid">
+          <article class="panel simulation-area-panel"><div class="panel-header"><div><p class="eyebrow">GRANDES ÁREAS</p><h3>Desempenho acumulado</h3></div></div><div id="simulationAreaStats" class="simulation-area-stats"></div></article>
+          <article class="panel simulation-list-panel"><div class="panel-header"><div><p class="eyebrow">SIMULADOS</p><h3>Histórico semanal</h3></div></div><div id="simulationsList" class="simulations-list"></div></article>
         </div>
-
-        <div class="performance-grid">
-          <article class="panel performance-highlight">
-            <p class="eyebrow">QUESTÕES RESPONDIDAS</p>
-            <div class="large-metric"><strong id="performanceAccuracyHero">0%</strong><span>de acerto no recorte selecionado</span></div>
-            <div class="stacked-bar" aria-label="Distribuição de acertos e erros"><span id="correctBar"></span><span id="wrongBar"></span></div>
-            <div class="bar-labels"><span><b id="performanceCorrect">0</b> acertos</span><span><b id="performanceWrong">0</b> erros</span></div>
-          </article>
-          <article class="panel">
-            <p class="eyebrow">DIAGNÓSTICO RÁPIDO</p>
-            <div class="metric-list">
-              <div><span>Revisar primeiro</span><b id="weakestTopic">—</b></div>
-              <div><span>Melhor assunto</span><b id="bestTopic">—</b></div>
-              <div><span>Mais praticado</span><b id="mostPracticedTopic">—</b></div>
-              <div><span>Assuntos pendentes</span><b id="pendingMaterials">0</b></div>
-            </div>
-          </article>
-        </div>
-
-        <article class="panel performance-detail-panel">
-          <div class="panel-header"><div><p class="eyebrow">VISÃO MACRO</p><h3>Resumo por disciplina</h3></div></div>
-          <div class="table-wrap"><table><thead><tr><th>Disciplina</th><th>Assuntos</th><th>Lidos</th><th>Questões</th><th>Acertos</th><th>Erros</th><th>Aproveitamento</th></tr></thead><tbody id="subjectTableBody"></tbody></table></div>
+        <article class="panel error-notebook-panel">
+          <div class="error-notebook-header"><div><p class="eyebrow">CADERNO DE ERROS</p><h3>Questões erradas e discriminadores</h3><p>Guarde somente o ponto que teria mudado sua resposta. Os flashcards exportados usam apenas a frente e o verso do discriminador.</p></div><button class="ghost-button" id="exportSimulationFlashcardsBtn" type="button">Exportar flashcards (.txt)</button></div>
+          <div class="error-notebook-toolbar"><select id="errorSimulationFilter" aria-label="Filtrar erros por simulado"><option value="all">Todos os simulados</option></select><select id="errorAreaFilter" aria-label="Filtrar erros por grande área"><option value="all">Todas as áreas</option></select><select id="errorCardFilter" aria-label="Filtrar erros por flashcard"><option value="all">Todos os erros</option><option value="pending">Sem flashcard</option><option value="ready">Com flashcard</option></select><small id="errorNotebookCount">0 erros</small></div>
+          <div id="errorNotebookList" class="error-notebook-list"></div>
         </article>
       </section>
+
+      <section class="view" id="rankingView">
+        <article class="panel ranking-intro">
+          <div>
+            <p class="eyebrow">RANKING</p>
+            <h3>Desempenho da turma</h3>
+            <p>Compare o desempenho da turma em Residência e Faculdade. Em Residência, dá para ver o acumulado ou uma prova específica e recortar por grande área.</p>
+          </div>
+          <div class="ranking-cloud-state"><span id="rankingSyncState">Modo local</span><button type="button" class="ghost-button" id="rankingSyncButton">Sincronizar</button></div>
+        </article>
+
+        <div class="backend-notice" id="rankingBackendNotice" hidden></div>
+
+        <div class="ranking-tabs" role="tablist" aria-label="Tipo de ranking">
+          <button type="button" class="ranking-tab active" data-ranking-tab="simulations">Residência</button>
+          <button type="button" class="ranking-tab" data-ranking-tab="faculty">Faculdade</button>
+          <button type="button" class="ranking-tab" data-ranking-tab="materials">Apostilas</button>
+        </div>
+
+        <div class="panel ranking-toolbar">
+          <label id="rankingUnitWrap"><span>Simulado / prova de residência</span><select id="rankingUnitFilter"><option value="all">Comparação total</option></select></label>
+          <label><span>Grande área</span><select id="rankingAreaFilter"><option value="all">Todas as áreas</option></select></label>
+        </div>
+
+        <div class="ranking-kpi-grid">
+          <article class="stat-card"><span>Participantes</span><strong id="rankingParticipantsKpi">—</strong><small>neste recorte</small></article>
+          <article class="stat-card accent"><span>Minha posição</span><strong id="rankingMyPositionKpi">—</strong><small>ranking atual</small></article>
+          <article class="stat-card"><span>Meu aproveitamento</span><strong id="rankingMyAccuracyKpi">—</strong><small>ponderado por questões</small></article>
+          <article class="stat-card"><span>Meu rank</span><strong id="rankingMyRankKpi" class="rank-kpi">—</strong><small id="rankingMyRankNote">Bronze → Lendário</small></article>
+        </div>
+
+        <div class="rank-legend" aria-label="Limiar dos ranks">
+          <span><b>Bronze</b> &lt;50%</span><span><b>Prata</b> 50–59,9%</span><span><b>Ouro</b> 60–64,9%</span><span><b>Cristal</b> 65–69,9%</span><span><b>Mestre</b> 70–74,9%</span><span><b>Campeão</b> 75–79,9%</span><span><b>Titã</b> 80–89,9%</span><span><b>Lendário</b> ≥90%</span>
+        </div>
+
+        <article class="panel ranking-table-panel">
+          <div class="panel-header"><div><p class="eyebrow">COMPARAÇÃO</p><h3>Classificação</h3></div></div>
+          <div id="rankingTable" class="ranking-table"></div>
+          <div id="rankingEmpty" hidden></div>
+        </article>
+      </section>
+
     </main>
   </div>
 
@@ -323,7 +332,108 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="simulationModal" aria-hidden="true">
+    <div class="modal simulation-modal" role="dialog" aria-modal="true" aria-labelledby="simulationModalTitle">
+      <div class="modal-header"><div><p class="eyebrow">SIMULADO</p><h2 id="simulationModalTitle">Novo simulado</h2><p class="question-modal-subtitle">Registre seu gabarito questão por questão. O resultado e o desempenho por grande área são calculados automaticamente.</p></div><button class="icon-button" id="closeSimulationModal" aria-label="Fechar">×</button></div>
+      <form id="simulationForm">
+        <input type="hidden" id="simulationId" />
+        <div class="form-grid simulation-meta-grid"><label><span>Nome do simulado *</span><input id="simulationNameInput" required placeholder="Ex.: Simulado semanal 01" /></label><label><span>Data *</span><input id="simulationDateInput" type="date" required /></label><label><span>Número de questões</span><input id="simulationQuestionCountInput" type="number" min="1" step="1" placeholder="Ex.: 100" /></label><div class="simulation-generate-wrap"><button type="button" class="ghost-button" id="generateSimulationQuestionsBtn">Gerar / ajustar questões</button></div></div>
+        <div class="simulation-live-summary" aria-label="Resumo do simulado"><div><span>QUESTÕES</span><b id="simulationDraftTotal">0</b></div><div><span>CORRIGIDAS</span><b id="simulationDraftAnswered">0</b></div><div class="good"><span>ACERTOS</span><b id="simulationDraftCorrect">0</b></div><div class="bad"><span>ERROS</span><b id="simulationDraftWrong">0</b></div><div><span>APROVEITAMENTO</span><b id="simulationDraftAccuracy">—</b></div></div>
+        <div class="simulation-question-editor"><div class="simulation-question-editor-heading"><div><span>GABARITO QUESTÃO POR QUESTÃO</span><small>Área + sua resposta + gabarito oficial. Quando houver erro, aparece o mini-editor do flashcard discriminador.</small></div></div><div class="simulation-question-columns" aria-hidden="true"><span>#</span><span>Grande área</span><span>Minha resposta</span><span>Gabarito</span><span>Resultado</span></div><div id="simulationQuestionRows" class="simulation-question-rows"></div></div>
+        <div class="validation-message" id="simulationValidationMessage" role="alert"></div>
+        <div class="modal-actions"><button type="button" class="ghost-button" id="cancelSimulationModal">Cancelar</button><button type="submit" class="primary-button">Salvar simulado</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="sharedSimulationModal" aria-hidden="true">
+    <div class="modal shared-simulation-modal" role="dialog" aria-modal="true" aria-labelledby="sharedSimulationTitle">
+      <div class="modal-header">
+        <div><p class="eyebrow">RESIDÊNCIA · GABARITO PESSOAL</p><h2 id="sharedSimulationTitle">Evento</h2><p class="question-modal-subtitle" id="sharedSimulationMeta"></p></div>
+        <button class="icon-button" id="closeSharedSimulationModal" aria-label="Fechar">×</button>
+      </div>
+      <div class="shared-simulation-help">Escolha entre preencher o gabarito completo ou lançar só os acertos. A sugestão de grande área continua opcional; a área aceita será a opção mais votada, e empates ficam em aberto.</div>
+      <div class="shared-entry-tabs" role="tablist" aria-label="Forma de registrar resultado">
+        <button type="button" class="shared-entry-tab active" data-shared-entry-mode="answers">Gabarito questão a questão</button>
+        <button type="button" class="shared-entry-tab" data-shared-entry-mode="quick">Resultado rápido</button>
+      </div>
+      <form id="sharedSimulationForm">
+        <input type="hidden" id="sharedSimulationKey" />
+        <input type="hidden" id="sharedEntryMode" value="answers" />
+        <div id="sharedAnswersPanel">
+          <div class="shared-question-columns" aria-hidden="true"><span>#</span><span>Minha resposta</span><span>Minha sugestão de área</span><span>Área aceita</span><span>Resultado</span></div>
+          <div id="sharedSimulationRows" class="shared-question-rows"></div>
+        </div>
+        <div id="sharedQuickPanel" class="shared-quick-panel" hidden>
+          <div class="shared-quick-summary">
+            <label><span>Questões válidas</span><input id="sharedQuickTotal" type="number" readonly /></label>
+            <label><span>Acertos totais</span><input id="sharedQuickCorrect" type="number" min="0" step="1" inputmode="numeric" /></label>
+          </div>
+          <div class="shared-quick-areas-heading"><div><span>ACERTOS POR GRANDE ÁREA</span><small>O total de questões por área vem do consenso atual da turma.</small></div></div>
+          <div id="sharedQuickAreas" class="shared-quick-areas"></div>
+          <small class="shared-quick-note" id="sharedQuickAreaNote"></small>
+          <details class="shared-quick-votes-details">
+            <summary>Sugerir grandes áreas das questões <span>opcional</span></summary>
+            <div id="sharedQuickVotes" class="shared-quick-votes"></div>
+          </details>
+        </div>
+        <div class="validation-message" id="sharedSimulationValidation" role="alert"></div>
+        <div class="modal-actions"><button type="button" class="ghost-button" id="cancelSharedSimulationModal">Cancelar</button><button type="submit" class="primary-button" id="saveSharedSimulationButton">Salvar meu gabarito</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="accountModal" aria-hidden="true">
+    <div class="modal account-modal" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+      <div class="modal-header">
+        <div><p class="eyebrow">CONTA PELEJA</p><h2 id="accountModalTitle">Entrar ou criar conta</h2><p class="question-modal-subtitle">Acesso por convite. Só e-mails autorizados pelo administrador podem criar conta e entrar no Peleja.</p></div>
+        <button class="icon-button" id="closeAccountModal" aria-label="Fechar">×</button>
+      </div>
+      <div class="backend-notice" id="accountBackendNotice" hidden></div>
+      <div id="authGuestPanel">
+        <div class="auth-tabs" role="tablist" aria-label="Acesso à conta">
+          <button type="button" class="auth-tab active" data-auth-mode="login">Entrar</button>
+          <button type="button" class="auth-tab" data-auth-mode="register">Criar conta</button>
+        </div>
+        <form id="loginForm" class="auth-form">
+          <label><span>E-mail</span><input id="loginEmail" type="email" autocomplete="email" required /></label>
+          <label><span>Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+          <button type="submit" class="primary-button">Entrar</button>
+        </form>
+        <form id="registerForm" class="auth-form" hidden>
+          <div class="invite-only-note">Somente e-mails previamente autorizados podem se registrar.</div>
+          <label><span>Nome no ranking</span><input id="registerName" autocomplete="name" required minlength="2" /></label>
+          <label><span>E-mail autorizado</span><input id="registerEmail" type="email" autocomplete="email" required /></label>
+          <label><span>Senha</span><input id="registerPassword" type="password" autocomplete="new-password" required minlength="6" /></label>
+          <button type="submit" class="primary-button">Criar conta</button>
+        </form>
+        <div class="auth-message" id="authMessage" role="status" aria-live="polite"></div>
+      </div>
+      <div id="authUserPanel" hidden>
+        <div class="account-profile-card">
+          <div class="account-avatar" aria-hidden="true">P</div>
+          <div><strong id="accountDisplayName">Usuário</strong><span id="accountEmail"></span><span id="accountRole" class="account-role"></span></div>
+        </div>
+        <p class="account-privacy-note">O ranking recebe apenas agregados de desempenho. Respostas individuais, flashcards do caderno de erros, observações e AnKing Notes não são publicados.</p>
+        <div class="modal-actions account-actions"><button type="button" class="ghost-button" id="logoutButton">Sair</button><button type="button" class="primary-button" id="syncAccountButton">Sincronizar ranking</button></div>
+        <section class="invite-admin-panel" id="inviteAdminPanel" hidden>
+          <div class="invite-admin-heading"><div><p class="eyebrow">ACESSO DA TURMA</p><h3>Usuários autorizados</h3></div><span>somente administrador</span></div>
+          <form class="invite-email-form" id="inviteEmailForm">
+            <label><span>Autorizar e-mail</span><input id="inviteEmailInput" type="email" autocomplete="off" placeholder="amigo@email.com" required /></label>
+            <button type="submit" class="primary-button">Autorizar</button>
+          </form>
+          <div class="auth-message" id="inviteMessage" role="status" aria-live="polite"></div>
+          <div class="invite-list" id="inviteList"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="academic-data.js"></script>
   <script src="app.js"></script>
+  <script src="cloud.js"></script>
 </body>
 </html>
