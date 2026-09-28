@@ -1,0 +1,28 @@
+# Sistema / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.log
+
+# Segredos e configuração local privada
+.env
+.env.*
+!.env.example
+
+# Backups e arquivos temporários — nunca entram no repositório
+*.bak
+*.backup
+*.pre-*
+peleja-backup-*.json
+*credentials*.json
+*secrets*.json
+*.pem
+*.key
+TEMP*
+
+# Artefatos comuns de ferramentas
+node_modules/
+dist/
+coverage/

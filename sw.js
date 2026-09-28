@@ -1,21 +1,27 @@
-const CACHE_NAME = 'peleja-v15';
-const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './assets/peleja-icon-16.png', './assets/peleja-icon-32.png', './assets/peleja-icon-192.png', './assets/peleja-icon-512.png'];
-
+const CACHE_NAME = 'peleja-v25';
+const APP_SHELL = ['./', './index.html', './styles.css', './storage.js', './app.js', './ui.js', './academic-data.js', './academic-data.json', './supabase-config.js', './cloud.js', './manifest.webmanifest'];
+const SHELL_URLS = new Set(APP_SHELL.map((path) => new URL(path, self.location.href).href));
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
-
 self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key.startsWith('peleja-') && key !== CACHE_NAME).map((key) => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
-
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-    const clone = response.clone();
-    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+  // Cache only the explicit public shell. No API or arbitrary GETs.
+  if (event.request.method !== 'GET' || event.request.headers.has('authorization')) return;
+  if (!SHELL_URLS.has(event.request.url)) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(event.request);
+    if (cached) return cached;
+    const response = await fetch(event.request);
+    if (response.ok && response.type !== 'opaque') await cache.put(event.request, response.clone());
     return response;
-  }).catch(() => caches.match('./index.html'))));
+  })());
 });
