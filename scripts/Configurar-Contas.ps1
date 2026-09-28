@@ -1,6 +1,6 @@
 ﻿# Run locally. Nothing entered here is written to the repository or printed.
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$ProjectUrl)
+param([Parameter(Mandatory=$true)][string]$ProjectUrl, [switch]$ChaveEmJanela)
 $ErrorActionPreference = 'Stop'
 $ProjectUrl = $ProjectUrl.Trim().TrimEnd('/')
 if ($ProjectUrl -notmatch '^https://[a-z0-9-]+\.supabase\.co$') { throw 'Use a URL HTTPS do projeto Supabase.' }
@@ -9,7 +9,49 @@ function Reveal([Security.SecureString]$Value) {
     try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 }
-$adminSecret = Read-Host 'Chave administrativa (service_role ou secret; entrada oculta)' -AsSecureString
+function Read-KeyWindow {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+    $form = New-Object Windows.Forms.Form
+    $form.Text = 'Peleja - chave administrativa'
+    $form.ClientSize = New-Object Drawing.Size(540,190)
+    $form.StartPosition = 'CenterScreen'
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $label = New-Object Windows.Forms.Label
+    $label.SetBounds(18,16,504,38)
+    $label.Text = 'Copie a Secret key no Supabase. Clique no campo abaixo e cole com Ctrl+V. A chave permanece oculta.'
+    $field = New-Object Windows.Forms.TextBox
+    $field.SetBounds(18,62,504,28)
+    $field.UseSystemPasswordChar = $true
+    $field.ShortcutsEnabled = $true
+    $count = New-Object Windows.Forms.Label
+    $count.SetBounds(18,99,504,25)
+    $count.Text = '0 caracteres recebidos'
+    $field.Add_TextChanged({ $count.Text = "$($field.TextLength) caracteres recebidos" })
+    $ok = New-Object Windows.Forms.Button
+    $ok.SetBounds(304,140,105,30)
+    $ok.Text = 'Continuar'
+    $ok.DialogResult = [Windows.Forms.DialogResult]::OK
+    $cancel = New-Object Windows.Forms.Button
+    $cancel.SetBounds(417,140,105,30)
+    $cancel.Text = 'Cancelar'
+    $cancel.DialogResult = [Windows.Forms.DialogResult]::Cancel
+    $form.Controls.AddRange(@($label,$field,$count,$ok,$cancel))
+    $form.AcceptButton = $ok
+    $form.CancelButton = $cancel
+    $form.Add_Shown({ $field.Focus() })
+    try {
+        if ($form.ShowDialog() -ne [Windows.Forms.DialogResult]::OK) { throw 'Configuração cancelada; nenhuma conta foi alterada.' }
+        if (!$field.TextLength) { throw 'Nenhuma chave foi colada; nenhuma conta foi alterada.' }
+        return ConvertTo-SecureString $field.Text -AsPlainText -Force
+    } finally {
+        $field.Clear()
+        $form.Dispose()
+    }
+}
+$adminSecret = if ($ChaveEmJanela) { Read-KeyWindow } else { Read-Host 'Chave administrativa (service_role ou secret; entrada oculta)' -AsSecureString }
 $adminKey = (Reveal $adminSecret).Trim()
 $headers = @{ apikey=$adminKey }
 if ($adminKey.StartsWith('eyJ')) { $headers.Authorization="Bearer $adminKey" }
