@@ -1,14 +1,31 @@
 (() => {
   'use strict';
 
+  const personalStore = globalThis.PELEJA_STORAGE;
+  if (!personalStore) throw new Error('Armazenamento por conta indisponível. Recarregue o Peleja.');
+  let currentAcademicData = globalThis.PELEJA_ACADEMIC_DATA;
+
   const MATERIALS_KEY = 'medstudy_materials_v1';
   const EXAMS_KEY = 'medstudy_exams_v1';
+  const SIMULATIONS_KEY = 'medstudy_simulations_v1';
   const SIDEBAR_COLLAPSED_KEY = 'medstudy_sidebar_collapsed_v1';
   const EXAM_TYPES = ['PR1.1', 'PR1.2', 'PR2.1', 'PR2.2', 'PR1', 'PR2', 'Segunda chamada', 'Prova final', 'Prova'];
+  const GRAND_AREAS = ['Clínica Médica', 'Cirurgia', 'Pediatria', 'Ginecologia e Obstetrícia', 'Medicina Preventiva / Saúde Coletiva', 'Outra / Interdisciplinar'];
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const makeId = (prefix = 'id') => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+  function canManageStructure() {
+    if (personalStore.isLocalOwner) return true;
+    return globalThis.PELEJA_ACCESS?.isAdmin === true;
+  }
+
+  function requireAdmin(label = 'alterar a estrutura do Peleja') {
+    if (canManageStructure()) return true;
+    showToast(`Apenas o administrador pode ${label}.`);
+    return false;
+  }
 
   function todayDateValue() {
     const now = new Date();
@@ -18,7 +35,7 @@
 
   function parseStoredArray(key) {
     try {
-      const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+      const parsed = JSON.parse(personalStore.getItem(key) || '[]');
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
       console.warn(`Não foi possível carregar ${key}:`, error);
@@ -71,7 +88,7 @@
       ? item.questionEntries.map((entry) => normalizeQuestionEntry(entry, item.updatedAt || item.createdAt || item.classDate || ''))
       : [];
 
-    if (!questionEntries.length) {
+    if (!Array.isArray(item.questionEntries)) {
       const legacyCorrect = Math.max(0, Number(item.correct) || 0);
       const legacyWrong = Math.max(0, Number(item.wrong) || 0);
       const legacyQuestions = Math.max(legacyCorrect + legacyWrong, Number(item.questions) || 0);
@@ -104,6 +121,13 @@
       wrong: totals.wrong,
       read: Boolean(item.read),
       notes: String(item.notes || '').trim(),
+      code: String(item.code || '').trim(),
+      period: String(item.period || '').trim(),
+      area: item.area == null ? null : String(item.area).trim(),
+      specialty: item.specialty == null ? null : String(item.specialty).trim(),
+      standalone: Boolean(item.standalone),
+      dateConfidence: String(item.dateConfidence || '').trim(),
+      source: String(item.source || '').trim(),
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || new Date().toISOString(),
     };
@@ -131,9 +155,80 @@
       total: completeNumbers ? total : null,
       correct: completeNumbers ? correct : null,
       wrong: completeNumbers ? wrong : null,
+      period: String(item.period || '').trim(),
+      source: String(item.source || '').trim(),
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
     };
+  }
+
+  function normalizeSimulationAnswer(value = '') { return String(value || '').trim().toUpperCase(); }
+
+  function isAnnulledSimulationAnswer(value = '') {
+    const normalized = normalizeSimulationAnswer(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return ['ANULADA', 'ANULADO', 'ANUL'].includes(normalized);
+  }
+
+  function normalizeSimulationQuestion(item = {}, index = 0) {
+    return {
+      id: String(item.id || makeId('sq')),
+      number: Math.max(1, Number(item.number) || index + 1),
+      area: String(item.area || '').trim(),
+      userAnswer: normalizeSimulationAnswer(item.userAnswer ?? item.answer ?? ''),
+      correctAnswer: normalizeSimulationAnswer(item.correctAnswer ?? item.key ?? ''),
+      flashFront: String(item.flashFront ?? item.discriminatorFront ?? '').trim(),
+      flashBack: String(item.flashBack ?? item.discriminatorBack ?? item.discriminator ?? '').trim(),
+      flagged: Boolean(item.flagged),
+    };
+  }
+
+  function normalizeSimulation(item = {}) {
+    const rawDate = String(item.date || '').slice(0, 10);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : todayDateValue();
+    return {
+      id: String(item.id || makeId('sim')),
+      name: String(item.name || item.title || 'Simulado').trim() || 'Simulado',
+      date,
+      questions: (Array.isArray(item.questions) ? item.questions : []).map((question, index) => normalizeSimulationQuestion(question, index)),
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+    };
+  }
+
+  function simulationQuestionResult(question = {}) {
+    const userAnswer = normalizeSimulationAnswer(question.userAnswer);
+    const correctAnswer = normalizeSimulationAnswer(question.correctAnswer);
+    if (!userAnswer || !correctAnswer || isAnnulledSimulationAnswer(correctAnswer)) return null;
+    return userAnswer === correctAnswer;
+  }
+
+  function simulationStats(simulations = []) {
+    const questions = simulations.flatMap((simulation) => simulation.questions || []);
+    let correct = 0, wrong = 0, annulled = 0;
+    questions.forEach((question) => {
+      if (isAnnulledSimulationAnswer(question.correctAnswer)) { annulled += 1; return; }
+      const result = simulationQuestionResult(question);
+      if (result === true) correct += 1;
+      else if (result === false) wrong += 1;
+    });
+    const answered = correct + wrong;
+    return { total: questions.length, answered, correct, wrong, annulled, pending: Math.max(0, questions.length - answered - annulled), accuracy: answered ? Math.round((correct / answered) * 100) : null };
+  }
+
+  function simulationAreaStats(simulations = []) {
+    const map = new Map();
+    simulations.forEach((simulation) => (simulation.questions || []).forEach((question) => {
+      const result = simulationQuestionResult(question);
+      if (result == null) return;
+      const area = String(question.area || 'Sem área').trim() || 'Sem área';
+      if (!map.has(area)) map.set(area, { area, answered: 0, correct: 0, wrong: 0, accuracy: 0 });
+      const row = map.get(area);
+      row.answered += 1;
+      if (result) row.correct += 1; else row.wrong += 1;
+      row.accuracy = Math.round((row.correct / row.answered) * 100);
+    }));
+    const order = new Map(GRAND_AREAS.map((area, index) => [area, index]));
+    return [...map.values()].sort((a, b) => (order.get(a.area) ?? 999) - (order.get(b.area) ?? 999) || a.area.localeCompare(b.area, 'pt-BR'));
   }
 
   function migrateLegacyExams(rawMaterials, normalizedMaterials) {
@@ -192,12 +287,14 @@
 
   const rawMaterialsAtStart = parseStoredArray(MATERIALS_KEY);
   const normalizedMaterialsAtStart = rawMaterialsAtStart.map(normalizeMaterial);
-  const hadExamStorage = localStorage.getItem(EXAMS_KEY) !== null;
+  const hadExamStorage = personalStore.getItem(EXAMS_KEY) !== null;
   const rawExamsAtStart = parseStoredArray(EXAMS_KEY);
+  const rawSimulationsAtStart = parseStoredArray(SIMULATIONS_KEY);
 
   const state = {
     materials: normalizedMaterialsAtStart,
     exams: rawExamsAtStart.map(normalizeExam),
+    simulations: rawSimulationsAtStart.map(normalizeSimulation),
     currentView: 'dashboard',
     sidebarCollapsed: localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1',
     expandedExamIds: new Set(),
@@ -207,20 +304,157 @@
     state.exams = migrateLegacyExams(rawMaterialsAtStart, state.materials);
   }
 
+  function structuralCode(item = {}) {
+    const explicit = String(item.code || '').trim().toUpperCase();
+    if (explicit) return explicit.replace(/\s+/g, '');
+    const title = String(item.title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const match = title.match(/^([A-Z]+)\s*0?(\d{1,2})(?:\.(\d+))?/);
+    return match ? `${match[1]}${String(Number(match[2])).padStart(2, '0')}${match[3] ? `.${match[3]}` : ''}` : '';
+  }
+
+  function materialStructuralKey(item = {}) {
+    const subject = String(item.subject || '').trim().toLocaleLowerCase('pt-BR');
+    const code = structuralCode(item);
+    const title = String(item.title || '').trim().toLocaleLowerCase('pt-BR');
+    return `${subject}\u0000${code || title}`;
+  }
+
+  function applyAcademicData(academicData) {
+    if (!academicData || !Array.isArray(academicData.materials)) return false;
+
+    let localMaterials = [...state.materials];
+    const migrationRekeys = new Map();
+
+    (Array.isArray(academicData.materialMigrations) ? academicData.materialMigrations : []).forEach((migration) => {
+      const fromId = String(migration?.fromId || '');
+      const toId = String(migration?.toId || '');
+      if (!fromId || !toId || fromId === toId) return;
+
+      const source = localMaterials.find((item) => item.id === fromId);
+      if (!source) return;
+      const target = localMaterials.find((item) => item.id === toId);
+
+      if (target) {
+        const questionEntries = [...(target.questionEntries || []), ...(source.questionEntries || [])];
+        const seenEntryIds = new Set();
+        target.questionEntries = questionEntries.filter((entry) => {
+          const key = String(entry?.id || '');
+          if (key && seenEntryIds.has(key)) return false;
+          if (key) seenEntryIds.add(key);
+          return true;
+        });
+        target.made = Boolean(target.made || source.made);
+        target.read = Boolean(target.read || source.read);
+        target.sketchyTags = target.sketchyTags || source.sketchyTags || '';
+        target.notes = target.notes || source.notes || '';
+        target.createdAt = target.createdAt || source.createdAt;
+        target.updatedAt = [target.updatedAt, source.updatedAt].filter(Boolean).sort().at(-1) || new Date().toISOString();
+        localMaterials = localMaterials.filter((item) => item.id !== fromId);
+      } else {
+        source.id = toId;
+      }
+
+      migrationRekeys.set(fromId, toId);
+    });
+
+    const localById = new Map(localMaterials.map((item) => [item.id, item]));
+    const localByKey = new Map(localMaterials.map((item) => [materialStructuralKey(item), item]));
+    const consumedLocalIds = new Set();
+    const rekeyedMaterialIds = new Map(migrationRekeys);
+
+    const mergedMaterials = academicData.materials.map((canonical) => {
+      const existing = localById.get(String(canonical.id || '')) || localByKey.get(materialStructuralKey(canonical));
+      if (existing) consumedLocalIds.add(existing.id);
+      const canonicalId = String(canonical.id || existing?.id || makeId('m'));
+      if (existing && existing.id !== canonicalId) rekeyedMaterialIds.set(existing.id, canonicalId);
+
+      return normalizeMaterial({
+        ...(existing || {}),
+        id: canonicalId,
+        subject: canonical.subject || existing?.subject,
+        title: canonical.title || existing?.title,
+        code: canonical.code || structuralCode(canonical) || structuralCode(existing || {}),
+        classDate: canonical.classDate ?? existing?.classDate ?? '',
+        classOrder: canonical.classOrder ?? existing?.classOrder ?? '',
+        period: canonical.period || academicData.periods?.find((period) => period.active)?.id || existing?.period || '',
+        area: canonical.area ?? existing?.area ?? null,
+        specialty: canonical.specialty ?? existing?.specialty ?? null,
+        standalone: canonical.standalone ?? existing?.standalone ?? false,
+        dateConfidence: canonical.dateConfidence || existing?.dateConfidence || '',
+        source: canonical.source || existing?.source || 'academic-data',
+        sketchyTags: existing?.sketchyTags || '',
+        made: existing?.made || false,
+        questionEntries: existing?.questionEntries || [],
+        read: existing?.read || false,
+        notes: existing?.notes || '',
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: existing?.updatedAt || new Date().toISOString(),
+      });
+    });
+
+    localMaterials.forEach((item) => {
+      if (!consumedLocalIds.has(item.id)) mergedMaterials.push(item);
+    });
+
+    const localExams = [...state.exams];
+    const localExamById = new Map(localExams.map((exam) => [exam.id, exam]));
+    const consumedExamIds = new Set();
+    const canonicalExams = Array.isArray(academicData.exams) ? academicData.exams : [];
+    const mergedExams = canonicalExams.map((canonical) => {
+      const existing = localExamById.get(String(canonical.id || ''));
+      if (existing) consumedExamIds.add(existing.id);
+      const canonicalMaterialIds = (Array.isArray(canonical.materialIds) ? canonical.materialIds : []).map((id) => rekeyedMaterialIds.get(String(id)) || String(id));
+      return normalizeExam({
+        ...(existing || {}),
+        id: canonical.id || existing?.id || makeId('p'),
+        subject: canonical.subject || existing?.subject,
+        type: canonical.type || existing?.type,
+        date: canonical.date || existing?.date,
+        materialIds: canonicalMaterialIds,
+        period: canonical.period || existing?.period || '',
+        source: canonical.source || existing?.source || 'academic-data',
+        total: existing?.total ?? null,
+        correct: existing?.correct ?? null,
+        wrong: existing?.wrong ?? null,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: existing?.updatedAt || new Date().toISOString(),
+      });
+    });
+
+    localExams.forEach((exam) => {
+      if (consumedExamIds.has(exam.id)) return;
+      mergedExams.push(normalizeExam({
+        ...exam,
+        materialIds: exam.materialIds.map((id) => rekeyedMaterialIds.get(id) || id),
+      }));
+    });
+
+    state.materials = mergedMaterials;
+    state.exams = mergedExams;
+    return true;
+  }
+
+  if (personalStore.getItem(MATERIALS_KEY) === null) applyAcademicData(currentAcademicData);
+
   const els = {
     sidebar: $('#sidebar'), menuButton: $('#menuButton'), sidebarCollapseButton: $('#sidebarCollapseButton'), navItems: $$('.nav-item'), views: $$('.view'), pageTitle: $('#pageTitle'), todayLabel: $('#todayLabel'), primaryActionBtn: $('#primaryActionBtn'),
     materialModal: $('#materialModal'), closeModal: $('#closeModal'), cancelModal: $('#cancelModal'), materialForm: $('#materialForm'), materialId: $('#materialId'), modalTitle: $('#modalTitle'), subjectInput: $('#subjectInput'), titleInput: $('#titleInput'), classDateInput: $('#classDateInput'), classOrderInput: $('#classOrderInput'), sketchyTagsInput: $('#sketchyTagsInput'), madeInput: $('#madeInput'), readInput: $('#readInput'), notesInput: $('#notesInput'), validationMessage: $('#validationMessage'),
     openQuestionManagerFromMaterial: $('#openQuestionManagerFromMaterial'), modalQuestionsTotal: $('#modalQuestionsTotal'), modalCorrectTotal: $('#modalCorrectTotal'), modalWrongTotal: $('#modalWrongTotal'), questionHistoryHint: $('#questionHistoryHint'),
     questionModal: $('#questionModal'), closeQuestionModal: $('#closeQuestionModal'), questionModalTitle: $('#questionModalTitle'), questionModalSubtitle: $('#questionModalSubtitle'), questionEntryForm: $('#questionEntryForm'), questionMaterialId: $('#questionMaterialId'), questionEntryId: $('#questionEntryId'), questionDateInput: $('#questionDateInput'), questionTotalInput: $('#questionTotalInput'), questionCorrectInput: $('#questionCorrectInput'), questionWrongInput: $('#questionWrongInput'), questionValidationMessage: $('#questionValidationMessage'), questionEntryFormKicker: $('#questionEntryFormKicker'), saveQuestionEntry: $('#saveQuestionEntry'), cancelQuestionEntryEdit: $('#cancelQuestionEntryEdit'), questionModalTotal: $('#questionModalTotal'), questionModalCorrect: $('#questionModalCorrect'), questionModalWrong: $('#questionModalWrong'), questionModalAccuracy: $('#questionModalAccuracy'), questionEntryCount: $('#questionEntryCount'), questionEntryList: $('#questionEntryList'),
-    searchInput: $('#searchInput'), subjectFilter: $('#subjectFilter'), statusFilter: $('#statusFilter'), materialExamFilter: $('#materialExamFilter'), sortSelect: $('#sortSelect'), materialsList: $('#materialsList'),
+    searchInput: $('#searchInput'), subjectFilter: $('#subjectFilter'), statusFilter: $('#statusFilter'), ankiFilter: $('#ankiFilter'), materialExamFilter: $('#materialExamFilter'), sortSelect: $('#sortSelect'), materialsList: $('#materialsList'),
     examSubjectFilter: $('#examSubjectFilter'), examStatusFilter: $('#examStatusFilter'), examsList: $('#examsList'), examFormModal: $('#examFormModal'), closeExamFormModal: $('#closeExamFormModal'), cancelExamForm: $('#cancelExamForm'), examForm: $('#examForm'), examId: $('#examId'), examFormTitle: $('#examFormTitle'), examSubjectInput: $('#examSubjectInput'), examTypeInput: $('#examTypeInput'), examDateInput: $('#examDateInput'), examMaterialOptions: $('#examMaterialOptions'), examMaterialSelectionCount: $('#examMaterialSelectionCount'), examTotalInput: $('#examTotalInput'), examCorrectInput: $('#examCorrectInput'), examWrongInput: $('#examWrongInput'), examValidationMessage: $('#examValidationMessage'),
-    performanceSubjectFilter: $('#performanceSubjectFilter'),
+    simulationCountKpi: $('#simulationCountKpi'), simulationCountNote: $('#simulationCountNote'), simulationAccuracyKpi: $('#simulationAccuracyKpi'), simulationAccuracyNote: $('#simulationAccuracyNote'), simulationWeakAreaKpi: $('#simulationWeakAreaKpi'), simulationWeakAreaNote: $('#simulationWeakAreaNote'), simulationStrongAreaKpi: $('#simulationStrongAreaKpi'), simulationStrongAreaNote: $('#simulationStrongAreaNote'), simulationAreaStats: $('#simulationAreaStats'), simulationsList: $('#simulationsList'), errorSimulationFilter: $('#errorSimulationFilter'), errorAreaFilter: $('#errorAreaFilter'), errorCardFilter: $('#errorCardFilter'), errorNotebookCount: $('#errorNotebookCount'), errorNotebookList: $('#errorNotebookList'), exportSimulationFlashcardsBtn: $('#exportSimulationFlashcardsBtn'),
+    simulationModal: $('#simulationModal'), closeSimulationModal: $('#closeSimulationModal'), cancelSimulationModal: $('#cancelSimulationModal'), simulationForm: $('#simulationForm'), simulationId: $('#simulationId'), simulationModalTitle: $('#simulationModalTitle'), simulationNameInput: $('#simulationNameInput'), simulationDateInput: $('#simulationDateInput'), simulationQuestionCountInput: $('#simulationQuestionCountInput'), generateSimulationQuestionsBtn: $('#generateSimulationQuestionsBtn'), simulationQuestionRows: $('#simulationQuestionRows'), simulationValidationMessage: $('#simulationValidationMessage'), simulationDraftTotal: $('#simulationDraftTotal'), simulationDraftAnswered: $('#simulationDraftAnswered'), simulationDraftCorrect: $('#simulationDraftCorrect'), simulationDraftWrong: $('#simulationDraftWrong'), simulationDraftAccuracy: $('#simulationDraftAccuracy'),
     toast: $('#toast'), exportBtn: $('#exportBtn'), importInput: $('#importInput'),
   };
 
-  function saveMaterials() { localStorage.setItem(MATERIALS_KEY, JSON.stringify(state.materials)); }
-  function saveExams() { localStorage.setItem(EXAMS_KEY, JSON.stringify(state.exams)); }
-  function saveAll() { saveMaterials(); saveExams(); }
+  let seedingAccount = true;
+
+  function notifyDataChanged(kind) { window.dispatchEvent(new CustomEvent('peleja:data-changed', { detail: { kind } })); }
+  function saveMaterials() { if (personalStore.setItem(MATERIALS_KEY, JSON.stringify(state.materials), { seed: seedingAccount })) notifyDataChanged('materials'); }
+  function saveExams() { if (personalStore.setItem(EXAMS_KEY, JSON.stringify(state.exams), { seed: seedingAccount })) notifyDataChanged('exams'); }
+  function saveSimulations() { if (personalStore.setItem(SIMULATIONS_KEY, JSON.stringify(state.simulations), { seed: seedingAccount })) notifyDataChanged('simulations'); }
+  function saveAll() { saveMaterials(); saveExams(); saveSimulations(); }
 
   function escapeHtml(value = '') {
     return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -272,7 +506,7 @@
   }
 
   function actionMenuItem({ action, id, label, iconName, variant = '', entryId = null }) {
-    return `<button class="action-menu-item ${variant}" type="button" data-action="${action}" data-id="${id}"${entryId ? ` data-entry-id="${entryId}"` : ''}>${icon(iconName)}<span>${label}</span></button>`;
+    return `<button class="action-menu-item ${variant}" type="button" data-action="${action}" data-id="${escapeHtml(id)}"${entryId ? ` data-entry-id="${escapeHtml(entryId)}"` : ''}>${icon(iconName)}<span>${label}</span></button>`;
   }
 
   function closeActionMenus() {
@@ -318,13 +552,12 @@
     return { linkedExams, hasPendingExam, completedOnly };
   }
 
-
   function renderExamMaterialList(exam, materials) {
     if (!materials.length) return '<span class="exam-no-materials">Nenhuma apostila vinculada</span>';
     const isExpanded = state.expandedExamIds.has(exam.id);
     const visibleMaterials = isExpanded ? materials : materials.slice(0, 3);
-    const chips = visibleMaterials.map((m) => `<button type="button" class="exam-material-chip" data-action="open-topic" data-id="${m.id}">${escapeHtml(m.title)}</button>`).join('');
-    const toggle = materials.length > 3 ? `<button type="button" class="exam-material-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-exam-materials" data-id="${exam.id}">${isExpanded ? 'Mostrar menos' : `Ver todas (${materials.length})`}</button>` : '';
+    const chips = visibleMaterials.map((m) => `<button type="button" class="exam-material-chip" data-action="open-topic" data-id="${escapeHtml(m.id)}">${escapeHtml(m.title)}</button>`).join('');
+    const toggle = materials.length > 3 ? `<button type="button" class="exam-material-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-exam-materials" data-id="${escapeHtml(exam.id)}">${isExpanded ? 'Mostrar menos' : `Ver todas (${materials.length})`}</button>` : '';
     return `${chips}${toggle}`;
   }
 
@@ -383,7 +616,7 @@
     renderDashboard();
     renderMaterials();
     renderExams();
-    renderPerformance();
+    renderSimulations();
     updatePrimaryAction();
   }
 
@@ -399,30 +632,12 @@
     }
 
     fill(els.subjectFilter, materialSubjects, 'Todas as disciplinas');
-    fill(els.performanceSubjectFilter, materialSubjects, 'Todas as disciplinas');
     fill(els.examSubjectFilter, subjects, 'Todas as disciplinas');
   }
 
   function renderDashboard() {
-    const stats = getStats();
-    $('#totalMaterials').textContent = stats.total;
-    $('#totalSubjects').textContent = plural(stats.subjects, 'disciplina', 'disciplinas');
-    $('#readMaterials').textContent = stats.read;
-    $('#readRate').textContent = `${stats.readRate}% do total`;
-    $('#totalQuestions').textContent = stats.questions;
-    $('#questionsPerMaterial').textContent = `${stats.avgQuestions} por apostila`;
-    $('#accuracyRate').textContent = `${stats.accuracy}%`;
-    $('#correctSummary').textContent = plural(stats.correct, 'acerto', 'acertos');
-    $('#heroRing').style.setProperty('--progress', `${stats.readRate}%`);
-    $('#heroPercent').textContent = `${stats.readRate}%`;
-    $('#questionDonut').style.setProperty('--accuracy', `${stats.accuracy}%`);
-    $('#donutPercent').textContent = `${stats.accuracy}%`;
-    $('#legendCorrect').textContent = stats.correct;
-    $('#legendWrong').textContent = stats.wrong;
-    $('#legendUnanswered').textContent = stats.unanswered;
     renderReadingQueue();
     renderUpcomingExamQueue();
-    renderSubjectOverview();
   }
 
   function renderReadingQueue() {
@@ -432,7 +647,7 @@
       container.innerHTML = state.materials.length ? '<div class="empty-state"><strong>Tudo lido por aqui.</strong>Sua fila de leitura está zerada.</div>' : '<div class="empty-state"><strong>Nenhuma apostila cadastrada.</strong>Adicione sua primeira aula para começar.</div>';
       return;
     }
-    container.innerHTML = queue.map((m, index) => `<div class="queue-item"><div class="queue-number">${m.classOrder !== '' ? escapeHtml(m.classOrder) : index + 1}</div><div><strong>${escapeHtml(m.title)}</strong><small>${escapeHtml(m.subject)} · ${formatDate(m.classDate)}</small></div><button class="queue-action" data-action="toggle-read" data-id="${m.id}">Marcar lida</button></div>`).join('');
+    container.innerHTML = queue.map((m, index) => `<div class="queue-item"><div class="queue-number">${m.classOrder !== '' ? escapeHtml(m.classOrder) : index + 1}</div><div><strong>${escapeHtml(m.title)}</strong><small>${escapeHtml(m.subject)} · ${formatDate(m.classDate)}</small></div><button class="queue-action" data-action="toggle-read" data-id="${escapeHtml(m.id)}">Marcar lida</button></div>`).join('');
   }
 
   function renderUpcomingExamQueue() {
@@ -443,33 +658,31 @@
       container.innerHTML = '<div class="empty-state"><strong>Nenhuma prova próxima.</strong>Cadastre as datas na seção Provas.</div>';
       return;
     }
-    container.innerHTML = exams.map((exam) => `<div class="queue-item exam-queue-item"><div class="queue-number exam-queue-number">${escapeHtml(exam.type.replace('Prova', 'PF').slice(0, 4))}</div><div><strong>${escapeHtml(exam.subject)} · ${escapeHtml(exam.type)}</strong><small>${formatDate(exam.date)} · ${plural(exam.materialIds.length, 'apostila', 'apostilas')}</small></div><button class="queue-action" data-action="edit-exam" data-id="${exam.id}">Abrir</button></div>`).join('');
-  }
-
-  function renderSubjectOverview() {
-    const rows = getSubjectStats().sort((a, b) => b.questions - a.questions || a.subject.localeCompare(b.subject, 'pt-BR'));
-    const container = $('#subjectOverview');
-    if (!rows.length) { container.innerHTML = '<div class="empty-state"><strong>Sem estatísticas ainda.</strong>Os dados aparecerão após o cadastro das apostilas.</div>'; return; }
-    container.innerHTML = rows.map((row) => `<div class="subject-row"><div><strong>${escapeHtml(row.subject)}</strong><small>${row.read}/${row.materials} lidas · ${plural(row.questions, 'questão', 'questões')}</small></div><div class="mini-progress"><span style="width:${row.readRate}%"></span></div><div class="subject-score">${row.accuracy}%</div></div>`).join('');
+    container.innerHTML = exams.map((exam) => `<div class="queue-item exam-queue-item"><div class="queue-number exam-queue-number">${escapeHtml(exam.type.replace('Prova', 'PF').slice(0, 4))}</div><div><strong>${escapeHtml(exam.subject)} · ${escapeHtml(exam.type)}</strong><small>${formatDate(exam.date)} · ${plural(exam.materialIds.length, 'apostila', 'apostilas')}</small></div><button class="queue-action" data-action="edit-exam" data-id="${escapeHtml(exam.id)}">Abrir</button></div>`).join('');
   }
 
   function getFilteredMaterials() {
     const query = els.searchInput.value.trim().toLocaleLowerCase('pt-BR');
     const subject = els.subjectFilter.value;
     const status = els.statusFilter.value;
+    const ankiFilter = els.ankiFilter?.value || 'all';
     const examFilter = els.materialExamFilter?.value || 'active';
     const sort = els.sortSelect.value;
     const filtered = state.materials.filter((m) => {
       const matchesQuery = !query || `${m.title} ${m.subject} ${m.notes} ${m.sketchyTags}`.toLocaleLowerCase('pt-BR').includes(query);
       const matchesSubject = subject === 'all' || m.subject === subject;
       const matchesStatus = status === 'all' || (status === 'read' ? m.read : !m.read);
+      const hasAnkiNotes = Boolean(String(m.sketchyTags || '').trim());
+      const matchesAnki = ankiFilter === 'all'
+        || (ankiFilter === 'with' && hasAnkiNotes)
+        || (ankiFilter === 'without' && !hasAnkiNotes);
       const examState = getMaterialExamState(m.id);
       const matchesExam = examFilter === 'all'
         || (examFilter === 'active' && !examState.completedOnly)
         || (examFilter === 'pending-exam' && examState.hasPendingExam)
         || (examFilter === 'completed-exam' && examState.completedOnly)
         || (examFilter === 'no-exam' && examState.linkedExams.length === 0);
-      return matchesQuery && matchesSubject && matchesStatus && matchesExam;
+      return matchesQuery && matchesSubject && matchesStatus && matchesAnki && matchesExam;
     });
     return filtered.sort((a, b) => {
       if (sort === 'newest') return (b.classDate || b.createdAt).localeCompare(a.classDate || a.createdAt);
@@ -492,9 +705,9 @@
       ], 'Mais ações da apostila');
       return `<article class="material-card ${m.read ? 'read' : ''}">
         <div class="material-order">${m.classOrder !== '' ? escapeHtml(m.classOrder) : index + 1}</div>
-        <div class="material-info"><div class="material-title-row"><h3>${escapeHtml(m.title)}</h3><span class="status-badge ${m.read ? 'read' : 'pending'}">${m.read ? 'LIDA' : 'PENDENTE'}</span>${m.made ? '<span class="status-badge made">PRODUZIDA</span>' : ''}</div><p class="material-meta">${escapeHtml(m.subject)} · Aula: ${formatDate(m.classDate)}</p>${m.sketchyTags ? `<div class="anki-notes-block"><div class="anki-notes-header"><span>AnKing Notes · ${getAnkiNoteCount(m.sketchyTags)} ${getAnkiNoteCount(m.sketchyTags) === 1 ? 'nota' : 'notas'}</span><button class="copy-query-button" type="button" data-action="copy-sketchy" data-id="${m.id}">Copiar query</button></div></div>` : ''}</div>
+        <div class="material-info"><div class="material-title-row"><h3>${escapeHtml(m.title)}</h3><span class="status-badge ${m.read ? 'read' : 'pending'}">${m.read ? 'LIDA' : 'PENDENTE'}</span>${m.made ? '<span class="status-badge made">PRODUZIDA</span>' : ''}</div><p class="material-meta">${escapeHtml(m.subject)} · Aula: ${formatDate(m.classDate)}</p>${m.sketchyTags ? `<div class="anki-notes-block"><div class="anki-notes-header"><span>AnKing Notes · ${getAnkiNoteCount(m.sketchyTags)} ${getAnkiNoteCount(m.sketchyTags) === 1 ? 'nota' : 'notas'}</span><button class="copy-query-button" type="button" data-action="copy-sketchy" data-id="${escapeHtml(m.id)}">Copiar query</button></div></div>` : ''}</div>
         <div class="question-summary" aria-label="Resumo de questões"><div class="question-summary-total"><span>QUESTÕES</span><b>${m.questions}</b></div><div class="question-summary-correct good"><span>ACERTOS</span><b>${m.correct}</b></div><div class="question-summary-wrong bad"><span>ERROS</span><b>${m.wrong}</b></div></div>
-        <div class="material-actions"><button class="action-button question-add-action" data-action="add-questions" data-id="${m.id}" title="Registrar questões" aria-label="Registrar questões">${icon('addQuestions')}</button><button class="action-button made-action ${m.made ? 'active' : ''}" data-action="toggle-made" data-id="${m.id}" title="${m.made ? 'Marcar como não produzida' : 'Marcar como produzida'}" aria-label="${m.made ? 'Marcar como não produzida' : 'Marcar como produzida'}">${icon(m.made ? 'madeOn' : 'madeOff')}</button><button class="action-button read-action ${m.read ? 'active' : ''}" data-action="toggle-read" data-id="${m.id}" title="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}" aria-label="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}">${icon(m.read ? 'readOn' : 'readOff')}</button>${actionMenu}</div>
+        <div class="material-actions"><button class="action-button question-add-action" data-action="add-questions" data-id="${escapeHtml(m.id)}" title="Registrar questões" aria-label="Registrar questões">${icon('addQuestions')}</button><button class="action-button made-action ${m.made ? 'active' : ''}" data-action="toggle-made" data-id="${escapeHtml(m.id)}" title="${m.made ? 'Marcar como não produzida' : 'Marcar como produzida'}" aria-label="${m.made ? 'Marcar como não produzida' : 'Marcar como produzida'}">${icon(m.made ? 'madeOn' : 'madeOff')}</button><button class="action-button read-action ${m.read ? 'active' : ''}" data-action="toggle-read" data-id="${escapeHtml(m.id)}" title="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}" aria-label="${m.read ? 'Marcar como não lida' : 'Marcar como lida'}">${icon(m.read ? 'readOn' : 'readOff')}</button>${actionMenu}</div>
       </article>`;
     }).join('');
   }
@@ -562,50 +775,145 @@
     }).join('');
   }
 
-  function sortTopicRows(rows, mode) {
-    const copy = [...rows];
-    const byClass = (a, b) => {
-      const dateA = a.classDate || '9999-12-31'; const dateB = b.classDate || '9999-12-31';
-      if (dateA !== dateB) return dateA.localeCompare(dateB);
-      const orderA = a.classOrder === '' ? Number.MAX_SAFE_INTEGER : Number(a.classOrder); const orderB = b.classOrder === '' ? Number.MAX_SAFE_INTEGER : Number(b.classOrder);
-      return orderA - orderB || a.topic.localeCompare(b.topic, 'pt-BR');
-    };
-    if (mode === 'accuracy-asc') return copy.sort((a, b) => (a.answered ? a.accuracy : 101) - (b.answered ? b.accuracy : 101) || byClass(a, b));
-    if (mode === 'accuracy-desc') return copy.sort((a, b) => (b.answered ? b.accuracy : -1) - (a.answered ? a.accuracy : -1) || byClass(a, b));
-    if (mode === 'questions') return copy.sort((a, b) => b.questions - a.questions || byClass(a, b));
-    if (mode === 'name') return copy.sort((a, b) => a.topic.localeCompare(b.topic, 'pt-BR'));
-    if (mode === 'class') return copy.sort(byClass);
-    return copy.sort((a, b) => topicPriorityScore(a) - topicPriorityScore(b) || byClass(a, b));
+  function simulationAreaOptions(selected = '') {
+    const known = new Set(GRAND_AREAS);
+    const values = selected && !known.has(selected) ? [...GRAND_AREAS, selected] : GRAND_AREAS;
+    return `<option value="">Selecione...</option>${values.map((area) => `<option value="${escapeHtml(area)}"${area === selected ? ' selected' : ''}>${escapeHtml(area)}</option>`).join('')}`;
   }
 
-  function renderPerformance() {
-    const selectedSubject = els.performanceSubjectFilter.value || 'all';
-    const scopedMaterials = state.materials.filter((m) => selectedSubject === 'all' || m.subject === selectedSubject);
-    const stats = getStats(scopedMaterials);
-    const subjectStats = getSubjectStats(scopedMaterials);
-    const topicStats = getTopicStats(scopedMaterials);
-    const answered = stats.correct + stats.wrong;
-    const practicedTopics = topicStats.filter((row) => row.answered > 0);
+  function simulationResultMeta(question) {
+    if (isAnnulledSimulationAnswer(question.correctAnswer)) return { key: 'annulled', label: 'Anulada' };
+    const result = simulationQuestionResult(question);
+    if (result === true) return { key: 'correct', label: 'Acerto' };
+    if (result === false) return { key: 'wrong', label: 'Erro' };
+    return { key: 'pending', label: 'Pendente' };
+  }
 
-    $('#performanceAccuracy').textContent = `${stats.accuracy}%`; $('#performanceAccuracyHero').textContent = `${stats.accuracy}%`; $('#performanceCorrect').textContent = stats.correct; $('#performanceWrong').textContent = stats.wrong; $('#performanceAnswered').textContent = `${answered} respondidas`; $('#performanceQuestions').textContent = stats.questions; $('#performanceQuestionAverage').textContent = `${stats.avgQuestions} por assunto`; $('#performanceTopics').textContent = stats.topics; $('#performanceTopicsPracticed').textContent = `${practicedTopics.length} com questões`; $('#performanceReadRate').textContent = `${stats.readRate}%`; $('#performanceReadCount').textContent = `${stats.read}/${stats.total} assuntos`; $('#pendingMaterials').textContent = stats.pending;
-    $('#correctBar').style.width = `${answered ? (stats.correct / answered) * 100 : 0}%`; $('#wrongBar').style.width = `${answered ? (stats.wrong / answered) * 100 : 0}%`;
+  function renderSimulationAreaStats() {
+    if (!els.simulationAreaStats) return;
+    const rows = simulationAreaStats(state.simulations);
+    if (!rows.length) { els.simulationAreaStats.innerHTML = '<div class="empty-state compact"><strong>Ainda não há questões corrigidas por área.</strong>Preencha a grande área, sua resposta e o gabarito oficial em um simulado.</div>'; return; }
+    els.simulationAreaStats.innerHTML = rows.map((row) => `<div class="simulation-area-row"><div class="simulation-area-copy"><strong>${escapeHtml(row.area)}</strong><span>${row.correct}/${row.answered} acertos · ${row.wrong} erros</span></div><div class="simulation-area-track" aria-label="${row.accuracy}% de acerto"><i style="width:${row.accuracy}%"></i></div><b>${row.accuracy}%</b></div>`).join('');
+  }
 
-    const weakest = [...practicedTopics].sort((a, b) => a.accuracy - b.accuracy || b.questions - a.questions)[0];
-    const best = [...practicedTopics].sort((a, b) => b.accuracy - a.accuracy || b.questions - a.questions)[0];
-    const mostPracticed = [...topicStats].sort((a, b) => b.questions - a.questions)[0];
-    $('#weakestTopic').textContent = weakest ? `${weakest.topic} (${weakest.accuracy}%)` : '—'; $('#bestTopic').textContent = best ? `${best.topic} (${best.accuracy}%)` : '—'; $('#mostPracticedTopic').textContent = mostPracticed?.questions ? `${mostPracticed.topic} (${mostPracticed.questions})` : '—';
+  function renderSimulationList() {
+    if (!els.simulationsList) return;
+    if (!state.simulations.length) { els.simulationsList.innerHTML = '<div class="empty-state compact"><strong>Nenhum simulado registrado.</strong>Use “Novo simulado” para começar o histórico semanal.</div>'; return; }
+    const simulations = [...state.simulations].sort((a, b) => b.date.localeCompare(a.date));
+    els.simulationsList.innerHTML = simulations.map((simulation) => {
+      const stats = simulationStats([simulation]);
+      const accuracyLabel = stats.accuracy == null ? '—' : `${stats.accuracy}%`;
+      return `<article class="simulation-card"><div class="simulation-card-heading"><div><h4>${escapeHtml(simulation.name)}</h4><p>${formatDate(simulation.date)}</p></div>${buildActionMenu([actionMenuItem({ action: 'edit-simulation', id: simulation.id, label: 'Editar simulado', iconName: 'edit' }),actionMenuItem({ action: 'delete-simulation', id: simulation.id, label: 'Excluir simulado', iconName: 'trash', variant: 'danger' })], 'Mais ações do simulado')}</div><div class="simulation-card-metrics"><div><span>ACERTO</span><b>${accuracyLabel}</b></div><div><span>CORRIGIDAS</span><b>${stats.answered}/${stats.total}</b></div><div class="bad"><span>ERROS</span><b>${stats.wrong}</b></div><div><span>QUESTÕES</span><b>${stats.total}</b></div></div></article>`;
+    }).join('');
+  }
 
-    const subjectBody = $('#subjectTableBody');
-    subjectBody.innerHTML = subjectStats.length ? subjectStats.map((row) => `<tr><td><strong>${escapeHtml(row.subject)}</strong></td><td>${row.topics}</td><td>${row.read}</td><td>${row.questions}</td><td>${row.correct}</td><td>${row.wrong}</td><td><span class="score-chip">${row.correct + row.wrong ? `${row.accuracy}%` : '—'}</span></td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:#66727f;padding:28px">Nenhum dado cadastrado.</td></tr>';
+  function renderSimulationKpis() {
+    if (!els.simulationCountKpi) return;
+    const stats = simulationStats(state.simulations);
+    const areas = simulationAreaStats(state.simulations).filter((row) => row.answered > 0);
+    const weak = [...areas].sort((a, b) => a.accuracy - b.accuracy || b.answered - a.answered)[0];
+    const strong = [...areas].sort((a, b) => b.accuracy - a.accuracy || b.answered - a.answered)[0];
+    els.simulationCountKpi.textContent = state.simulations.length;
+    els.simulationCountNote.textContent = state.simulations.length ? plural(stats.total, 'questão registrada', 'questões registradas') : 'Nenhum registrado';
+    els.simulationAccuracyKpi.textContent = stats.accuracy == null ? '—' : `${stats.accuracy}%`;
+    els.simulationAccuracyNote.textContent = plural(stats.answered, 'questão corrigida', 'questões corrigidas');
+    els.simulationWeakAreaKpi.textContent = weak ? weak.area : '—';
+    els.simulationWeakAreaNote.textContent = weak ? `${weak.accuracy}% · ${weak.answered} questões` : 'Sem dados por área';
+    els.simulationStrongAreaKpi.textContent = strong ? strong.area : '—';
+    els.simulationStrongAreaNote.textContent = strong ? `${strong.accuracy}% · ${strong.answered} questões` : 'Sem dados por área';
+  }
+
+  function renderSimulations() { if (!els.simulationsList) return; if (globalThis.PELEJA_RENDER_SIMULATION_SUMMARY?.()) return; renderSimulationKpis(); renderSimulationAreaStats(); renderSimulationList(); }
+
+  let simulationLegacyFields = new Map();
+
+  function readSimulationQuestionsFromDom() {
+    return $$('#simulationQuestionRows .simulation-question-row').map((row, index) => normalizeSimulationQuestion({
+      ...(simulationLegacyFields.get(row.dataset.questionId) || {}),
+      id: row.dataset.questionId || makeId('sq'), number: Number(row.dataset.number) || index + 1, flagged: row.dataset.flagged === '1',
+      area: row.querySelector('[data-field="area"]')?.value || '', userAnswer: row.querySelector('[data-field="userAnswer"]')?.value || '',
+      correctAnswer: row.querySelector('[data-field="correctAnswer"]')?.value || '',
+    }, index));
+  }
+
+  function renderSimulationQuestionRows(questions = []) {
+    if (!els.simulationQuestionRows) return;
+    simulationLegacyFields = new Map(questions.map(q => [q.id, { flashFront: q.flashFront || '', flashBack: q.flashBack || '' }]));
+    els.simulationQuestionRows.innerHTML = questions.map((question, index) => {
+      const normalized = normalizeSimulationQuestion(question, index), result = simulationResultMeta(normalized), isWrong = result.key === 'wrong';
+      return `<div class="simulation-question-row ${isWrong ? 'is-wrong' : ''}" data-question-id="${escapeHtml(normalized.id)}" data-number="${normalized.number}" data-flagged="${normalized.flagged ? '1' : '0'}"><div class="simulation-question-core"><b class="simulation-question-number">${normalized.number}${normalized.flagged ? '*' : ''}</b><select data-field="area" aria-label="Grande área da questão ${normalized.number}">${simulationAreaOptions(normalized.area)}</select><input data-field="userAnswer" value="${escapeHtml(normalized.userAnswer)}" autocomplete="off" aria-label="Minha resposta da questão ${normalized.number}" placeholder="Minha resposta" /><input data-field="correctAnswer" value="${escapeHtml(normalized.correctAnswer)}" autocomplete="off" aria-label="Gabarito da questão ${normalized.number}" placeholder="Gabarito" /><span class="simulation-result-badge ${result.key}">${result.label}</span></div></div>`;
+    }).join('');
+    syncSimulationDraftUI();
+  }
+
+  function syncSimulationDraftUI() {
+    const rows = $$('#simulationQuestionRows .simulation-question-row'); let correct = 0, wrong = 0;
+    rows.forEach((row, index) => {
+      const question = normalizeSimulationQuestion({ id: row.dataset.questionId, number: Number(row.dataset.number) || index + 1, area: row.querySelector('[data-field="area"]')?.value || '', userAnswer: row.querySelector('[data-field="userAnswer"]')?.value || '', correctAnswer: row.querySelector('[data-field="correctAnswer"]')?.value || '' }, index);
+      const meta = simulationResultMeta(question), badge = row.querySelector('.simulation-result-badge');
+      badge.className = `simulation-result-badge ${meta.key}`; badge.textContent = meta.label;
+      const isWrong = meta.key === 'wrong'; row.classList.toggle('is-wrong', isWrong);
+      if (meta.key === 'correct') correct += 1; if (meta.key === 'wrong') wrong += 1;
+    });
+    const answered = correct + wrong;
+    els.simulationDraftTotal.textContent = rows.length; els.simulationDraftAnswered.textContent = answered; els.simulationDraftCorrect.textContent = correct; els.simulationDraftWrong.textContent = wrong; els.simulationDraftAccuracy.textContent = answered ? `${Math.round((correct / answered) * 100)}%` : '—';
+  }
+
+  function generateSimulationQuestions() {
+    const count = Math.max(0, Number(els.simulationQuestionCountInput.value) || 0);
+    if (!Number.isInteger(count) || count < 1 || count > 1000) { els.simulationValidationMessage.textContent = 'Informe de 1 a 1000 questões, usando um número inteiro.'; return; }
+    const current = readSimulationQuestionsFromDom();
+    if (count < current.length && !window.confirm(`Reduzir para ${count} questões removerá ${current.length - count} linha(s) do fim. Continuar?`)) return;
+    const next = current.slice(0, count); while (next.length < count) next.push(normalizeSimulationQuestion({}, next.length));
+    els.simulationValidationMessage.textContent = ''; renderSimulationQuestionRows(next);
+  }
+
+  function openSimulationModal(simulation = null) {
+    if (!requireAdmin(simulation ? 'editar eventos de residência' : 'criar eventos de residência')) return;
+    const current = simulation ? normalizeSimulation(simulation) : null;
+    els.simulationId.value = current?.id || ''; els.simulationModalTitle.textContent = current ? 'Editar simulado' : 'Novo simulado';
+    els.simulationNameInput.value = current?.name || ''; els.simulationDateInput.value = current?.date || todayDateValue(); els.simulationQuestionCountInput.value = current?.questions.length || '';
+    els.simulationValidationMessage.textContent = ''; renderSimulationQuestionRows(current?.questions || []);
+    els.simulationModal.classList.add('open'); els.simulationModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { if (els.simulationModal.classList.contains('open') && !els.simulationModal.inert) els.simulationNameInput.focus(); }, 50);
+  }
+
+  function closeSimulationModal() { els.simulationModal.classList.remove('open'); els.simulationModal.setAttribute('aria-hidden', 'true'); els.simulationValidationMessage.textContent = ''; }
+
+  function handleSimulationSubmit(event) {
+    event.preventDefault();
+    if (!requireAdmin('salvar eventos e gabaritos oficiais de residência')) return;
+    const name = els.simulationNameInput.value.trim(), date = els.simulationDateInput.value, questions = readSimulationQuestionsFromDom();
+    if (!name || !date) { els.simulationValidationMessage.textContent = 'Informe nome e data do simulado.'; return; }
+    if (!questions.length) { els.simulationValidationMessage.textContent = 'Gere pelo menos uma questão antes de salvar.'; return; }
+    const existing = state.simulations.find((simulation) => simulation.id === els.simulationId.value), now = new Date().toISOString();
+    const simulation = normalizeSimulation({ id: existing?.id || makeId('sim'), name, date, questions, createdAt: existing?.createdAt || now, updatedAt: now });
+    state.simulations = existing ? state.simulations.map((item) => item.id === existing.id ? simulation : item) : [...state.simulations, simulation];
+    personalStore.markCatalogDirty();
+    saveSimulations(); renderAll(); closeSimulationModal(); showToast(existing ? 'Simulado atualizado.' : 'Simulado adicionado.');
+  }
+
+  function handlePrimaryActionClick() {
+    if (!canManageStructure()) {
+      showToast('A criação de apostilas, provas e eventos de residência é exclusiva do administrador.');
+      return;
+    }
+    if (state.currentView === 'exams') { openExamForm(); return; }
+    if (state.currentView === 'simulations') { openSimulationModal(); return; }
+    openMaterialModal();
   }
 
   function updatePrimaryAction() {
+    const rankingView = state.currentView === 'ranking';
+    const structuralView = ['dashboard', 'materials', 'exams', 'simulations'].includes(state.currentView);
+    els.primaryActionBtn.hidden = rankingView || (structuralView && !canManageStructure());
+    if (els.primaryActionBtn.hidden) return;
     if (state.currentView === 'exams') els.primaryActionBtn.textContent = '+ Nova prova';
+    else if (state.currentView === 'simulations') els.primaryActionBtn.textContent = '+ Novo evento';
     else els.primaryActionBtn.textContent = '+ Nova apostila';
   }
 
   function setView(view) {
-    const titles = { dashboard: 'Painel de estudos', materials: 'Biblioteca de apostilas', exams: 'Provas', performance: 'Análise de desempenho' };
+    const titles = { dashboard: 'Painel', materials: 'Biblioteca de apostilas', exams: 'Provas', simulations: 'Simulados', ranking: 'Ranking' };
     state.currentView = view;
     els.navItems.forEach((item) => item.classList.toggle('active', item.dataset.view === view));
     els.views.forEach((section) => section.classList.toggle('active', section.id === `${view}View`));
@@ -614,7 +922,8 @@
     updatePrimaryAction();
     if (view === 'materials') renderMaterials();
     if (view === 'exams') renderExams();
-    if (view === 'performance') renderPerformance();
+    if (view === 'simulations') renderSimulations();
+    window.dispatchEvent(new CustomEvent('peleja:view-changed', { detail: { view } }));
   }
 
   function updateMaterialQuestionSummary(material = null) {
@@ -625,6 +934,7 @@
   }
 
   function openMaterialModal(material = null) {
+    if (!requireAdmin(material ? 'editar apostilas' : 'criar apostilas')) return;
     els.materialForm.reset(); els.validationMessage.textContent = '';
     updateMaterialQuestionSummary(material);
     if (material) {
@@ -632,17 +942,19 @@
     } else {
       els.modalTitle.textContent = 'Adicionar nova apostila'; els.materialId.value = ''; els.madeInput.checked = false;
     }
-    els.materialModal.classList.add('open'); els.materialModal.setAttribute('aria-hidden', 'false'); setTimeout(() => els.subjectInput.focus(), 30);
+    els.materialModal.classList.add('open'); els.materialModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { if (els.materialModal.classList.contains('open') && !els.materialModal.inert) els.subjectInput.focus(); }, 30);
   }
 
   function closeMaterialModal() { els.materialModal.classList.remove('open'); els.materialModal.setAttribute('aria-hidden', 'true'); }
 
   function handleMaterialSubmit(event) {
-    event.preventDefault(); els.validationMessage.textContent = '';
+    event.preventDefault();
+    if (!requireAdmin('salvar apostilas')) return;
+    els.validationMessage.textContent = '';
     const subject = els.subjectInput.value.trim(); const title = els.titleInput.value.trim();
     if (!subject || !title) { els.validationMessage.textContent = 'Preencha a disciplina e o título da apostila.'; return; }
     const existingId = els.materialId.value; const existing = state.materials.find((m) => m.id === existingId); const id = existingId || makeId('m'); const now = new Date().toISOString();
-    const material = normalizeMaterial({ id, subject, title, classDate: els.classDateInput.value, classOrder: els.classOrderInput.value, sketchyTags: els.sketchyTagsInput.value, made: els.madeInput.checked, questionEntries: existing?.questionEntries || [], read: els.readInput.checked, notes: els.notesInput.value.trim(), createdAt: existing?.createdAt || now, updatedAt: now });
+    const material = normalizeMaterial({ ...(existing || {}), id, subject, title, classDate: els.classDateInput.value, classOrder: els.classOrderInput.value, sketchyTags: els.sketchyTagsInput.value, made: els.madeInput.checked, questionEntries: existing?.questionEntries || [], read: els.readInput.checked, notes: els.notesInput.value.trim(), createdAt: existing?.createdAt || now, updatedAt: now });
     if (existing) state.materials = state.materials.map((m) => m.id === id ? material : m); else state.materials.push(material);
 
     let removedLinks = 0;
@@ -653,6 +965,7 @@
         return normalizeExam({ ...exam, materialIds: exam.materialIds.filter((materialId) => materialId !== id), updatedAt: now });
       });
     }
+    personalStore.markCatalogDirty();
     saveAll(); renderAll(); closeMaterialModal(); showToast(removedLinks ? `Apostila atualizada. ${removedLinks} vínculo(s) de prova incompatível(is) removido(s).` : (existing ? 'Apostila atualizada.' : 'Apostila adicionada.'));
   }
 
@@ -676,7 +989,7 @@
     ], 'Mais ações da entrada')}</div></div>`).join('');
   }
 
-  function openQuestionModal(material) { if (!material) return; if (els.materialModal.classList.contains('open')) closeMaterialModal(); els.questionMaterialId.value = material.id; resetQuestionEntryForm(); renderQuestionModal(material.id); els.questionModal.classList.add('open'); els.questionModal.setAttribute('aria-hidden', 'false'); setTimeout(() => els.questionTotalInput.focus(), 30); }
+  function openQuestionModal(material) { if (!material) return; if (els.materialModal.classList.contains('open')) closeMaterialModal(); els.questionMaterialId.value = material.id; resetQuestionEntryForm(); renderQuestionModal(material.id); els.questionModal.classList.add('open'); els.questionModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { if (els.questionModal.classList.contains('open') && !els.questionModal.inert) els.questionTotalInput.focus(); }, 30); }
   function closeQuestionModal() { els.questionModal.classList.remove('open'); els.questionModal.setAttribute('aria-hidden', 'true'); resetQuestionEntryForm(); }
   function readIntegerInput(input) { const raw = input.value.trim(); if (raw === '') return null; const value = Number(raw); return Number.isInteger(value) ? value : null; }
 
@@ -712,22 +1025,32 @@
   }
 
   function openExamForm(exam = null) {
+    const admin = canManageStructure();
+    if (!admin && !exam) { showToast('Apenas o administrador pode criar provas da faculdade.'); return; }
     if (!state.materials.length && !exam) { showToast('Cadastre ao menos uma apostila antes de criar uma prova.'); setView('materials'); return; }
-    els.examForm.reset(); els.examValidationMessage.textContent = ''; els.examId.value = exam?.id || ''; els.examFormTitle.textContent = exam ? 'Editar prova' : 'Adicionar prova';
+    els.examForm.reset(); els.examValidationMessage.textContent = ''; els.examId.value = exam?.id || ''; els.examFormTitle.textContent = exam ? (admin ? 'Editar prova' : 'Registrar meu resultado') : 'Adicionar prova';
     populateExamSubjectInput(exam?.subject || '');
     els.examTypeInput.value = exam?.type || '';
     if (exam?.type && !EXAM_TYPES.includes(exam.type)) { const option = document.createElement('option'); option.value = exam.type; option.textContent = exam.type; els.examTypeInput.appendChild(option); els.examTypeInput.value = exam.type; }
     els.examDateInput.value = exam?.date || todayDateValue();
     els.examTotalInput.value = hasExamResult(exam || {}) ? exam.total : ''; els.examCorrectInput.value = hasExamResult(exam || {}) ? exam.correct : ''; els.examWrongInput.value = hasExamResult(exam || {}) ? exam.wrong : '';
     renderExamMaterialOptions(exam?.subject || '', exam?.materialIds || []);
-    els.examFormModal.classList.add('open'); els.examFormModal.setAttribute('aria-hidden', 'false'); setTimeout(() => (exam ? els.examTypeInput : els.examSubjectInput).focus(), 30);
+    [els.examSubjectInput, els.examTypeInput, els.examDateInput].forEach((control) => { if (control) control.disabled = !admin; });
+    els.examMaterialOptions.querySelectorAll('input[type="checkbox"]').forEach((control) => { control.disabled = !admin; });
+    els.examFormModal.classList.add('open'); els.examFormModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { if (els.examFormModal.classList.contains('open') && !els.examFormModal.inert) (admin ? (exam ? els.examTypeInput : els.examSubjectInput) : els.examTotalInput).focus(); }, 30);
   }
 
   function closeExamForm() { els.examFormModal.classList.remove('open'); els.examFormModal.setAttribute('aria-hidden', 'true'); els.examValidationMessage.textContent = ''; }
 
   function handleExamSubmit(event) {
     event.preventDefault(); els.examValidationMessage.textContent = '';
-    const subject = els.examSubjectInput.value; const type = els.examTypeInput.value; const date = els.examDateInput.value; const materialIds = getExamFormSelectedIds();
+    const admin = canManageStructure();
+    const existing = state.exams.find((item) => item.id === els.examId.value);
+    if (!admin && !existing) { showToast('Apenas o administrador pode criar provas da faculdade.'); return; }
+    const subject = admin ? els.examSubjectInput.value : existing.subject;
+    const type = admin ? els.examTypeInput.value : existing.type;
+    const date = admin ? els.examDateInput.value : existing.date;
+    const materialIds = admin ? getExamFormSelectedIds() : [...existing.materialIds];
     if (!subject || !type || !date) { els.examValidationMessage.textContent = 'Preencha disciplina, tipo e data da prova.'; return; }
     if (!materialIds.length) { els.examValidationMessage.textContent = 'Selecione pelo menos uma apostila que faça parte desta prova.'; return; }
     const invalidMaterial = materialIds.some((id) => state.materials.find((m) => m.id === id)?.subject !== subject);
@@ -742,19 +1065,22 @@
       if (correct + wrong !== total) { els.examValidationMessage.textContent = `Acertos + erros precisa ser igual ao total da prova (${correct + wrong} ≠ ${total}).`; return; }
     }
 
-    const existing = state.exams.find((item) => item.id === els.examId.value); const now = new Date().toISOString();
-    const exam = normalizeExam({ id: existing?.id || makeId('p'), subject, type, date, materialIds, total, correct, wrong, createdAt: existing?.createdAt || now, updatedAt: now });
+    const now = new Date().toISOString();
+    const exam = normalizeExam({ ...(existing || {}), id: existing?.id || makeId('p'), subject, type, date, materialIds, total, correct, wrong, createdAt: existing?.createdAt || now, updatedAt: now });
     if (existing) state.exams = state.exams.map((item) => item.id === exam.id ? exam : item); else state.exams.push(exam);
+    if (admin) personalStore.markCatalogDirty();
     saveExams(); renderAll(); closeExamForm(); showToast(existing ? 'Prova atualizada.' : 'Prova adicionada.');
   }
 
   async function handleAction(action, id, entryId = null) {
+    if (action === 'edit-simulation') { if (!requireAdmin('editar eventos de residência')) return; const simulation = state.simulations.find((item) => item.id === id); if (simulation) openSimulationModal(simulation); return; }
+    if (action === 'delete-simulation') { if (!requireAdmin('excluir eventos de residência')) return; const simulation = state.simulations.find((item) => item.id === id); if (!simulation) return; if (!window.confirm(`Excluir “${simulation.name}”?`)) return; state.simulations = state.simulations.filter((item) => item.id !== id); personalStore.markCatalogDirty(); saveSimulations(); renderAll(); showToast('Simulado excluído.'); return; }
     if (action === 'edit-exam') { const exam = state.exams.find((item) => item.id === id); if (exam) openExamForm(exam); return; }
-    if (action === 'delete-exam') { const exam = state.exams.find((item) => item.id === id); if (!exam) return; if (!window.confirm(`Excluir ${exam.type} de ${exam.subject}?`)) return; state.exams = state.exams.filter((item) => item.id !== id); state.expandedExamIds.delete(id); saveExams(); renderAll(); showToast('Prova excluída.'); return; }
+    if (action === 'delete-exam') { if (!requireAdmin('excluir provas da faculdade')) return; const exam = state.exams.find((item) => item.id === id); if (!exam) return; if (!window.confirm(`Excluir ${exam.type} de ${exam.subject}?`)) return; personalStore.markCatalogDirty(); state.exams = state.exams.filter((item) => item.id !== id); state.expandedExamIds.delete(id); saveExams(); renderAll(); showToast('Prova excluída.'); return; }
     if (action === 'toggle-exam-materials') { if (state.expandedExamIds.has(id)) state.expandedExamIds.delete(id); else state.expandedExamIds.add(id); renderExams(); return; }
     if (action === 'open-topic') {
       const target = state.materials.find((m) => m.id === id); if (!target) return;
-      els.searchInput.value = target.title; renderSubjectFilters(); els.subjectFilter.value = target.subject; els.statusFilter.value = 'all'; if (els.materialExamFilter) els.materialExamFilter.value = 'all'; setView('materials'); renderMaterials(); return;
+      els.searchInput.value = target.title; renderSubjectFilters(); els.subjectFilter.value = target.subject; els.statusFilter.value = 'all'; if (els.ankiFilter) els.ankiFilter.value = 'all'; if (els.materialExamFilter) els.materialExamFilter.value = 'all'; setView('materials'); renderMaterials(); return;
     }
 
     const material = state.materials.find((m) => m.id === id); if (!material) return;
@@ -767,9 +1093,11 @@
     }
     if (action === 'toggle-made') { material.made = !material.made; material.updatedAt = new Date().toISOString(); saveMaterials(); renderAll(); showToast(material.made ? 'Apostila marcada como produzida.' : 'Apostila marcada como não produzida.'); return; }
     if (action === 'toggle-read') { material.read = !material.read; material.updatedAt = new Date().toISOString(); saveMaterials(); renderAll(); showToast(material.read ? 'Leitura concluída.' : 'Apostila marcada como pendente.'); return; }
-    if (action === 'edit') { openMaterialModal(material); return; }
+    if (action === 'edit') { if (!requireAdmin('editar apostilas')) return; openMaterialModal(material); return; }
     if (action === 'delete') {
+      if (!requireAdmin('excluir apostilas')) return;
       if (!window.confirm(`Excluir “${material.title}”?`)) return;
+      personalStore.markCatalogDirty();
       state.materials = state.materials.filter((m) => m.id !== id); state.exams = state.exams.map((exam) => exam.materialIds.includes(id) ? normalizeExam({ ...exam, materialIds: exam.materialIds.filter((materialId) => materialId !== id), updatedAt: new Date().toISOString() }) : exam); saveAll(); renderAll(); showToast('Apostila excluída. Vínculos com provas foram atualizados.'); return;
     }
     if (action === 'copy-sketchy') {
@@ -778,20 +1106,35 @@
     }
   }
 
-  function exportData() {
-    const payload = { app: 'Peleja', version: 12, exportedAt: new Date().toISOString(), note: 'Backup com apostilas, histórico de questões, status de produção e provas independentes vinculadas às apostilas.', materials: state.materials, exams: state.exams };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `peleja-backup-${todayDateValue()}.json`; anchor.click(); URL.revokeObjectURL(url); showToast('Backup exportado.');
+  async function exportData() {
+    if (!personalStore.writable) { showToast('Entre na sua conta para exportar.'); return; }
+    const owner = personalStore.scope, generation = personalStore.generation;
+    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations };
+    try { payload.cloudAttempts = await globalThis.PELEJA_CLOUD_BACKUP?.exportAttempts() || undefined; }
+    catch { payload.note += ' Exportação local: tentativas online não puderam ser incluídas.'; }
+    if (personalStore.scope !== owner || personalStore.generation !== generation) { showToast('A conta mudou. Exporte novamente.'); return; }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `peleja-backup-${todayDateValue()}.json`; anchor.click(); URL.revokeObjectURL(url); showToast(payload.cloudAttempts || personalStore.localOnly ? 'Backup exportado.' : 'Backup local exportado; tentativas online não incluídas.');
   }
 
   async function importData(file) {
+    const owner = personalStore.scope;
+    const generation = personalStore.generation;
     try {
+      if (!owner) throw new Error('Entre na sua conta para importar.');
       const text = await file.text(); const parsed = JSON.parse(text); const rawMaterials = Array.isArray(parsed) ? parsed : parsed.materials;
+      if (personalStore.scope !== owner || personalStore.generation !== generation) throw new Error('A conta mudou. Importe novamente na conta correta.');
+      if (!personalStore.canImport(Array.isArray(parsed) ? null : parsed.owner)) throw new Error('Este backup pertence a outra conta. Backups antigos são exclusivos de Vinícius.');
       if (!Array.isArray(rawMaterials)) throw new Error('Formato inválido');
       if (!window.confirm('Importar este backup substituirá os dados atuais. Continuar?')) return;
+      if (parsed.cloudAttempts) {
+        await globalThis.PELEJA_CLOUD_BACKUP.restore(parsed); showToast('Backup e resultados online restaurados.'); return;
+      }
       const materials = rawMaterials.map(normalizeMaterial); let exams;
       if (!Array.isArray(parsed) && Array.isArray(parsed.exams)) exams = parsed.exams.map(normalizeExam); else exams = migrateLegacyExams(rawMaterials, materials);
-      state.materials = materials; state.exams = exams; saveAll(); renderAll(); showToast('Backup importado.');
-    } catch (error) { console.error(error); showToast('Arquivo de backup inválido.'); }
+      const simulations = !Array.isArray(parsed) && Array.isArray(parsed.simulations) ? parsed.simulations.map(normalizeSimulation) : [];
+      if (canManageStructure()) personalStore.markCatalogDirty();
+      state.materials = materials; state.exams = exams; state.simulations = simulations; saveAll(); renderAll(); showToast('Backup importado.');
+    } catch (error) { console.error(error); showToast(error.message || 'Arquivo de backup inválido.'); }
     finally { els.importInput.value = ''; }
   }
 
@@ -802,7 +1145,34 @@
     const text = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()); els.todayLabel.textContent = text.charAt(0).toUpperCase() + text.slice(1);
   }
 
+  function reloadAccountData() {
+    const rawMaterials = parseStoredArray(MATERIALS_KEY);
+    state.materials = rawMaterials.map(normalizeMaterial);
+    state.exams = parseStoredArray(EXAMS_KEY).map(normalizeExam);
+    state.simulations = parseStoredArray(SIMULATIONS_KEY).map(normalizeSimulation);
+    if (personalStore.getItem(EXAMS_KEY) === null && !state.exams.length) {
+      state.exams = migrateLegacyExams(rawMaterials, state.materials);
+    }
+    state.expandedExamIds.clear();
+    if (personalStore.getItem(MATERIALS_KEY) === null) applyAcademicData(currentAcademicData);
+    // Discard old drafts and rendered private details before the new identity is shown.
+    $$('.modal-backdrop').filter((modal) => modal.id !== 'accountModal').forEach((modal) => {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      modal.querySelectorAll('input, textarea').forEach((input) => { input.value = ''; });
+    });
+    ['questionEntryList', 'examMaterialOptions', 'simulationQuestionRows'].forEach((id) => {
+      document.getElementById(id)?.replaceChildren();
+    });
+    seedingAccount = true;
+    saveAll();
+    seedingAccount = false;
+    renderAll();
+    updatePrimaryAction();
+  }
+
   function bindEvents() {
+    window.addEventListener('peleja:storage-changed', reloadAccountData);
     els.navItems.forEach((item) => item.addEventListener('click', () => setView(item.dataset.view)));
     $$('[data-go-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.goView)));
     els.menuButton.addEventListener('click', () => els.sidebar.classList.toggle('open'));
@@ -810,29 +1180,36 @@
     window.addEventListener('resize', () => {
       if (window.innerWidth > 820) els.sidebar.classList.remove('open');
     });
-    els.primaryActionBtn.addEventListener('click', () => state.currentView === 'exams' ? openExamForm() : openMaterialModal());
+    window.addEventListener('peleja:access-changed', () => {
+      updatePrimaryAction();
+      renderAll();
+    });
+    els.primaryActionBtn.addEventListener('click', handlePrimaryActionClick);
     els.closeModal.addEventListener('click', closeMaterialModal); els.cancelModal.addEventListener('click', closeMaterialModal); els.materialForm.addEventListener('submit', handleMaterialSubmit);
     els.openQuestionManagerFromMaterial.addEventListener('click', () => { const material = state.materials.find((item) => item.id === els.openQuestionManagerFromMaterial.dataset.id); if (material) openQuestionModal(material); });
     els.closeQuestionModal.addEventListener('click', closeQuestionModal); els.cancelQuestionEntryEdit.addEventListener('click', resetQuestionEntryForm); els.questionEntryForm.addEventListener('submit', handleQuestionEntrySubmit);
     els.closeExamFormModal.addEventListener('click', closeExamForm); els.cancelExamForm.addEventListener('click', closeExamForm); els.examForm.addEventListener('submit', handleExamSubmit);
+    els.closeSimulationModal.addEventListener('click', closeSimulationModal); els.cancelSimulationModal.addEventListener('click', closeSimulationModal); els.simulationForm.addEventListener('submit', handleSimulationSubmit); els.generateSimulationQuestionsBtn.addEventListener('click', generateSimulationQuestions);
+    els.simulationQuestionRows.addEventListener('input', syncSimulationDraftUI); els.simulationQuestionRows.addEventListener('change', syncSimulationDraftUI);
     els.examSubjectInput.addEventListener('change', () => renderExamMaterialOptions(els.examSubjectInput.value, []));
     els.examMaterialOptions.addEventListener('change', (event) => { if (event.target.matches('input[type="checkbox"]')) updateExamSelectionCount(); });
     els.materialModal.addEventListener('click', (event) => { if (event.target === els.materialModal) closeMaterialModal(); });
     els.questionModal.addEventListener('click', (event) => { if (event.target === els.questionModal) closeQuestionModal(); });
     els.examFormModal.addEventListener('click', (event) => { if (event.target === els.examFormModal) closeExamForm(); });
+    els.simulationModal.addEventListener('click', (event) => { if (event.target === els.simulationModal) closeSimulationModal(); });
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape') return;
       if ($$('.action-menu.open').length) {
         closeActionMenus();
         return;
       }
-      if (els.examFormModal.classList.contains('open')) closeExamForm();
+      if (els.simulationModal.classList.contains('open')) closeSimulationModal();
+      else if (els.examFormModal.classList.contains('open')) closeExamForm();
       else if (els.questionModal.classList.contains('open')) closeQuestionModal();
       else if (els.materialModal.classList.contains('open')) closeMaterialModal();
     });
-    els.searchInput.addEventListener('input', renderMaterials); [els.subjectFilter, els.statusFilter, els.materialExamFilter, els.sortSelect].forEach((control) => control?.addEventListener('change', renderMaterials));
+    els.searchInput.addEventListener('input', renderMaterials); [els.subjectFilter, els.statusFilter, els.ankiFilter, els.materialExamFilter, els.sortSelect].forEach((control) => control?.addEventListener('change', renderMaterials));
     [els.examSubjectFilter, els.examStatusFilter].forEach((control) => control.addEventListener('change', renderExams));
-    els.performanceSubjectFilter.addEventListener('change', renderPerformance);
     document.addEventListener('click', (event) => {
       const toggle = event.target.closest('.action-menu-toggle');
       if (toggle) {
@@ -849,7 +1226,47 @@
     els.exportBtn.addEventListener('click', exportData); els.importInput.addEventListener('change', () => { const file = els.importInput.files[0]; if (file) importData(file); });
   }
 
+  function applySharedCatalog(catalog) {
+    const oldMaterials = new Map(state.materials.map(item => [item.id, item]));
+    const oldExams = new Map(state.exams.map(item => [item.id, item]));
+    const oldSimulations = new Map(state.simulations.map(item => [item.id, item]));
+    state.materials = (catalog.materials || []).map(item => {
+      const old = oldMaterials.get(item.id) || {};
+      return normalizeMaterial({ ...item, made: old.made, read: old.read, questionEntries: old.questionEntries || [],
+        notes: old.notes, sketchyTags: old.sketchyTags, createdAt: old.createdAt, updatedAt: old.updatedAt });
+    });
+    state.exams = (catalog.exams || []).map(item => {
+      const old = oldExams.get(item.id) || {};
+      return normalizeExam({ ...item, total: old.total, correct: old.correct, wrong: old.wrong, createdAt: old.createdAt, updatedAt: old.updatedAt });
+    });
+    state.simulations = (catalog.simulations || []).map(item => {
+      const old = oldSimulations.get(item.id);
+      return normalizeSimulation({ ...item, questions: (item.questions || []).map(q => {
+        const personal = old?.questions.find(x => x.number === q.number) || {};
+        return { ...q, userAnswer: personal.userAnswer, flashFront: personal.flashFront, flashBack: personal.flashBack };
+      }) });
+    });
+    seedingAccount = true; saveAll(); seedingAccount = false; renderAll();
+  }
+  globalThis.PELEJA_APP = Object.freeze({ applySharedCatalog });
+
   function registerServiceWorker() { if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('Service Worker:', error)); }
 
-  saveAll(); initDate(); bindEvents(); applySidebarCollapsedState(); renderAll(); registerServiceWorker();
+  async function refreshAcademicDataFromJson() {
+    if (!location.protocol.startsWith('http')) return;
+    try {
+      const response = await fetch('./academic-data.json', { cache: 'no-store' });
+      if (!response.ok) return;
+      const academicData = await response.json();
+      currentAcademicData = academicData;
+      if (personalStore.getItem(MATERIALS_KEY) === null && applyAcademicData(academicData)) {
+        saveAll();
+        renderAll();
+      }
+    } catch (error) {
+      console.warn('academic-data.json:', error);
+    }
+  }
+
+  saveAll(); seedingAccount = false; initDate(); bindEvents(); applySidebarCollapsedState(); renderAll(); registerServiceWorker(); refreshAcademicDataFromJson();
 })();

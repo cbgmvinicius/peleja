@@ -1,0 +1,16 @@
+{
+  "name": "peleja",
+  "version": "25.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "scripts": {
+    "test": "node tests/local.test.cjs && node tests/database.test.cjs && node tests/full-flow.test.cjs && node tests/release.test.cjs",
+    "check": "node --check app.js && node --check storage.js && node --check cloud.js && node --check ui.js && node --check sw.js"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "jsdom": "30.1.1"
+  }
+}
