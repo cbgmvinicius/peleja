@@ -892,7 +892,7 @@ td { font-size: 13px; }
 .auth-tab.active, .ranking-tab.active { color: var(--ink); background: var(--surface); box-shadow: 0 2px 7px rgba(55,60,50,.07); }
 .auth-form { display: grid; gap: 12px; margin-top: 16px; }
 .auth-form label > span { display:block; margin-bottom: 6px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
-.auth-form input { width:100%; }
+.auth-form input { width:100%; min-height:44px; padding:11px 12px; }
 .auth-form .primary-button { margin-top: 2px; }
 .auth-message { min-height: 20px; margin-top: 11px; color: var(--muted); font-size: 11px; }
 .auth-message[data-kind="error"] { color: var(--danger); }
@@ -1401,6 +1401,7 @@ body[data-access-state="locked"] #accountModal { align-items: center; justify-co
   .sidebar-toggle { display: none; }
   .sidebar-header { margin-bottom: 18px; }
   button, .file-label, .nav-item { min-height: 44px; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select { min-height: 44px; }
   .icon-button, .action-button { min-width: 44px; }
   input, select, textarea, .simulation-question-core input, .simulation-question-core select,
   .shared-question-row select { font-size: 16px; }

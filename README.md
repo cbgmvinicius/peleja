@@ -37,7 +37,7 @@ Os testes usam DOM simulado e PostgreSQL embarcado (PGlite). Aplicam os dois arq
 
 Arquivos principais: `app.js` (organizador), `storage.js` (propriedade/persistência local), `cloud.js` (contas e sincronização), `ui.js` (foco dos diálogos), `supabase-schema.sql` + `supabase-upgrade.sql` (banco). Os dois arquivos `academic-data` são somente a carga inicial e devem representar o mesmo catálogo; não sobrescrevem edições a cada abertura.
 
-O cache `peleja-v25` guarda somente uma lista explícita de arquivos públicos. Não intercepta API, respostas autenticadas ou GETs arbitrários. As atualizações não apagam o armazenamento pessoal. A operação online ainda precisa de rede para autenticação e dados compartilhados.
+O cache `peleja-v25.1` guarda somente uma lista explícita de arquivos públicos. Não intercepta API, respostas autenticadas ou GETs arbitrários. As atualizações não apagam o armazenamento pessoal. A operação online ainda precisa de rede para autenticação e dados compartilhados.
 
 ## Publicação
 
