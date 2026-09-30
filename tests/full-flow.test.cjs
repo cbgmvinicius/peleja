@@ -46,6 +46,26 @@ function personalExam(w){return w.__app.state.exams.find(e=>e.id==='e');}
 function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.els.examTotalInput.value='10';w.__app.els.examCorrectInput.value=String(correct);w.__app.els.examWrongInput.value=String(10-correct);w.__app.handleExamSubmit({preventDefault(){}});}
 try{
 const a=await boot(A,true);assert.equal(personalExam(a).correct,8);assert.equal(a.PELEJA_STORAGE.snapshot().dirty,false);
+const accountMessage=a.document.getElementById('authMessage');
+a.document.getElementById('accountButton').click();
+a.document.getElementById('syncAccountButton').click();
+assert.match(accountMessage.textContent,/Não há alterações locais pendentes/);
+assert.equal(accountMessage.closest('[hidden]'),null,'Sync feedback must remain visible after login');
+const realRpc=a.__api.rpc.bind(a.__api);
+enterResult(a,9);
+let finishSave;
+a.__api.rpc=async(name,args)=>name==='save_workspace'?new Promise(resolve=>{finishSave=resolve;}):realRpc(name,args);
+const feedbackSave=a.__cloud.sync();
+assert.match(accountMessage.textContent,/Sincronizando dados/);
+await a.__cloud.sync();assert.match(accountMessage.textContent,/já está em andamento/);
+finishSave({error:{message:'Falha de conexão de teste'}});await feedbackSave;
+assert.match(accountMessage.textContent,/Falha de conexão de teste/);
+assert.equal(accountMessage.closest('[hidden]'),null);
+assert.equal(a.PELEJA_STORAGE.snapshot().dirty,true);
+a.__api.rpc=realRpc;enterResult(a,8);await a.__cloud.sync();
+assert.match(accountMessage.textContent,/salvos na nuvem/);
+assert.equal(accountMessage.closest('[hidden]'),null);
+console.log('PASS Account sync gives visible feedback when clean, saving, busy, failed and saved');
 assert.equal(a.__cloud.state.data.simulations.find(r=>r.user_id===A).correct,1);
 assert.equal(a.document.querySelector('[data-field="flashFront"]'),null);assert.equal(a.document.getElementById('errorNotebookList'),null);
 assert.equal(a.document.getElementById('registerForm'),null);assert(a.document.getElementById('loginUsername'));
