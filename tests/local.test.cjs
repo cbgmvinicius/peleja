@@ -35,8 +35,10 @@ h.PELEJA_STORAGE.activateUser('owner');assert.match(h.PELEJA_STORAGE.getItem('me
 h.PELEJA_STORAGE.deactivate();assert.equal(h.PELEJA_STORAGE.getItem('medstudy_materials_v1'),null);h.close();
 console.log('PASS Guest and first participant cannot read legacy owner data; logout clears active scope');
 // Worker dispatch verifies that the API and arbitrary requests are never intercepted.
-const handlers={};const context={URL,Set,self:{location:{href:'https://site.test/peleja/sw.js',origin:'https://site.test'},addEventListener:(n,fn)=>handlers[n]=fn,skipWaiting(){},clients:{claim(){}}}};
+let precached;const handlers={};const context={URL,Set,Request,caches:{open:async()=>({addAll:async requests=>{precached=requests;}})},self:{location:{href:'https://site.test/peleja/sw.js',origin:'https://site.test'},addEventListener:(n,fn)=>handlers[n]=fn,skipWaiting(){},clients:{claim(){}}}};
 vm.runInNewContext(read('sw.js'),context);
+let installed;handlers.install({waitUntil(p){installed=p;}});await installed;
+assert(precached.length>0);assert(precached.every(r=>r.cache==='reload'&&r.url.startsWith('https://site.test/peleja/')));
 function intercepted(url,auth=false){let hit=false;handlers.fetch({request:{method:'GET',url,headers:{has:()=>auth}},respondWith(p){hit=true;p.catch(()=>{});}});return hit;}
 assert.equal(intercepted('https://api.supabase.co/rest/v1/simulation_results'),false);
 assert.equal(intercepted('https://site.test/private.json'),false);assert.equal(intercepted('https://site.test/peleja/app.js',true),false);
