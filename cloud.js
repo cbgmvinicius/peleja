@@ -363,10 +363,21 @@
 
   async function sync({ quiet = false } = {}) {
     const account = accountContext();
-    if (!db || !account || state.syncing) return;
+    if (!db || !account) {
+      if (!quiet) message('Entre na conta para sincronizar os dados.', 'error');
+      return;
+    }
+    if (state.syncing) {
+      if (!quiet) message('Uma sincronização já está em andamento. Aguarde.', '');
+      return;
+    }
     const snapshot = personalStore.snapshot();
-    if (!snapshot.dirty && !snapshot.catalogDirty) return;
+    if (!snapshot.dirty && !snapshot.catalogDirty) {
+      if (!quiet) message('Não há alterações locais pendentes de envio.', 'success');
+      return;
+    }
     state.syncing = account;
+    if (!quiet) message('Sincronizando dados…', '');
     let saved = false;
     const syncState = $('#rankingSyncState');
     if (syncState) syncState.textContent = 'Sincronizando…';
