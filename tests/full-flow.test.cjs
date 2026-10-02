@@ -46,6 +46,16 @@ function personalExam(w){return w.__app.state.exams.find(e=>e.id==='e');}
 function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.els.examTotalInput.value='10';w.__app.els.examCorrectInput.value=String(correct);w.__app.els.examWrongInput.value=String(10-correct);w.__app.handleExamSubmit({preventDefault(){}});}
 try{
 const a=await boot(A,true);assert.equal(personalExam(a).correct,8);assert.equal(a.PELEJA_STORAGE.snapshot().dirty,false);
+const originalCreated='2026-01-01T12:00:00.000Z', originalUpdated='2026-01-02T12:00:00.000Z';
+a.__app.state.materials[0].source='private-import';a.__app.state.materials[0].dateConfidence='recorded';
+a.__app.state.exams[0].source='private-import';
+a.__app.state.simulations[0].createdAt=originalCreated;a.__app.state.simulations[0].updatedAt=originalUpdated;
+a.__app.saveAll();await a.__cloud.sync();await a.__cloud.reloadWorkspace();
+assert.equal(a.__app.state.materials[0].source,'private-import');assert.equal(a.__app.state.materials[0].dateConfidence,'recorded');
+assert.equal(a.__app.state.exams[0].source,'private-import');
+assert.equal(a.__app.state.simulations[0].createdAt,originalCreated);assert.equal(a.__app.state.simulations[0].updatedAt,originalUpdated);
+const metadataDevice=await boot(A);assert.equal(metadataDevice.__app.state.materials[0].source,'private-import');assert.equal(metadataDevice.__app.state.simulations[0].createdAt,originalCreated);
+console.log('PASS Shared catalog refresh preserves private provenance and original event timestamps across devices');
 const accountMessage=a.document.getElementById('authMessage');
 a.document.getElementById('accountButton').click();
 a.document.getElementById('syncAccountButton').click();
@@ -71,6 +81,7 @@ assert.equal(a.document.querySelector('[data-field="flashFront"]'),null);assert.
 assert.equal(a.document.getElementById('registerForm'),null);assert(a.document.getElementById('loginUsername'));
 console.log('PASS Real app imports owner legacy data, publishes catalog and preserves private fields without notebook UI');
 const b=await boot(B);assert.equal(personalExam(b).correct,null);assert.equal(b.__app.state.materials[0].notes,'');
+assert.equal(b.__app.state.materials[0].source,'');assert.equal(b.__app.state.exams[0].source,'');
 enterResult(b,4);await b.__cloud.sync();assert.equal(b.PELEJA_STORAGE.snapshot().dirty,false,b.document.getElementById('authMessage').textContent);
 const b2=await boot(B);assert.equal(personalExam(b2).correct,4);assert.equal(b2.document.getElementById('examAccuracyKpi').textContent,'40%');
 console.log('PASS Participant result survives a fresh device and does not inherit the owner result');

@@ -1233,15 +1233,17 @@
     state.materials = (catalog.materials || []).map(item => {
       const old = oldMaterials.get(item.id) || {};
       return normalizeMaterial({ ...item, made: old.made, read: old.read, questionEntries: old.questionEntries || [],
-        notes: old.notes, sketchyTags: old.sketchyTags, createdAt: old.createdAt, updatedAt: old.updatedAt });
+        notes: old.notes, sketchyTags: old.sketchyTags, source: old.source || item.source,
+        dateConfidence: old.dateConfidence || item.dateConfidence, createdAt: old.createdAt, updatedAt: old.updatedAt });
     });
     state.exams = (catalog.exams || []).map(item => {
       const old = oldExams.get(item.id) || {};
-      return normalizeExam({ ...item, total: old.total, correct: old.correct, wrong: old.wrong, createdAt: old.createdAt, updatedAt: old.updatedAt });
+      return normalizeExam({ ...item, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
     });
     state.simulations = (catalog.simulations || []).map(item => {
       const old = oldSimulations.get(item.id);
-      return normalizeSimulation({ ...item, questions: (item.questions || []).map(q => {
+      return normalizeSimulation({ ...item, createdAt: old?.createdAt || item.createdAt,
+        updatedAt: old?.updatedAt || item.updatedAt, questions: (item.questions || []).map(q => {
         const personal = old?.questions.find(x => x.number === q.number) || {};
         return { ...q, userAnswer: personal.userAnswer, flashFront: personal.flashFront, flashBack: personal.flashBack };
       }) });
