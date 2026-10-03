@@ -191,11 +191,17 @@
 
   function updateAccessGate() {
     const granted = !hostedMode() || (configured && Boolean(state.session?.user) && state.accessAllowed);
+    const wasLocked = document.body.dataset.accessState === 'locked';
     document.body.dataset.accessState = granted ? 'granted' : 'locked';
     const modal = $('#accountModal');
     if (!granted && modal) {
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
+    } else if (granted && wasLocked && modal) {
+      // The automatic login gate is no longer needed. Explicit account opens
+      // while already signed in remain under the user's control.
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
     }
   }
 
