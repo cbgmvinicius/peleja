@@ -47,6 +47,9 @@ function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.el
 try{
 const a=await boot(A,true);assert.equal(personalExam(a).correct,8);assert.equal(a.PELEJA_STORAGE.snapshot().dirty,false);
 assert.equal(a.document.getElementById('accountModalTitle').textContent,'Minha conta');
+assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'true','Restoring a valid session should dismiss the automatic login gate');
+a.document.getElementById('accountButton').click();
+assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'false','An explicit account open should stay open');
 a.document.getElementById('closeAccountModal').click();
 a.__app.openSimulationModal(a.__app.state.simulations[0]);
 const draftInput=a.document.querySelector('[data-field="userAnswer"]');draftInput.value='D';
@@ -150,6 +153,7 @@ const page=await b2.__cloud.readPages('simulation_catalog','key,name,date,create
 assert(!page.error);assert.equal(page.data.length,1102);
 await b2.__cloud.authChanged(null,'SIGNED_OUT');assert.equal(b2.PELEJA_STORAGE.scope,null);assert.equal(b2.__app.state.exams.length,0);assert.equal(b2.__cloud.state.data,null);
 assert.equal(b2.document.getElementById('accountModalTitle').textContent,'Entrar no Peleja');
+assert.equal(b2.document.getElementById('accountModal').getAttribute('aria-hidden'),'false','Signed-out users still need the login gate');
 console.log('PASS Ranking reads more than 1000 records without truncation; logout removes active personal state');
 console.log('PASS Full frontend + PostgreSQL integration complete (simulated browser; no production services)');
 }finally{for(const w of windows)w.close();await queue;await db.close();}
