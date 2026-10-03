@@ -246,6 +246,15 @@
   function renderAccount() {
     backendNotices();
     const signed = Boolean(state.session?.user) && state.accessAllowed;
+    const title = $('#accountModalTitle');
+    const subtitle = $('#accountModalSubtitle');
+    const storageNote = $('#storageModeNote');
+    if (title) title.textContent = signed ? 'Minha conta' : 'Entrar no Peleja';
+    if (subtitle) subtitle.textContent = signed ? 'Gerencie a sincronização dos seus dados.' : 'Use o usuário e a senha fornecidos por Vinícius.';
+    if (storageNote) storageNote.textContent = personalStore.localOnly
+      ? 'Modo local: seu progresso fica salvo neste navegador. Exporte backups para guardá-lo.'
+      : signed ? 'Seu progresso é salvo neste navegador e sincronizado com sua conta. Alterações pendentes aparecem no painel.'
+        : 'Entre na sua conta para acessar e sincronizar seu progresso.';
     const guest = $('#authGuestPanel');
     const userPanel = $('#authUserPanel');
     if (guest) guest.hidden = signed;
@@ -1007,7 +1016,14 @@
     renderRanking();
   }
 
-  async function authChanged(session) {
+  async function authChanged(session, event) {
+    // Supabase can confirm the same session when a tab regains focus.
+    // Keep drafts and in-flight saves; a real identity change still resets them.
+    if (['SIGNED_IN', 'TOKEN_REFRESHED'].includes(event) &&
+        session?.user?.id === state.session?.user?.id && accountContext()) {
+      state.session = session;
+      return;
+    }
     syncNotice('');
     const revision = ++state.authRevision;
     const stillCurrent = () => revision === state.authRevision;
@@ -1020,6 +1036,7 @@
     state.invites = [];
     state.activeSimulationKey = null;
     state.accessAllowed = personalStore.localOnly;
+    renderAccount();
     closeSharedSimulation();
     if (!personalStore.localOnly && !personalStore.matchesUser(session?.user?.id)) personalStore.deactivate();
     updateAccessGate();
@@ -1118,7 +1135,7 @@
     renderSharedEvents();
     publishAccess();
     if (!db) return;
-    db.auth.onAuthStateChange((_event, session) => setTimeout(() => authChanged(session), 0));
+    db.auth.onAuthStateChange((event, session) => setTimeout(() => authChanged(session, event), 0));
     const revision = state.authRevision;
     const result = await db.auth.getSession();
     if (revision === state.authRevision) await authChanged(result.data.session || null);

@@ -46,6 +46,20 @@ function personalExam(w){return w.__app.state.exams.find(e=>e.id==='e');}
 function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.els.examTotalInput.value='10';w.__app.els.examCorrectInput.value=String(correct);w.__app.els.examWrongInput.value=String(10-correct);w.__app.handleExamSubmit({preventDefault(){}});}
 try{
 const a=await boot(A,true);assert.equal(personalExam(a).correct,8);assert.equal(a.PELEJA_STORAGE.snapshot().dirty,false);
+assert.equal(a.document.getElementById('accountModalTitle').textContent,'Minha conta');
+a.document.getElementById('closeAccountModal').click();
+a.__app.openSimulationModal(a.__app.state.simulations[0]);
+const draftInput=a.document.querySelector('[data-field="userAnswer"]');draftInput.value='D';
+const initialGeneration=a.PELEJA_STORAGE.generation, initialRevision=a.__cloud.state.authRevision;
+for(const event of ['SIGNED_IN','TOKEN_REFRESHED']){
+ await a.__cloud.authChanged({...a.__cloud.state.session},event);
+ assert.equal(a.document.getElementById('simulationModal').getAttribute('aria-hidden'),'false');
+ assert.equal(draftInput.value,'D');assert.equal(a.PELEJA_STORAGE.generation,initialGeneration);
+ assert.equal(a.__cloud.state.authRevision,initialRevision);
+ assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'true');
+}
+a.document.getElementById('closeSimulationModal').click();
+console.log('PASS Reconfirmed session preserves open drafts and keeps account controls consistent');
 const originalCreated='2026-01-01T12:00:00.000Z', originalUpdated='2026-01-02T12:00:00.000Z';
 a.__app.state.materials[0].source='private-import';a.__app.state.materials[0].dateConfidence='recorded';
 a.__app.state.exams[0].source='private-import';
@@ -113,6 +127,9 @@ let release, entered, pause=true;
 const gate=new Promise(r=>release=r), started=new Promise(r=>entered=r), originalRpc=b2.__api.rpc.bind(b2.__api);
 b2.__api.rpc=async(name,args)=>{if(name==='save_workspace'&&pause){pause=false;entered();await gate;}return originalRpc(name,args);};
 enterResult(b2,7);const pending=b2.__cloud.sync();await started;enterResult(b2,8);
+const activeSave=b2.__cloud.state.syncing;
+await b2.__cloud.authChanged({...b2.__cloud.state.session},'TOKEN_REFRESHED');
+assert.equal(b2.__cloud.state.syncing,activeSave,'Refreshing a token must not detach an in-flight save');
 await new Promise(r=>setTimeout(r,1300));release();await pending;
 await new Promise(r=>setTimeout(r,1600));assert.equal(b2.PELEJA_STORAGE.snapshot().dirty,false);
 const latest=await boot(B);assert.equal(personalExam(latest).correct,8);
@@ -131,7 +148,8 @@ assert.equal(a.document.getElementById('simulationModal').getAttribute('aria-hid
 await queue;await db.exec('reset role');await db.exec("insert into public.simulation_catalog(key,name,date,created_by) select 'page-'||g, 'Pagination '||g, '2026-09-28'::date,auth.uid() from generate_series(1,1101) g");
 const page=await b2.__cloud.readPages('simulation_catalog','key,name,date,created_by',['key']);
 assert(!page.error);assert.equal(page.data.length,1102);
-await b2.__cloud.authChanged(null);assert.equal(b2.PELEJA_STORAGE.scope,null);assert.equal(b2.__app.state.exams.length,0);assert.equal(b2.__cloud.state.data,null);
+await b2.__cloud.authChanged(null,'SIGNED_OUT');assert.equal(b2.PELEJA_STORAGE.scope,null);assert.equal(b2.__app.state.exams.length,0);assert.equal(b2.__cloud.state.data,null);
+assert.equal(b2.document.getElementById('accountModalTitle').textContent,'Entrar no Peleja');
 console.log('PASS Ranking reads more than 1000 records without truncation; logout removes active personal state');
 console.log('PASS Full frontend + PostgreSQL integration complete (simulated browser; no production services)');
 }finally{for(const w of windows)w.close();await queue;await db.close();}
