@@ -76,7 +76,7 @@ console.log('PASS Shared catalog refresh preserves private provenance and origin
 const accountMessage=a.document.getElementById('authMessage');
 a.document.getElementById('accountButton').click();
 a.document.getElementById('syncAccountButton').click();
-assert.match(accountMessage.textContent,/Não há alterações locais pendentes/);
+assert.match(accountMessage.textContent,/Tudo salvo na nuvem.*sincronizadas automaticamente/);
 assert.equal(accountMessage.closest('[hidden]'),null,'Sync feedback must remain visible after login');
 const realRpc=a.__api.rpc.bind(a.__api);
 enterResult(a,9);
@@ -111,6 +111,8 @@ enterResult(b,6);await b.__cloud.sync();enterResult(b2,5);await b2.__cloud.sync(
 await b2.__cloud.reloadWorkspace();assert.equal(personalExam(b2).correct,6);assert(b2.localStorage.getItem('peleja_account_v1:'+encodeURIComponent('user:'+B)+':recovery'));
 console.log('PASS Device conflict preserves unsynced data and explicit reload keeps a recovery snapshot');
 b.__cloud.openSharedSimulation('res::s');
+assert.equal(b.document.getElementById('sharedEntryMode').value,'quick','New attempt starts with quick result');
+assert.equal(b.document.getElementById('sharedQuickPanel').hidden,false);
 b.document.getElementById('sharedEntryMode').value='quick';b.document.getElementById('sharedQuickCorrect').value='1';
 for(const input of b.document.querySelectorAll('[data-quick-area]'))input.value=input.dataset.quickArea==='Pediatria'?'1':'0';
 await b.__cloud.saveSharedSimulation({preventDefault(){}});

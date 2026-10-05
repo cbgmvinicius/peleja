@@ -388,7 +388,7 @@
     }
     const snapshot = personalStore.snapshot();
     if (!snapshot.dirty && !snapshot.catalogDirty) {
-      if (!quiet) message('Não há alterações locais pendentes de envio.', 'success');
+      if (!quiet) message('Tudo salvo na nuvem. As alterações são sincronizadas automaticamente; não há novos dados para enviar.', 'success');
       return;
     }
     state.syncing = account;
@@ -908,7 +908,7 @@
         '<span class="shared-result">' + html(result) + '</span></div>';
     }).join('');
     renderSharedQuick(key);
-    setSharedEntryMode(progress.manual ? 'quick' : 'answers');
+    setSharedEntryMode(progress.manual || !answers.size ? 'quick' : 'answers');
     const validation = $('#sharedSimulationValidation');
     if (validation) {
       const manual = (state.data.manualSimulations || []).find(r => r.user_id === account.userId && r.simulation_key === key);

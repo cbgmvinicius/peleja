@@ -27,6 +27,23 @@ w.__app.openSimulationModal(w.__app.state.simulations[0]);await tick();assert.eq
 const last=modal.querySelector('button[type="submit"]');last.focus();last.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Tab',bubbles:true}));assert.equal(w.document.activeElement.id,'closeSimulationModal');
 w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await tick();assert(!modal.classList.contains('open'));assert(!w.document.querySelector('.app-shell').inert);
 console.log('PASS Event editor generates, saves, reopens and preserves answers; modal focus is trapped and restored');
+w.__app.openSimulationModal(w.__app.state.simulations[0]);
+const field=id=>w.document.getElementById(id), apply=()=>field('applySimulationPaste').click();
+const rowsBefore=[...w.document.querySelectorAll('[data-question-id]')].map(r=>r.dataset.questionId);
+field('simulationPasteAnswers').value='a, b\n—';field('simulationPasteKey').value='A C X';apply();
+assert.equal(field('simulationDraftCorrect').textContent,'1');assert.equal(field('simulationDraftWrong').textContent,'1');
+assert.equal(w.document.querySelectorAll('[data-field="correctAnswer"]')[2].value,'ANULADA');
+assert.deepEqual([...w.document.querySelectorAll('[data-question-id]')].map(r=>r.dataset.questionId),rowsBefore);
+field('simulationPasteAnswers').value='1A 2B 3C';apply();assert.match(field('simulationPasteStatus').textContent,/Não inclua números/);
+assert.equal(w.document.querySelector('[data-field="userAnswer"]').value,'A');
+field('simulationPasteAnswers').value='AB';apply();assert.match(field('simulationPasteStatus').textContent,/3 entradas/);
+field('simulationPasteAnswers').value='';field('simulationPasteKey').value='BCA';apply();
+assert.equal(w.document.querySelector('[data-field="userAnswer"]').value,'A','Blank list preserves responses');
+w.__app.handleSimulationSubmit({preventDefault(){}});w.__app.openSimulationModal(w.__app.state.simulations[0]);
+assert.equal(w.document.querySelector('[data-field="correctAnswer"]').value,'B');assert.equal(field('simulationPasteKey').value,'');
+w.__app.openSimulationModal();field('simulationPasteAnswers').value='ab';field('simulationPasteKey').value='AC';apply();
+assert.equal(w.document.querySelectorAll('[data-question-id]').length,2,'Paste creates question rows without manual generation');
+console.log('PASS Bulk entry validates counts and symbols, handles annulled questions, preserves rows and saves across reopen');
 }finally{w.close();}
 // Hosted storage: only exact owner UUID can claim legacy data.
 const hosted=new JSDOM('',{url:'https://peleja.test/',runScripts:'outside-only'});const h=hosted.window;Object.defineProperty(h,'localStorage',{value:storage});h.PELEJA_BACKEND={legacyOwnerUserId:'owner'};h.eval(read('storage.js'));

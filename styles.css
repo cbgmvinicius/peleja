@@ -267,8 +267,8 @@ h3 { margin-bottom: 0; font-size: 19px; letter-spacing: -.02em; }
   border-radius: var(--radius-md); background: var(--surface); box-shadow: 0 7px 24px rgba(66,72,60,.045);
 }
 .stat-card { padding: 20px; }
-.stat-card span, .stat-card small { display: block; }
-.stat-card span { color: var(--muted); font-size: 12px; font-weight: 650; }
+.stat-card > span, .stat-card > small { display: block; }
+.stat-card > span { color: var(--muted); font-size: 12px; font-weight: 650; }
 .stat-card strong { display: block; margin: 8px 0 4px; font-size: 30px; letter-spacing: -.04em; }
 .stat-card small { color: #858981; }
 .stat-card.accent { color: #f8f3ea; background: linear-gradient(135deg, #887462, #746354); border-color: transparent; }
@@ -485,6 +485,13 @@ select:focus, input:focus, textarea:focus { border-color: var(--teal-600); box-s
 .analysis-controls label:last-child { min-width: 220px; }
 .analysis-controls label > span { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .analysis-controls select { width: 100%; padding: 10px 34px 10px 12px; }
+.exams-intro { align-items: center; }
+
+.simulation-paste { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.simulation-paste summary { cursor: pointer; font-weight: 700; }
+.simulation-paste p { color: var(--muted); font-size: .9rem; }
+.simulation-paste textarea { text-transform: uppercase; }
+#simulationPasteStatus { margin-top: 10px; font-size: .9rem; }
 
 .performance-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; margin-bottom: 18px; }
 .performance-kpi-grid .stat-card { min-height: 118px; }
@@ -1130,7 +1137,7 @@ body[data-peleja-role="guest"] [data-action="delete-exam"] {
   width:max-content;
   padding:4px 8px;
   border:1px solid var(--line);
-  border-radius:999px;
+  border-radius:12px;
   background:var(--surface);
   color:var(--ink);
   font-size:9px;
@@ -1144,10 +1151,9 @@ body[data-peleja-role="guest"] [data-action="delete-exam"] {
   display:grid;
   place-items:center;
   flex:0 0 auto;
-  border-radius:7px;
-  background:#8c765d;
+  border-radius:0;
+  background:transparent;
   overflow:hidden;
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
 }
 .rank-icon-slot img {
   width:100%;
@@ -1155,13 +1161,6 @@ body[data-peleja-role="guest"] [data-action="delete-exam"] {
   object-fit:contain;
   display:block;
 }
-.rank-prata .rank-icon-slot { background:#aeb3b6; }
-.rank-ouro .rank-icon-slot { background:#d0a73c; }
-.rank-cristal .rank-icon-slot { background:#89c5c1; }
-.rank-mestre .rank-icon-slot { background:#7c9ebf; }
-.rank-campeao .rank-icon-slot { background:#a784b7; }
-.rank-tita .rank-icon-slot { background:#6e6d92; }
-.rank-lendario .rank-icon-slot { background:#b9754e; }
 .ranking-person-rank { margin-top:5px; }
 
 .shared-entry-tabs {
