@@ -388,7 +388,28 @@
     }
     const snapshot = personalStore.snapshot();
     if (!snapshot.dirty && !snapshot.catalogDirty) {
-      if (!quiet) message('Tudo salvo na nuvem. As alterações são sincronizadas automaticamente; não há novos dados para enviar.', 'success');
+      if (quiet) return;
+      state.syncing = account;
+      message('Conferindo dados na nuvem…', '');
+      try {
+        const result = await db.rpc('get_workspace'); assertAccount(account);
+        if (result.error) throw result.error;
+        if (!result.data?.payload) throw new Error('Não foi encontrado um histórico salvo na nuvem. Exporte um backup deste aparelho antes de continuar.');
+        await restoreWorkspace(result.data); assertAccount(account);
+        const latest = personalStore.snapshot();
+        if (latest.dirty || latest.catalogDirty) {
+          message('Há novas alterações neste aparelho. Enviando…', '');
+          scheduleSync();
+        } else {
+          syncNotice('');
+          message('Dados conferidos na nuvem. Este aparelho está atualizado.', 'success');
+        }
+      } catch (error) {
+        if (sameAccount(account)) {
+          syncNotice('Não foi possível conferir os dados na nuvem. ' + error.message, true);
+          message(error.message, 'error');
+        }
+      } finally { if (state.syncing === account) state.syncing = false; }
       return;
     }
     state.syncing = account;
