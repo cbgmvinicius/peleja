@@ -331,10 +331,21 @@
 
   <div class="modal-backdrop" id="simulationModal" aria-hidden="true">
     <div class="modal simulation-modal" role="dialog" aria-modal="true" aria-labelledby="simulationModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">SIMULADO</p><h2 id="simulationModalTitle">Novo simulado</h2><p class="question-modal-subtitle">Registre seu gabarito questão por questão. O resultado e o desempenho por grande área são calculados automaticamente.</p></div><button class="icon-button" id="closeSimulationModal" aria-label="Fechar">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">SIMULADO</p><h2 id="simulationModalTitle">Novo simulado</h2><p class="question-modal-subtitle">Cole as respostas de uma vez ou preencha questão por questão. O resultado é calculado automaticamente.</p></div><button class="icon-button" id="closeSimulationModal" aria-label="Fechar">×</button></div>
       <form id="simulationForm">
         <input type="hidden" id="simulationId" />
         <div class="form-grid simulation-meta-grid"><label><span>Nome do simulado *</span><input id="simulationNameInput" required placeholder="Ex.: Simulado semanal 01" /></label><label><span>Data *</span><input id="simulationDateInput" type="date" required /></label><label><span>Número de questões</span><input id="simulationQuestionCountInput" type="number" min="1" step="1" placeholder="Ex.: 100" /></label><div class="simulation-generate-wrap"><button type="button" class="ghost-button" id="generateSimulationQuestionsBtn">Gerar / ajustar questões</button></div></div>
+        <details class="simulation-paste" open>
+          <summary>Colar respostas e gabarito</summary>
+          <p>Use letras A–E na ordem das questões, juntas ou separadas por espaços, vírgulas ou linhas. Use X para anulada no gabarito e — para resposta em branco. Não inclua a numeração.</p>
+          <div class="form-grid">
+            <label><span>Minhas respostas em sequência</span><textarea id="simulationPasteAnswers" rows="3" placeholder="A B C D E" spellcheck="false"></textarea></label>
+            <label><span>Gabarito oficial em sequência</span><textarea id="simulationPasteKey" rows="3" placeholder="A B C D E" spellcheck="false"></textarea></label>
+          </div>
+          <p>Uma lista vazia mantém os valores atuais. As listas preenchidas devem ter uma entrada por questão. Revise antes de salvar.</p>
+          <button type="button" class="ghost-button" id="applySimulationPaste">Aplicar às questões</button>
+          <div id="simulationPasteStatus" role="status"></div>
+        </details>
         <div class="simulation-live-summary" aria-label="Resumo do simulado"><div><span>QUESTÕES</span><b id="simulationDraftTotal">0</b></div><div><span>CORRIGIDAS</span><b id="simulationDraftAnswered">0</b></div><div class="good"><span>ACERTOS</span><b id="simulationDraftCorrect">0</b></div><div class="bad"><span>ERROS</span><b id="simulationDraftWrong">0</b></div><div><span>APROVEITAMENTO</span><b id="simulationDraftAccuracy">—</b></div></div>
         <div class="simulation-question-editor"><div class="simulation-question-editor-heading"><div><span>GABARITO QUESTÃO POR QUESTÃO</span><small>Informe a grande área, sua resposta e o gabarito oficial.</small></div></div><div class="simulation-question-columns" aria-hidden="true"><span>#</span><span>Grande área</span><span>Minha resposta</span><span>Gabarito</span><span>Resultado</span></div><div id="simulationQuestionRows" class="simulation-question-rows"></div></div>
         <div class="validation-message" id="simulationValidationMessage" role="alert"></div>

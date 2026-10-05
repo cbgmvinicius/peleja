@@ -868,12 +868,41 @@
     els.simulationValidationMessage.textContent = ''; renderSimulationQuestionRows(next);
   }
 
+  function applySimulationPaste() {
+    const feedback = $('#simulationPasteStatus');
+    const parse = (value, official) => {
+      if (!value.trim()) return null;
+      const compact = value.toUpperCase().replace(/[\s,;]+/g, '').replace(/—/g, '-');
+      if (!(official ? /^[A-EX-]+$/ : /^[A-E-]+$/).test(compact)) throw new Error('Use apenas A–E, — para branco e X somente para anulada no gabarito. Não inclua números.');
+      return [...compact].map(letter => letter === '-' ? '' : letter === 'X' ? 'ANULADA' : letter);
+    };
+    try {
+      const answers = parse($('#simulationPasteAnswers').value, false);
+      const key = parse($('#simulationPasteKey').value, true);
+      if (!answers && !key) throw new Error('Cole pelo menos uma lista de respostas.');
+      const current = readSimulationQuestionsFromDom();
+      const count = Number(els.simulationQuestionCountInput.value || current.length || answers?.length || key?.length);
+      if (!Number.isInteger(count) || count < 1 || count > 1000) throw new Error('Informe de 1 a 1000 questões.');
+      if ((answers && answers.length !== count) || (key && key.length !== count)) throw new Error(`Cada lista preenchida precisa ter ${count} entradas. Nenhuma questão foi alterada.`);
+      if (current.length && current.length !== count) throw new Error('Ajuste o número de questões pelo botão Gerar / ajustar questões antes de aplicar as listas.');
+      const next = Array.from({ length: count }, (_, index) => normalizeSimulationQuestion({
+        ...(current[index] || {}),
+        ...(answers ? { userAnswer: answers[index] } : {}),
+        ...(key ? { correctAnswer: key[index] } : {}),
+      }, index));
+      els.simulationQuestionCountInput.value = count;
+      renderSimulationQuestionRows(next);
+      feedback.textContent = `${count} questões preenchidas. Confira as respostas e salve o simulado.`;
+    } catch (error) { feedback.textContent = error.message; }
+  }
+
   function openSimulationModal(simulation = null) {
     if (!requireAdmin(simulation ? 'editar eventos de residência' : 'criar eventos de residência')) return;
     const current = simulation ? normalizeSimulation(simulation) : null;
     els.simulationId.value = current?.id || ''; els.simulationModalTitle.textContent = current ? 'Editar simulado' : 'Novo simulado';
     els.simulationNameInput.value = current?.name || ''; els.simulationDateInput.value = current?.date || todayDateValue(); els.simulationQuestionCountInput.value = current?.questions.length || '';
     els.simulationValidationMessage.textContent = ''; renderSimulationQuestionRows(current?.questions || []);
+    $('#simulationPasteAnswers').value = ''; $('#simulationPasteKey').value = ''; $('#simulationPasteStatus').textContent = '';
     els.simulationModal.classList.add('open'); els.simulationModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { if (els.simulationModal.classList.contains('open') && !els.simulationModal.inert) els.simulationNameInput.focus(); }, 50);
   }
 
@@ -1190,6 +1219,7 @@
     els.closeQuestionModal.addEventListener('click', closeQuestionModal); els.cancelQuestionEntryEdit.addEventListener('click', resetQuestionEntryForm); els.questionEntryForm.addEventListener('submit', handleQuestionEntrySubmit);
     els.closeExamFormModal.addEventListener('click', closeExamForm); els.cancelExamForm.addEventListener('click', closeExamForm); els.examForm.addEventListener('submit', handleExamSubmit);
     els.closeSimulationModal.addEventListener('click', closeSimulationModal); els.cancelSimulationModal.addEventListener('click', closeSimulationModal); els.simulationForm.addEventListener('submit', handleSimulationSubmit); els.generateSimulationQuestionsBtn.addEventListener('click', generateSimulationQuestions);
+    $('#applySimulationPaste').addEventListener('click', applySimulationPaste);
     els.simulationQuestionRows.addEventListener('input', syncSimulationDraftUI); els.simulationQuestionRows.addEventListener('change', syncSimulationDraftUI);
     els.examSubjectInput.addEventListener('change', () => renderExamMaterialOptions(els.examSubjectInput.value, []));
     els.examMaterialOptions.addEventListener('change', (event) => { if (event.target.matches('input[type="checkbox"]')) updateExamSelectionCount(); });
