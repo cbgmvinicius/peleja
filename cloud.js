@@ -1032,7 +1032,7 @@
         const mine = row.userId === state.session.user.id;
         return '<div class="ranking-row' + (mine ? ' is-me' : '') + '">' +
           '<b class="ranking-position">' + (index + 1) + '</b>' +
-          '<div class="ranking-person">' + avatar(row.userId, row.name) + '<div class="ranking-person-copy"><div class="ranking-person-heading"><strong>' + html(row.name) + (mine ? ' <em>você</em>' : '') + '</strong>' + rankBadge(row.rankAccuracy) + '</div><small>' + row.correct + ' acertos em ' + row.total + ' questões · ' + row.unitCount + ' ' + (state.tab === 'materials' ? 'áreas' : 'provas') + '</small></div></div>' +
+          '<div class="ranking-person">' + avatar(row.userId, row.name) + '<div class="ranking-person-copy"><div class="ranking-person-heading"><strong>' + html(row.name) + (mine ? ' <em>você</em>' : '') + '</strong>' + rankBadge(row.rankAccuracy) + '</div><small>' + row.correct + ' acertos em ' + row.total + ' questões · ' + row.unitCount + ' ' + (state.tab === 'materials' ? (row.unitCount === 1 ? 'área' : 'áreas') : (row.unitCount === 1 ? 'prova' : 'provas')) + '</small></div></div>' +
           '<div class="ranking-score"><b>' + row.accuracy.toFixed(1) + '%</b><div><i style="width:' + Math.max(0, Math.min(100, row.accuracy)) + '%"></i></div></div>' +
           '<span>' + row.correct + '/' + row.total + '</span><span>' + row.unitCount + '</span></div>';
       }).join('');
@@ -1054,7 +1054,8 @@
     const needle = $('#rankingSearch').value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const options = [...unit.options].filter(o => o.value !== 'all' && /^(semester|year):/.test(o.value) === (state.cutMode === 'period') && (!searching || o.text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle)));
     $('#rankingOptions').innerHTML = options.map(o => '<button type="button" data-ranking-option="' + html(o.value) + '" aria-pressed="' + (o.value === unit.value) + '">' + html(o.text) + '</button>').join('') || '<p>Nenhum resultado encontrado.</p>';
-    $('#rankingAreaChips').innerHTML = [...area.options].map(o => '<button type="button" data-ranking-area="' + html(o.value) + '" aria-pressed="' + (o.value === area.value) + '">' + html(o.text) + '</button>').join('');
+    const shortAreas = ['Todas', 'Clínica', 'Cirurgia', 'Pediatria', 'GO', 'Preventiva', 'Outras'];
+    $('#rankingAreaChips').innerHTML = [...area.options].map((o,i) => '<button type="button" data-ranking-area="' + html(o.value) + '" aria-label="' + html(o.text) + '" title="' + html(o.text) + '" aria-pressed="' + (o.value === area.value) + '"><span class="area-long">' + html(o.text) + '</span><span class="area-short" aria-hidden="true">' + html(shortAreas[i] || o.text) + '</span></button>').join('');
     if (focusValue) [...$('#rankingOptions').children, ...$('#rankingAreaChips').children].find(b => b.dataset[focusKey] === focusValue)?.focus();
     $('#clearRankingFilters').hidden = unit.value === 'all' && area.value === 'all' && state.cutMode === 'all';
     $('#rankingFilterSummary').textContent = (unit.selectedOptions[0]?.text || 'Comparação total') + ' · ' + (area.selectedOptions[0]?.text || 'Todas as áreas');

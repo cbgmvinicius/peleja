@@ -1438,8 +1438,16 @@ body[data-access-state="locked"] #accountModal { align-items: center; justify-co
 .rank-guide-row > span:last-child { font-size:13px; }
 .profile-photo-controls { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
 .profile-photo-controls label { cursor:pointer; }
+.area-short { display:none; }
 @media(max-width:650px) {
-  .ranking-tabs { display:flex; flex-wrap:wrap; }
+  .ranking-tabs { display:flex; flex-wrap:nowrap; }
+  .ranking-tab { padding:10px; font-size:13px; flex:1; }
+  .area-long { display:none; }
+  .area-short { display:inline; }
+  .filter-chips { gap:6px; }
+  .filter-chips button { padding:8px 11px; font-size:13px; }
+  .ranking-actions .ranking-cloud-state { flex-direction:column-reverse; gap:3px; }
+  .ranking-actions .ranking-cloud-state > span { font-size:9px; }
   .ranking-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
   .ranking-cloud-state { width:auto; flex-wrap:wrap; }
   .ranking-row { grid-template-columns:24px minmax(0,1fr); }
