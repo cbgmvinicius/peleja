@@ -12,6 +12,7 @@ grant usage on schema public,auth to authenticated,anon,service_role;
 grant execute on function auth.uid(),auth.jwt() to authenticated,anon,service_role;`);
 await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').replace(/^\uFEFF/,''));
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
 console.log('PASS Base schema and upgrade execute');
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
 console.log('PASS Upgrade is rerunnable');
@@ -21,6 +22,16 @@ async function user(id){await db.exec('reset role');await db.query("select set_c
 async function rpc(name,params,casts){const placeholders=params.map((_,i)=>'$'+(i+1)+(casts?.[i]?'::'+casts[i]:''));return (await db.query(`select public.${name}(${placeholders}) as result`,params)).rows[0].result;}
 const ws={materials:[{id:'m',title:'Aula',subject:'Pediatria',questionEntries:[{id:'q',questions:10,correct:8,wrong:2}],notes:'PRIVATE',read:true}],exams:[{id:'e',subject:'Pediatria',type:'Prova',date:'2026-09-28',materialIds:['m'],total:10,correct:8,wrong:2}],simulations:[{id:'s',name:'Evento',date:'2026-09-28',questions:[{id:'q1',number:1,correctAnswer:'A',area:'Pediatria'},{id:'q2',number:2,correctAnswer:'B',area:'Cirurgia'}]}]};
 async function save(payload,revision,cat,publish){return rpc('save_workspace',[JSON.stringify(payload),revision,cat,publish,(await db.query('select auth.uid() id')).rows[0].id],['jsonb','bigint','bigint','boolean','uuid']);}
+await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
+await user(A); await rpc('save_profile_photo',['data:image/jpeg;base64,YQ=='],['text']);
+await user(B); assert.equal((await db.query('select * from public.profile_photos')).rows.length,1);
+await assert.rejects(()=>db.query('update public.profile_photos set image_data=$1 where user_id=$2',['data:image/jpeg;base64,Yg==',A]),/permission denied/);
+await rpc('save_profile_photo',['data:image/jpeg;base64,Yg=='],['text']);
+await rpc('save_profile_photo',[null],['text']);
+assert.equal((await db.query('select * from public.profile_photos')).rows[0].user_id,A);
+await assert.rejects(()=>rpc('save_profile_photo',['https://external.test/photo'],['text']),/check constraint/);
+await assert.rejects(()=>rpc('save_profile_photo',['data:image/jpeg;base64,'+'A'.repeat(60000)],['text']),/check constraint/);
+console.log('PASS Private photos: own update/remove only, invalid and oversized images rejected');
 await user(A);let saved=await save(ws,0,0,true);assert.equal(saved.revision,1);assert.equal(saved.catalog_revision,1);
 console.log('PASS Admin publishes canonical catalog and own result atomically');
 let data=await rpc('get_workspace',[],[]);assert.equal(data.payload.materials[0].notes,'PRIVATE');assert(!JSON.stringify(data.catalog).includes('PRIVATE'));assert(!('total' in data.catalog.exams[0]));
@@ -65,8 +76,12 @@ console.log('PASS Explicit catalog deletions remove shared events and all linked
 await db.exec('reset role');await db.query('update public.account_handles set active=false where user_id=$1',[B]);await user(B);
 await assert.rejects(()=>rpc('get_workspace',[],[]),/Acesso negado/);
 assert.equal((await db.query('select * from public.simulation_manual_results')).rows.length,0);
-console.log('PASS Revoked account cannot access data');
+assert.equal((await db.query('select * from public.profile_photos')).rows.length,0);
+await assert.rejects(()=>rpc('save_profile_photo',['data:image/jpeg;base64,YQ=='],['text']),/Acesso negado/);
+console.log('PASS Revoked account cannot access data or photos');
 await db.exec('reset role;set role anon');await assert.rejects(()=>rpc('get_workspace',[],[]),/permission denied/);
+await assert.rejects(()=>db.query('select * from public.profile_photos'),/permission denied/);
+await assert.rejects(()=>rpc('save_profile_photo',[null],['text']),/permission denied/);
 console.log('PASS Anonymous access denied');
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});

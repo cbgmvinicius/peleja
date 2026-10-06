@@ -208,26 +208,34 @@
       </section>
 
       <section class="view" id="rankingView">
-        <article class="panel ranking-intro">
-          <div>
-            <p class="eyebrow">RANKING</p>
-            <h3>Desempenho da turma</h3>
-            <p>Compare o desempenho da turma em Residência e Faculdade. Em Residência, dá para ver o acumulado ou uma prova específica e recortar por grande área.</p>
-          </div>
-          <div class="ranking-cloud-state"><span id="rankingSyncState">Modo local</span><button type="button" class="ghost-button" id="rankingSyncButton">Sincronizar</button></div>
-        </article>
+        <div class="ranking-actions">
+          <button type="button" class="ghost-button" id="openRankGuide">Entenda os ranks</button>
+          <div class="ranking-cloud-state"><span id="rankingSyncState" role="status">Modo local</span><button type="button" class="ghost-button" id="rankingSyncButton">Atualizar</button></div>
+        </div>
 
         <div class="backend-notice" id="rankingBackendNotice" hidden></div>
 
-        <div class="ranking-tabs" role="tablist" aria-label="Tipo de ranking">
+        <div class="ranking-tabs" role="group" aria-label="Tipo de ranking">
           <button type="button" class="ranking-tab active" data-ranking-tab="simulations">Residência</button>
           <button type="button" class="ranking-tab" data-ranking-tab="faculty">Faculdade</button>
           <button type="button" class="ranking-tab" data-ranking-tab="materials">Apostilas</button>
         </div>
 
-        <div class="panel ranking-toolbar">
-          <label id="rankingUnitWrap"><span>Simulado / prova de residência</span><select id="rankingUnitFilter"><option value="all">Comparação total</option></select></label>
-          <label><span>Grande área</span><select id="rankingAreaFilter"><option value="all">Todas as áreas</option></select></label>
+        <div class="ranking-filters">
+          <div id="rankingCutModes" class="filter-chips" role="group" aria-label="Comparar resultados">
+            <button type="button" data-ranking-mode="all" aria-pressed="true">Geral</button>
+            <button type="button" data-ranking-mode="exam" aria-pressed="false">Por prova</button>
+            <button type="button" data-ranking-mode="period" aria-pressed="false">Por período</button>
+          </div>
+          <div id="rankingPicker" hidden>
+            <label for="rankingSearch">Buscar prova ou simulado</label>
+            <input id="rankingSearch" type="search" placeholder="Digite o nome da prova…" autocomplete="off" />
+            <div id="rankingOptions" class="filter-chips" role="group" aria-label="Provas e períodos"></div>
+          </div>
+          <div id="rankingAreaChips" class="filter-chips" role="group" aria-label="Grande área"></div>
+          <p id="rankingFilterSummary" role="status"></p>
+          <button type="button" id="clearRankingFilters" class="ghost-button" hidden>Limpar filtros</button>
+          <div hidden><label id="rankingUnitWrap"><span>Recorte</span><select id="rankingUnitFilter"><option value="all">Comparação total</option></select></label><select id="rankingAreaFilter" aria-label="Grande área"><option value="all">Todas as áreas</option></select></div>
         </div>
 
         <div class="ranking-kpi-grid">
@@ -235,10 +243,6 @@
           <article class="stat-card accent"><span>Minha posição</span><strong id="rankingMyPositionKpi">—</strong><small>ranking atual</small></article>
           <article class="stat-card"><span>Meu aproveitamento</span><strong id="rankingMyAccuracyKpi">—</strong><small>ponderado por questões</small></article>
           <article class="stat-card"><span>Meu rank</span><strong id="rankingMyRankKpi" class="rank-kpi">—</strong><small id="rankingMyRankNote">Bronze → Lendário</small></article>
-        </div>
-
-        <div class="rank-legend" aria-label="Limiar dos ranks">
-          <span><b>Bronze</b> &lt;50%</span><span><b>Prata</b> 50–59,9%</span><span><b>Ouro</b> 60–64,9%</span><span><b>Cristal</b> 65–69,9%</span><span><b>Mestre</b> 70–74,9%</span><span><b>Campeão</b> 75–79,9%</span><span><b>Titã</b> 80–89,9%</span><span><b>Lendário</b> ≥90%</span>
         </div>
 
         <article class="panel ranking-table-panel">
@@ -251,6 +255,13 @@
     </main>
   </div>
 
+  <div class="modal-backdrop" id="rankGuideModal" aria-hidden="true">
+    <div class="modal rank-guide-modal" role="dialog" aria-modal="true" aria-labelledby="rankGuideTitle">
+      <div class="modal-header"><div><h2 id="rankGuideTitle">Entenda os ranks</h2><p>O escudo acompanha o percentual de acertos no recorte e na área selecionados.</p></div><button type="button" class="icon-button" id="closeRankGuide" aria-label="Fechar">×</button></div>
+      <div id="rankGuideList"></div>
+      <p>Considere também a quantidade de questões e provas ao comparar os resultados.</p>
+    </div>
+  </div>
   <div class="modal-backdrop" id="materialModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-header"><div><p class="eyebrow">APOSTILA</p><h2 id="modalTitle">Adicionar nova apostila</h2></div><button class="icon-button" id="closeModal" aria-label="Fechar">×</button></div>
@@ -403,9 +414,11 @@
       </div>
       <div id="authUserPanel" hidden>
         <div class="account-profile-card">
-          <div class="account-avatar" aria-hidden="true">P</div>
+          <div class="account-avatar" id="accountAvatar" aria-hidden="true">P</div>
           <div><strong id="accountDisplayName">Usuário</strong><span id="accountEmail"></span><span id="accountRole" class="account-role"></span></div>
         </div>
+        <div class="profile-photo-controls"><button type="button" class="ghost-button" id="chooseProfilePhoto">Escolher foto</button><input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden /><button type="button" id="removeProfilePhoto" class="ghost-button">Remover foto</button></div>
+        <p id="profilePhotoStatus" role="status">Sua foto fica visível para as contas do Peleja.</p>
         <p class="account-privacy-note">O ranking recebe apenas agregados de desempenho. Respostas individuais, observações e AnKing Notes não são publicados.</p>
         <div class="modal-actions account-actions"><button type="button" class="ghost-button" id="logoutButton">Sair</button><button type="button" class="primary-button" id="syncAccountButton">Sincronizar dados</button><button type="button" class="ghost-button" id="reloadCloudButton">Recarregar da nuvem</button></div>
       </div>
