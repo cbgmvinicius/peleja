@@ -52,6 +52,8 @@
     authRevision: 0,
     profile: null,
     tab: 'simulations',
+    cutMode: 'all',
+    photos: {},
     data: null,
     syncing: false,
     timer: null,
@@ -272,6 +274,7 @@
       const email = $('#accountEmail');
       const role = $('#accountRole');
       if (name) name.textContent = displayName();
+      $('#accountAvatar').innerHTML = avatarContent(state.session.user.id, displayName());
       if (email) email.textContent = 'Usuário: ' + (state.session.user.email || '').split('@')[0];
       if (role) role.textContent = isAdmin() ? 'Administrador do Peleja' : 'Participante';
     }
@@ -542,7 +545,8 @@
       renderRanking();
       renderSharedEvents();
       renderPersonalSimulationSummary();
-      if (syncState) syncState.textContent = 'Ranking atualizado';
+      if (syncState) syncState.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+      await loadPhotos(account);
     } catch (error) {
       if (!sameAccount(account)) return;
       console.error('Peleja ranking:', error);
@@ -630,6 +634,7 @@
     select.innerHTML = '<option value="all">Comparação total</option>' +
       options.map((x) => '<option value="' + html(x.value) + '">' + html(x.label) + '</option>').join('');
     if (Array.from(select.options).some((option) => option.value === current)) select.value = current;
+    renderFilterControls();
   }
 
   function totalAccuracyForUser(userId, unit) {
@@ -998,6 +1003,7 @@
 
   function renderRanking() {
     backendNotices();
+    renderFilterControls();
     if (!state.session?.user || !state.data) return renderLocked();
     const list = rows();
     const me = list.findIndex((row) => row.userId === state.session.user.id);
@@ -1026,15 +1032,88 @@
         const mine = row.userId === state.session.user.id;
         return '<div class="ranking-row' + (mine ? ' is-me' : '') + '">' +
           '<b class="ranking-position">' + (index + 1) + '</b>' +
-          '<div class="ranking-person"><strong>' + html(row.name) + (mine ? ' <em>você</em>' : '') + '</strong><div class="ranking-person-rank">' + rankBadge(row.rankAccuracy) + '</div><small>' + row.total + ' questões consideradas</small></div>' +
+          '<div class="ranking-person">' + avatar(row.userId, row.name) + '<div class="ranking-person-copy"><div class="ranking-person-heading"><strong>' + html(row.name) + (mine ? ' <em>você</em>' : '') + '</strong>' + rankBadge(row.rankAccuracy) + '</div><small>' + row.correct + ' acertos em ' + row.total + ' questões · ' + row.unitCount + ' ' + (state.tab === 'materials' ? 'áreas' : 'provas') + '</small></div></div>' +
           '<div class="ranking-score"><b>' + row.accuracy.toFixed(1) + '%</b><div><i style="width:' + Math.max(0, Math.min(100, row.accuracy)) + '%"></i></div></div>' +
           '<span>' + row.correct + '/' + row.total + '</span><span>' + row.unitCount + '</span></div>';
       }).join('');
   }
 
+
+  function renderFilterControls() {
+    const unit = $('#rankingUnitFilter'), area = $('#rankingAreaFilter');
+    if (!unit || !area) return;
+    $('#rankingCutModes').hidden = state.tab === 'materials';
+    $('#rankingPicker').hidden = state.cutMode === 'all' || state.tab === 'materials';
+    const searching = state.cutMode === 'exam';
+    $('#rankingSearch').hidden = !searching;
+    document.querySelector('label[for="rankingSearch"]').hidden = !searching;
+    $$('[data-ranking-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.rankingMode === state.cutMode)));
+    const focus = document.activeElement;
+    const focusValue = focus?.dataset.rankingOption || focus?.dataset.rankingArea;
+    const focusKey = focus?.hasAttribute('data-ranking-option') ? 'rankingOption' : 'rankingArea';
+    const needle = $('#rankingSearch').value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const options = [...unit.options].filter(o => o.value !== 'all' && /^(semester|year):/.test(o.value) === (state.cutMode === 'period') && (!searching || o.text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle)));
+    $('#rankingOptions').innerHTML = options.map(o => '<button type="button" data-ranking-option="' + html(o.value) + '" aria-pressed="' + (o.value === unit.value) + '">' + html(o.text) + '</button>').join('') || '<p>Nenhum resultado encontrado.</p>';
+    $('#rankingAreaChips').innerHTML = [...area.options].map(o => '<button type="button" data-ranking-area="' + html(o.value) + '" aria-pressed="' + (o.value === area.value) + '">' + html(o.text) + '</button>').join('');
+    if (focusValue) [...$('#rankingOptions').children, ...$('#rankingAreaChips').children].find(b => b.dataset[focusKey] === focusValue)?.focus();
+    $('#clearRankingFilters').hidden = unit.value === 'all' && area.value === 'all' && state.cutMode === 'all';
+    $('#rankingFilterSummary').textContent = (unit.selectedOptions[0]?.text || 'Comparação total') + ' · ' + (area.selectedOptions[0]?.text || 'Todas as áreas');
+  }
+
+  function avatarContent(id, name) {
+    const photo = state.photos[id];
+    return /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo || '') && photo.length <= 60000
+      ? '<img src="' + photo + '" alt="" />' : html((name || '?').trim().slice(0, 1).toUpperCase());
+  }
+  function avatar(id, name) { return '<span class="person-avatar" aria-hidden="true">' + avatarContent(id, name) + '</span>'; }
+  async function loadPhotos(account) {
+    try {
+      const result = await db.from('profile_photos').select('user_id,image_data');
+      if (!sameAccount(account) || result.error) return;
+      state.photos = Object.fromEntries((result.data || []).map(p => [p.user_id, p.image_data]));
+      renderRanking(); renderAccount();
+    } catch (_) { /* Photos must not prevent access to results. */ }
+  }
+  async function savePhoto(file) {
+    const account = accountContext();
+    if (!account) return;
+    const status = $('#profilePhotoStatus');
+    const input = $('#profilePhotoInput'), remove = $('#removeProfilePhoto');
+    input.disabled = remove.disabled = true;
+    status.textContent = 'Salvando foto…';
+    let bitmap;
+    try {
+      let image = null;
+      if (file) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Escolha JPG, PNG ou WebP de até 10 MB.');
+        bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 160;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#f5f3ed'; ctx.fillRect(0, 0, 160, 160);
+        const side = Math.min(bitmap.width, bitmap.height);
+        ctx.drawImage(bitmap, (bitmap.width-side)/2, (bitmap.height-side)/2, side, side, 0, 0, 160, 160);
+        image = canvas.toDataURL('image/jpeg', 0.8);
+        if (image.length > 60000) throw new Error('Não foi possível reduzir essa foto. Escolha outra imagem.');
+      }
+      assertAccount(account);
+      const result = await db.rpc('save_profile_photo', { image_data: image });
+      assertAccount(account);
+      if (result.error) throw new Error('Não foi possível salvar a foto. Confira a conexão; se persistir, a configuração de fotos precisa ser habilitada pelo administrador.');
+      if (image) state.photos[account.userId] = image; else delete state.photos[account.userId];
+      renderRanking(); renderAccount();
+      status.textContent = image ? 'Foto salva. Ela aparece para as contas do Peleja.' : 'Foto removida.';
+    } catch (error) { if (sameAccount(account)) status.textContent = error.message; }
+    finally { bitmap?.close(); input.value = ''; input.disabled = remove.disabled = false; }
+  }
+
   function setTab(tab) {
     state.tab = ['simulations', 'faculty', 'materials'].includes(tab) ? tab : 'simulations';
-    $$('.ranking-tab').forEach((button) => button.classList.toggle('active', button.dataset.rankingTab === state.tab));
+    state.cutMode = 'all';
+    $('#rankingSearch').value = '';
+    $$('.ranking-tab').forEach((button) => {
+      button.classList.toggle('active', button.dataset.rankingTab === state.tab);
+      button.setAttribute('aria-pressed', String(button.dataset.rankingTab === state.tab));
+    });
     const unit = $('#rankingUnitFilter');
     const area = $('#rankingAreaFilter');
     if (unit) unit.value = 'all';
@@ -1059,6 +1138,7 @@
     state.syncing = false;
     state.session = session;
     state.profile = null;
+    state.photos = {};
     state.data = null;
     state.invites = [];
     state.activeSimulationKey = null;
@@ -1125,6 +1205,31 @@
     $$('.ranking-tab').forEach((button) => button.addEventListener('click', () => setTab(button.dataset.rankingTab)));
     $('#rankingUnitFilter')?.addEventListener('change', renderRanking);
     $('#rankingAreaFilter')?.addEventListener('change', renderRanking);
+    $('#rankingSearch').addEventListener('input', renderFilterControls);
+    $('#rankingCutModes').addEventListener('click', e => {
+      const b = e.target.closest('[data-ranking-mode]'); if (!b) return;
+      state.cutMode = b.dataset.rankingMode; $('#rankingUnitFilter').value = 'all'; $('#rankingSearch').value = ''; renderRanking();
+    });
+    $('#rankingOptions').addEventListener('click', e => {
+      const b = e.target.closest('[data-ranking-option]'); if (!b) return;
+      $('#rankingUnitFilter').value = b.dataset.rankingOption; renderRanking();
+    });
+    $('#rankingAreaChips').addEventListener('click', e => {
+      const b = e.target.closest('[data-ranking-area]'); if (!b) return;
+      $('#rankingAreaFilter').value = b.dataset.rankingArea; renderRanking();
+    });
+    $('#clearRankingFilters').addEventListener('click', () => setTab(state.tab));
+    $('#chooseProfilePhoto').addEventListener('click', () => $('#profilePhotoInput').click());
+    $('#profilePhotoInput').addEventListener('change', e => { if (e.target.files[0]) savePhoto(e.target.files[0]); });
+    $('#removeProfilePhoto').addEventListener('click', () => savePhoto(null));
+    const guide = $('#rankGuideModal');
+    $('#openRankGuide').addEventListener('click', () => {
+      $('#rankGuideList').innerHTML = RANKS.map((r,i) => '<div class="rank-guide-row">' + rankBadge(r.min) + '<span>' + (i === RANKS.length-1 ? '90% ou mais' : r.min + '% até menos de ' + RANKS[i+1].min + '%') + '</span></div>').join('');
+      guide.classList.add('open'); guide.setAttribute('aria-hidden', 'false');
+    });
+    const closeGuide = () => { guide.classList.remove('open'); guide.setAttribute('aria-hidden', 'true'); };
+    $('#closeRankGuide').addEventListener('click', closeGuide);
+    guide.addEventListener('click', e => { if (e.target === guide) closeGuide(); });
     $('#rankingSyncButton')?.addEventListener('click', async () => { await sync({ quiet: true }); await loadRanking(); });
     $('#sharedSimulationEvents')?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-shared-event]');

@@ -13,13 +13,14 @@ create function auth.jwt() returns jsonb language sql stable as $$select jsonb_b
 grant usage on schema public,auth to authenticated,anon,service_role;`);
 await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').replace(/^\uFEFF/,''));
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
 await db.query("insert into auth.users(id,email,raw_user_meta_data) values($1,'vinicius@peleja.invalid','{\"display_name\":\"Vinícius\"}'),($2,'wilton@peleja.invalid','{\"display_name\":\"Wilton\"}')",[A,B]);
 await db.query("insert into public.account_handles values($1,'vinicius',true),($2,'wilton',true)",[A,B]);
 function client(id){
   function execute(sql,args=[]){
     const promise=queue.then(async()=>{
       await db.exec('reset role');await db.query("select set_config('request.uid',$1,false)",[id]);await db.exec('set role authenticated');
-      try{return {data:(await db.query(sql,args)).rows,error:null};}catch(e){return {data:null,error:{message:e.message}};}
+      try{return {data:(await db.query(sql,args)).rows.map(row=>Object.fromEntries(Object.entries(row).map(([k,v])=>[k,v instanceof Date ? (['date','exam_date'].includes(k) ? v.toISOString().slice(0,10) : v.toISOString()) : v]))),error:null};}catch(e){return {data:null,error:{message:e.message}};}
     });queue=promise.then(()=>{});return promise;
   }
   return {
@@ -47,6 +48,28 @@ function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.el
 try{
 const a=await boot(A,true);assert.equal(personalExam(a).correct,8);assert.equal(a.PELEJA_STORAGE.snapshot().dirty,false);
 assert.equal(a.document.getElementById('accountModalTitle').textContent,'Minha conta');
+await a.__cloud.loadRanking();
+const rd=a.document, clickRank=s=>rd.querySelector(s).click();
+assert(!rd.querySelector('.ranking-intro')); assert(!rd.querySelector('.rank-legend'));
+clickRank('[data-ranking-mode="exam"]'); assert.equal(rd.getElementById('rankingPicker').hidden,false);
+const search=rd.getElementById('rankingSearch'); search.value='inexistente'; search.dispatchEvent(new a.Event('input'));
+assert.match(rd.getElementById('rankingOptions').textContent,/Nenhum resultado/);
+search.value=''; search.dispatchEvent(new a.Event('input'));
+const option=rd.querySelector('[data-ranking-option]'); assert(option); option.click();
+assert.notEqual(rd.getElementById('rankingUnitFilter').value,'all');
+clickRank('[data-ranking-area="Pediatria"]'); assert.equal(rd.getElementById('rankingAreaFilter').value,'Pediatria');
+assert.equal(rd.getElementById('clearRankingFilters').hidden,false);
+clickRank('#clearRankingFilters'); assert.equal(rd.getElementById('rankingUnitFilter').value,'all'); assert.equal(rd.getElementById('rankingAreaFilter').value,'all');
+clickRank('[data-ranking-mode="period"]'); assert(rd.querySelector('[data-ranking-option^="semester:"]'), rd.getElementById('rankingUnitFilter').innerHTML + ' / ' + rd.getElementById('rankingOptions').innerHTML);
+clickRank('[data-ranking-tab="faculty"]'); assert.equal(rd.getElementById('rankingPicker').hidden,true);
+assert(rd.querySelector('.ranking-person-heading .rank-badge')); assert(rd.querySelector('.person-avatar'));
+clickRank('#openRankGuide'); assert.equal(rd.querySelectorAll('.rank-guide-row').length,8); assert.equal(rd.getElementById('rankGuideModal').getAttribute('aria-hidden'),'false');
+clickRank('#closeRankGuide'); assert.equal(rd.getElementById('rankGuideModal').getAttribute('aria-hidden'),'true');
+await a.__api.rpc('save_profile_photo',{image_data:'data:image/jpeg;base64,YQ=='}); await a.__cloud.loadRanking();
+assert(rd.querySelector('.person-avatar img')); assert(rd.querySelector('#accountAvatar img'));
+clickRank('[data-ranking-tab="simulations"]');
+console.log('PASS Ranking search, periods, area chips, reset, guide and private photo refresh');
+
 assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'true','Restoring a valid session should dismiss the automatic login gate');
 a.document.getElementById('accountButton').click();
 assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'false','An explicit account open should stay open');

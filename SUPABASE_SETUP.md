@@ -71,3 +71,6 @@ Revise a versão local antes de enviá-la ao repositório antigo. Nunca copie ar
 Para conferir o pacote localmente, execute `node scripts/build-pages.mjs`. Ele recusa configuração vazia, chave administrativa e reutilização de uma pasta de saída já existente. O arquivo `release.json` do site identifica versão e commit.
 
 Antes de distribuir o endereço, validar em Android e iPhone: login/sair, menu, formulário longo com teclado aberto, criação de evento pelo administrador, resultado pessoal por participante, segunda sessão sem histórico alheio, edição em dois aparelhos, conflito, backup/restauração e atualização do aplicativo. A validação visual e o teste no Supabase real permanecem pendentes nesta entrega.
+
+## Fotos dos perfis
+Após os dois SQLs anteriores, execute supabase-photos.sql. As fotos são reduzidas no navegador para JPEG quadrado de 160 px (até 60.000 caracteres) e ficam em profile_photos, acessíveis apenas às contas ativas. save_profile_photo altera exclusivamente a foto de auth.uid(); não modifica contas nem dados de estudo. Cada participante pode escolher ou remover a própria foto em Minha conta.

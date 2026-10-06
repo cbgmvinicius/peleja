@@ -1414,3 +1414,35 @@ body[data-access-state="locked"] #accountModal { align-items: center; justify-co
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+/* Compact ranking controls and participant identity. */
+.ranking-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.ranking-filters { margin-bottom:22px; display:grid; gap:12px; }
+.filter-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.filter-chips button { padding:10px 14px; min-height:44px; border:1px solid var(--line, #ddd8cc); border-radius:12px; background:#fbfaf6; color:var(--ink); font:inherit; cursor:pointer; }
+.filter-chips button[aria-pressed="true"] { background:var(--teal-700); border-color:var(--teal-700); color:white; }
+#rankingPicker { display:grid; gap:10px; }
+#rankingPicker[hidden], #rankingCutModes[hidden] { display:none; }
+#rankingSearch { width:100%; max-width:520px; padding:12px; border:1px solid #ddd8cc; border-radius:10px; font:inherit; }
+#rankingOptions { max-height:220px; overflow:auto; }
+#rankingFilterSummary, #profilePhotoStatus { font-size:12px; color:var(--muted); margin:0; }
+#clearRankingFilters { justify-self:start; }
+.ranking-person { display:flex; align-items:center; gap:12px; min-width:0; }
+.ranking-person-copy { min-width:0; }
+.ranking-person-heading { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ranking-person-heading .rank-badge { border:0; padding:0; background:transparent; font-size:11px; }
+.person-avatar, .account-avatar { flex-shrink:0; overflow:hidden; width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:var(--teal-700); color:white; font-weight:800; }
+.person-avatar img, .account-avatar img { width:100%; height:100%; object-fit:cover; }
+.rank-guide-modal { max-width:560px; }
+.rank-guide-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #e7e2d9; }
+.rank-guide-row > span:last-child { font-size:13px; }
+.profile-photo-controls { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.profile-photo-controls label { cursor:pointer; }
+@media(max-width:650px) {
+  .ranking-tabs { display:flex; flex-wrap:wrap; }
+  .ranking-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .ranking-cloud-state { width:auto; flex-wrap:wrap; }
+  .ranking-row { grid-template-columns:24px minmax(0,1fr); }
+  .ranking-row > span { display:none; }
+  .ranking-person-heading strong { overflow-wrap:anywhere; }
+}
