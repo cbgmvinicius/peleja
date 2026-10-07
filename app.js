@@ -641,10 +641,15 @@
   }
 
   function renderReadingQueue() {
-    const queue = [...state.materials].filter((m) => !m.read).sort(classSort).slice(0, 5);
+    const today = todayDateValue();
+    const queue = [...state.materials].filter((m) => {
+      if (m.read) return false;
+      const exams = state.exams.filter(exam => exam.materialIds.includes(m.id));
+      return !exams.length || exams.some(exam => !exam.date || exam.date >= today);
+    }).sort(classSort).slice(0, 5);
     const container = $('#readingQueue');
     if (!queue.length) {
-      container.innerHTML = state.materials.length ? '<div class="empty-state"><strong>Tudo lido por aqui.</strong>Sua fila de leitura está zerada.</div>' : '<div class="empty-state"><strong>Nenhuma apostila cadastrada.</strong>Adicione sua primeira aula para começar.</div>';
+      container.innerHTML = state.materials.length ? '<div class="empty-state"><strong>Nenhuma leitura pendente para as próximas provas.</strong>As apostilas de provas passadas continuam na biblioteca.</div>' : '<div class="empty-state"><strong>Nenhuma apostila cadastrada.</strong>Adicione sua primeira aula para começar.</div>';
       return;
     }
     container.innerHTML = queue.map((m, index) => `<div class="queue-item"><div class="queue-number">${m.classOrder !== '' ? escapeHtml(m.classOrder) : index + 1}</div><div><strong>${escapeHtml(m.title)}</strong><small>${escapeHtml(m.subject)} · ${formatDate(m.classDate)}</small></div><button class="queue-action" data-action="toggle-read" data-id="${escapeHtml(m.id)}">Marcar lida</button></div>`).join('');
@@ -962,15 +967,39 @@
     els.questionHistoryHint.textContent = material ? 'Use o botão abaixo para gerenciar o histórico de questões desta apostila.' : 'Salve a apostila primeiro; depois use o botão de questões no cartão para registrar suas sessões.';
   }
 
+  function renderMaterialExamOptions(initial = false) {
+    const subject = els.subjectInput.value.trim();
+    const material = state.materials.find(m => m.id === els.materialId.value);
+    const container = $('#materialExamOptions');
+    const selected = new Set(initial
+      ? state.exams.filter(e => material && e.materialIds.includes(material.id)).map(e => e.id)
+      : [...container.querySelectorAll('input:checked')].map(input => input.value));
+    const exams = state.exams.filter(e => e.subject === subject).sort((a,b) => a.date.localeCompare(b.date));
+    let suggested = null;
+    if (!material && !exams.some(e => selected.has(e.id))) {
+      const upcoming = exams.filter(e => e.date >= todayDateValue());
+      if (upcoming.length && upcoming.filter(e => e.date === upcoming[0].date).length === 1) {
+        suggested = upcoming[0].id; selected.add(suggested);
+      }
+    }
+    $('#materialExamHint').textContent = !subject ? 'Escolha a disciplina para ver as provas.'
+      : !exams.length ? 'Ainda não há prova cadastrada para esta disciplina. Você pode vincular depois.'
+      : suggested ? 'A próxima prova da disciplina já está marcada. Altere se necessário.'
+      : 'Marque as provas que incluem esta apostila. Você pode escolher mais de uma.';
+    container.innerHTML = exams.map(e => `<label class="exam-material-option"><input type="checkbox" value="${escapeHtml(e.id)}" ${selected.has(e.id) ? 'checked' : ''}/><span><strong>${escapeHtml(e.type)}</strong><small>${formatDate(e.date)}${e.date && e.date < todayDateValue() ? ' · já realizada' : ''}</small></span></label>`).join('');
+  }
+
   function openMaterialModal(material = null) {
     if (!requireAdmin(material ? 'editar apostilas' : 'criar apostilas')) return;
     els.materialForm.reset(); els.validationMessage.textContent = '';
+    $('#materialSubjects').innerHTML = [...new Set([...state.materials, ...state.exams].map(item => item.subject).filter(Boolean))].sort().map(subject => `<option value="${escapeHtml(subject)}"></option>`).join('');
     updateMaterialQuestionSummary(material);
     if (material) {
       els.modalTitle.textContent = 'Editar apostila'; els.materialId.value = material.id; els.subjectInput.value = material.subject; els.titleInput.value = material.title; els.classDateInput.value = material.classDate; els.classOrderInput.value = material.classOrder; els.sketchyTagsInput.value = material.sketchyTags; els.madeInput.checked = material.made; els.readInput.checked = material.read; els.notesInput.value = material.notes;
     } else {
-      els.modalTitle.textContent = 'Adicionar nova apostila'; els.materialId.value = ''; els.madeInput.checked = false;
+      els.modalTitle.textContent = 'Adicionar nova apostila'; els.materialId.value = ''; els.madeInput.checked = false; els.classDateInput.value = todayDateValue();
     }
+    renderMaterialExamOptions(true);
     els.materialModal.classList.add('open'); els.materialModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { if (els.materialModal.classList.contains('open') && !els.materialModal.inert) els.subjectInput.focus(); }, 30);
   }
 
@@ -983,6 +1012,10 @@
     const subject = els.subjectInput.value.trim(); const title = els.titleInput.value.trim();
     if (!subject || !title) { els.validationMessage.textContent = 'Preencha a disciplina e o título da apostila.'; return; }
     const existingId = els.materialId.value; const existing = state.materials.find((m) => m.id === existingId); const id = existingId || makeId('m'); const now = new Date().toISOString();
+    const selectedExams = new Set([...$('#materialExamOptions').querySelectorAll('input:checked')].map(input => input.value));
+    if ([...selectedExams].some(examId => !state.exams.some(e => e.id === examId && e.subject === subject))) {
+      els.validationMessage.textContent = 'A lista de provas mudou. Confira a disciplina e selecione novamente.'; return;
+    }
     const material = normalizeMaterial({ ...(existing || {}), id, subject, title, classDate: els.classDateInput.value, classOrder: els.classOrderInput.value, sketchyTags: els.sketchyTagsInput.value, made: els.madeInput.checked, questionEntries: existing?.questionEntries || [], read: els.readInput.checked, notes: els.notesInput.value.trim(), createdAt: existing?.createdAt || now, updatedAt: now });
     if (existing) state.materials = state.materials.map((m) => m.id === id ? material : m); else state.materials.push(material);
 
@@ -994,6 +1027,12 @@
         return normalizeExam({ ...exam, materialIds: exam.materialIds.filter((materialId) => materialId !== id), updatedAt: now });
       });
     }
+    state.exams = state.exams.map(exam => {
+      if (exam.subject !== subject) return exam;
+      const linked = exam.materialIds.includes(id), wanted = selectedExams.has(exam.id);
+      if (linked === wanted) return exam;
+      return normalizeExam({ ...exam, materialIds: wanted ? [...exam.materialIds, id] : exam.materialIds.filter(value => value !== id), updatedAt: now });
+    });
     personalStore.markCatalogDirty();
     saveAll(); renderAll(); closeMaterialModal(); showToast(removedLinks ? `Apostila atualizada. ${removedLinks} vínculo(s) de prova incompatível(is) removido(s).` : (existing ? 'Apostila atualizada.' : 'Apostila adicionada.'));
   }
@@ -1215,6 +1254,7 @@
     });
     els.primaryActionBtn.addEventListener('click', handlePrimaryActionClick);
     els.closeModal.addEventListener('click', closeMaterialModal); els.cancelModal.addEventListener('click', closeMaterialModal); els.materialForm.addEventListener('submit', handleMaterialSubmit);
+    els.subjectInput.addEventListener('input', () => renderMaterialExamOptions());
     els.openQuestionManagerFromMaterial.addEventListener('click', () => { const material = state.materials.find((item) => item.id === els.openQuestionManagerFromMaterial.dataset.id); if (material) openQuestionModal(material); });
     els.closeQuestionModal.addEventListener('click', closeQuestionModal); els.cancelQuestionEntryEdit.addEventListener('click', resetQuestionEntryForm); els.questionEntryForm.addEventListener('submit', handleQuestionEntrySubmit);
     els.closeExamFormModal.addEventListener('click', closeExamForm); els.cancelExamForm.addEventListener('click', closeExamForm); els.examForm.addEventListener('submit', handleExamSubmit);
