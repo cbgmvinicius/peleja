@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // Keep the stored area key compatible with existing results.
+  const areaLabel = value => value === 'Medicina Preventiva / Saúde Coletiva' ? 'Medicina Preventiva' : value;
+
   const personalStore = globalThis.PELEJA_STORAGE;
   if (!personalStore) throw new Error('Armazenamento por conta indisponível. Recarregue o Peleja.');
   let currentAcademicData = globalThis.PELEJA_ACADEMIC_DATA;
@@ -783,7 +786,7 @@
   function simulationAreaOptions(selected = '') {
     const known = new Set(GRAND_AREAS);
     const values = selected && !known.has(selected) ? [...GRAND_AREAS, selected] : GRAND_AREAS;
-    return `<option value="">Selecione...</option>${values.map((area) => `<option value="${escapeHtml(area)}"${area === selected ? ' selected' : ''}>${escapeHtml(area)}</option>`).join('')}`;
+    return `<option value="">Selecione...</option>${values.map((area) => `<option value="${escapeHtml(area)}"${area === selected ? ' selected' : ''}>${escapeHtml(areaLabel(area))}</option>`).join('')}`;
   }
 
   function simulationResultMeta(question) {
@@ -798,7 +801,7 @@
     if (!els.simulationAreaStats) return;
     const rows = simulationAreaStats(state.simulations);
     if (!rows.length) { els.simulationAreaStats.innerHTML = '<div class="empty-state compact"><strong>Ainda não há questões corrigidas por área.</strong>Preencha a grande área, sua resposta e o gabarito oficial em um simulado.</div>'; return; }
-    els.simulationAreaStats.innerHTML = rows.map((row) => `<div class="simulation-area-row"><div class="simulation-area-copy"><strong>${escapeHtml(row.area)}</strong><span>${row.correct}/${row.answered} acertos · ${row.wrong} erros</span></div><div class="simulation-area-track" aria-label="${row.accuracy}% de acerto"><i style="width:${row.accuracy}%"></i></div><b>${row.accuracy}%</b></div>`).join('');
+    els.simulationAreaStats.innerHTML = rows.map((row) => `<div class="simulation-area-row"><div class="simulation-area-copy"><strong>${escapeHtml(areaLabel(row.area))}</strong><span>${row.correct}/${row.answered} acertos · ${row.wrong} erros</span></div><div class="simulation-area-track" aria-label="${row.accuracy}% de acerto"><i style="width:${row.accuracy}%"></i></div><b>${row.accuracy}%</b></div>`).join('');
   }
 
   function renderSimulationList() {
@@ -822,9 +825,9 @@
     els.simulationCountNote.textContent = state.simulations.length ? plural(stats.total, 'questão registrada', 'questões registradas') : 'Nenhum registrado';
     els.simulationAccuracyKpi.textContent = stats.accuracy == null ? '—' : `${stats.accuracy}%`;
     els.simulationAccuracyNote.textContent = plural(stats.answered, 'questão corrigida', 'questões corrigidas');
-    els.simulationWeakAreaKpi.textContent = weak ? weak.area : '—';
+    els.simulationWeakAreaKpi.textContent = weak ? areaLabel(weak.area) : '—';
     els.simulationWeakAreaNote.textContent = weak ? `${weak.accuracy}% · ${weak.answered} questões` : 'Sem dados por área';
-    els.simulationStrongAreaKpi.textContent = strong ? strong.area : '—';
+    els.simulationStrongAreaKpi.textContent = strong ? areaLabel(strong.area) : '—';
     els.simulationStrongAreaNote.textContent = strong ? `${strong.accuracy}% · ${strong.answered} questões` : 'Sem dados por área';
   }
 
