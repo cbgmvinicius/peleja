@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // Keep the stored area key compatible with existing results.
+  const areaLabel = value => value === 'Medicina Preventiva / Saúde Coletiva' ? 'Medicina Preventiva' : value;
+
   const personalStore = globalThis.PELEJA_STORAGE;
   if (!personalStore) throw new Error('Armazenamento por conta indisponível.');
 
@@ -580,7 +583,7 @@
     if (!select) return;
     const current = select.value || 'all';
     select.innerHTML = '<option value="all">Todas as áreas</option>' +
-      AREAS.map((area) => '<option value="' + html(area) + '">' + html(area) + '</option>').join('');
+      AREAS.map((area) => '<option value="' + html(area) + '">' + html(areaLabel(area)) + '</option>').join('');
     if (Array.from(select.options).some((option) => option.value === current)) select.value = current;
   }
 
@@ -781,12 +784,12 @@
     }));
     const sorted = [...areas.values()].filter(x => x.total > 0).sort((a,b) => a.correct/a.total - b.correct/b.total);
     for (const [kind, item] of [['Weak',sorted[0]],['Strong',sorted.at(-1)]]) {
-      $('#simulation' + kind + 'AreaKpi').textContent = item?.name || '—';
+      $('#simulation' + kind + 'AreaKpi').textContent = areaLabel(item?.name) || '—';
       $('#simulation' + kind + 'AreaNote').textContent = item ? item.correct + '/' + item.total + ' acertos' : 'Sem dados por área';
     }
     $('#simulationAreaStats').innerHTML = sorted.map(item => {
       const percent = (100 * item.correct / item.total).toFixed(1);
-      return '<div class="simulation-area-row"><div class="simulation-area-copy"><strong>' + html(item.name) + '</strong><span>' + item.correct + '/' + item.total + ' acertos</span></div><div class="simulation-area-track"><i style="width:' + percent + '%"></i></div><b>' + percent + '%</b></div>';
+      return '<div class="simulation-area-row"><div class="simulation-area-copy"><strong>' + html(areaLabel(item.name)) + '</strong><span>' + item.correct + '/' + item.total + ' acertos</span></div><div class="simulation-area-track"><i style="width:' + percent + '%"></i></div><b>' + percent + '%</b></div>';
     }).join('') || '<div class="empty-state compact">Nenhum resultado por área neste perfil.</div>';
     const shown = isAdmin() ? state.data.catalogs : state.data.catalogs.filter(event => own.some(row => row.simulation_key === event.key));
     $('#simulationsList').innerHTML = shown.map(event => {
@@ -871,7 +874,7 @@
       container.innerHTML = AREAS.filter((area) => counts.get(area)).map((area) => {
         const answered = counts.get(area);
         const saved = manual?.area_stats?.[area]?.correct;
-        return '<label class="shared-quick-area-row"><span><b>' + html(area) + '</b><small>' + answered + ' questões aceitas</small></span><input type="number" min="0" max="' + answered + '" step="1" inputmode="numeric" data-quick-area="' + html(area) + '" value="' + (saved == null ? '' : Number(saved)) + '" placeholder="Acertos" /></label>';
+        return '<label class="shared-quick-area-row"><span><b>' + html(areaLabel(area)) + '</b><small>' + answered + ' questões aceitas</small></span><input type="number" min="0" max="' + answered + '" step="1" inputmode="numeric" data-quick-area="' + html(area) + '" value="' + (saved == null ? '' : Number(saved)) + '" placeholder="Acertos" /></label>';
       }).join('') || '<div class="empty-state compact"><strong>As grandes áreas ainda estão em consenso.</strong>Você já pode lançar os acertos totais; o detalhamento por área fica disponível conforme as questões ganham uma área aceita.</div>';
     }
     const classified = [...counts.values()].reduce((sum, value) => sum + value, 0);
@@ -925,7 +928,7 @@
         result = 'Anulada';
       }
       const answerOptions = ['','A','B','C','D','E'].map((value) => '<option value="' + value + '"' + (value === answer ? ' selected' : '') + '>' + (value || '—') + '</option>').join('');
-      const areaOptions = [''].concat(AREAS).map((value) => '<option value="' + html(value) + '"' + (value === suggestion ? ' selected' : '') + '>' + (value || 'Sem sugestão') + '</option>').join('');
+      const areaOptions = [''].concat(AREAS).map((value) => '<option value="' + html(value) + '"' + (value === suggestion ? ' selected' : '') + '>' + html(areaLabel(value) || 'Sem sugestão') + '</option>').join('');
       return '<div class="shared-question-row" data-question="' + number + '">' +
         '<b>' + number + '</b>' +
         '<select data-shared-field="answer" aria-label="Resposta da questão ' + number + '">' + answerOptions + '</select>' +
