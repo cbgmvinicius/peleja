@@ -264,10 +264,11 @@
       <form id="materialForm">
         <input type="hidden" id="materialId" />
         <div class="form-grid">
-          <label><span>Disciplina *</span><input id="subjectInput" required placeholder="Ex.: Pediatria" /></label>
+          <label><span>Disciplina *</span><input id="subjectInput" list="materialSubjects" required placeholder="Ex.: Pediatria" /><datalist id="materialSubjects"></datalist></label>
           <label><span>Título da apostila *</span><input id="titleInput" required placeholder="Ex.: PED02 ANEMIAS EM PEDIATRIA" /></label>
           <label><span>Data da aula</span><input id="classDateInput" type="date" /></label>
           <label><span>Número/ordem da aula</span><input id="classOrderInput" type="number" min="0" step="1" placeholder="Ex.: 3" /></label>
+          <fieldset class="full-width material-exam-picker"><legend>Provas desta apostila</legend><p id="materialExamHint">Escolha a disciplina para ver as provas.</p><div id="materialExamOptions"></div></fieldset>
           <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea><small>Cole a query completa do Anki. No cartão, os NIDs ficam ocultos; aparece apenas o total de notas e o botão para copiar a query.</small></label>
           <div class="full-width question-history-section">
             <div class="question-history-heading"><div><span>HISTÓRICO DE QUESTÕES</span><small>Os totais são calculados automaticamente a partir das entradas registradas.</small></div><button type="button" class="ghost-button" id="openQuestionManagerFromMaterial">Gerenciar entradas</button></div>
