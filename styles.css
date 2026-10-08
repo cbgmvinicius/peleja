@@ -753,8 +753,10 @@ td { font-size: 13px; }
 }
 
 @media (max-width: 760px) {
-  .exam-card { grid-template-columns: 1fr; }
-  .exam-card-actions { grid-column: auto; justify-content: flex-start; }
+  .exam-card { position: relative; grid-template-columns: 1fr; }
+  .exam-card-heading { padding-right: 56px; }
+  .exam-card-actions { position: absolute; top: 18px; right: 18px; grid-column: auto; justify-content: flex-end; }
+  .exam-card-actions .action-menu-toggle { width: 44px; height: 44px; }
   .exam-material-options { grid-template-columns: 1fr; }
 }
 
