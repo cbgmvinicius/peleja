@@ -38,6 +38,7 @@ try {
   const material=(id,read=false)=>({id,title:id,subject:'Pediatria',classDate:'2026-01-01',classOrder:'',createdAt:'2026-01-01',read});
   state.materials=['past-only','future','today','unlinked','both'].map(id=>material(id));state.materials.push(material('read',true));
   state.exams=[exam('p','2000-01-01',['past-only','both']),exam('f','2099-01-01',['future','both','read']),exam('t',today,['today'])];
+  state.exams.forEach(e=>{e.total=null;e.correct=null;e.wrong=null;});
   api.renderReadingQueue();const queue=w.document.getElementById('readingQueue').textContent;
   assert(!queue.includes('past-only'));for(const id of ['future','today','unlinked','both'])assert(queue.includes(id));
   state.materials=[material('past-only')];api.renderReadingQueue();assert.match(w.document.getElementById('readingQueue').textContent,/provas passadas continuam na biblioteca/);

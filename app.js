@@ -155,6 +155,7 @@
       type,
       date,
       materialIds: [...new Set((Array.isArray(item.materialIds) ? item.materialIds : []).map(String))],
+      performed: item.performed === true,
       total: completeNumbers ? total : null,
       correct: completeNumbers ? correct : null,
       wrong: completeNumbers ? wrong : null,
@@ -488,6 +489,7 @@
 
   function plural(value, singular, pluralForm) { return `${value} ${value === 1 ? singular : pluralForm}`; }
   function accuracy(correct, wrong) { const answered = Number(correct || 0) + Number(wrong || 0); return answered > 0 ? Math.round((Number(correct || 0) / answered) * 100) : 0; }
+  function isExamPerformed(exam) { return exam.performed === true || hasExamResult(exam); }
   function hasExamResult(exam) { return exam.total != null && exam.correct != null && exam.wrong != null && exam.total > 0 && exam.correct + exam.wrong === exam.total; }
 
   function icon(name) {
@@ -550,8 +552,8 @@
 
   function getMaterialExamState(materialId) {
     const linkedExams = state.exams.filter((exam) => exam.materialIds.includes(materialId));
-    const hasPendingExam = linkedExams.some((exam) => !hasExamResult(exam));
-    const completedOnly = linkedExams.length > 0 && linkedExams.every(hasExamResult);
+    const hasPendingExam = linkedExams.some((exam) => !isExamPerformed(exam));
+    const completedOnly = linkedExams.length > 0 && linkedExams.every(isExamPerformed);
     return { linkedExams, hasPendingExam, completedOnly };
   }
 
@@ -648,7 +650,7 @@
     const queue = [...state.materials].filter((m) => {
       if (m.read) return false;
       const exams = state.exams.filter(exam => exam.materialIds.includes(m.id));
-      return !exams.length || exams.some(exam => !exam.date || exam.date >= today);
+      return !exams.length || exams.some(exam => !isExamPerformed(exam) && (!exam.date || exam.date >= today));
     }).sort(classSort).slice(0, 5);
     const container = $('#readingQueue');
     if (!queue.length) {
@@ -660,7 +662,7 @@
 
   function renderUpcomingExamQueue() {
     const today = todayDateValue();
-    const exams = [...state.exams].filter((exam) => exam.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+    const exams = [...state.exams].filter((exam) => !isExamPerformed(exam) && exam.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
     const container = $('#upcomingExamQueue');
     if (!exams.length) {
       container.innerHTML = '<div class="empty-state"><strong>Nenhuma prova próxima.</strong>Cadastre as datas na seção Provas.</div>';
@@ -726,7 +728,7 @@
     const today = todayDateValue();
     return [...state.exams].filter((exam) => {
       if (subject !== 'all' && exam.subject !== subject) return false;
-      if (status === 'upcoming' && exam.date < today) return false;
+      if (status === 'upcoming' && (isExamPerformed(exam) || exam.date < today)) return false;
       if (status === 'completed' && !hasExamResult(exam)) return false;
       if (status === 'pending-result' && hasExamResult(exam)) return false;
       return true;
@@ -735,16 +737,17 @@
 
   function examTimingLabel(exam) {
     const today = todayDateValue();
+    if (isExamPerformed(exam)) return 'REALIZADA';
     if (exam.date === today) return 'HOJE';
     const diff = Math.round((new Date(`${exam.date}T12:00:00`) - new Date(`${today}T12:00:00`)) / 86400000);
     if (diff > 0) return diff === 1 ? 'AMANHÃ' : `EM ${diff} DIAS`;
-    return 'REALIZADA';
+    return 'DATA PASSADA';
   }
 
   function renderExams() {
     const filtered = getFilteredExams();
     const today = todayDateValue();
-    const upcoming = filtered.filter((exam) => exam.date >= today);
+    const upcoming = filtered.filter((exam) => !isExamPerformed(exam) && exam.date >= today);
     const completed = filtered.filter(hasExamResult);
     const totalQuestions = completed.reduce((sum, exam) => sum + exam.total, 0);
     const totalCorrect = completed.reduce((sum, exam) => sum + exam.correct, 0);
@@ -778,7 +781,7 @@
         <div class="exam-card-actions">${buildActionMenu([
           actionMenuItem({ action: 'edit-exam', id: exam.id, label: result ? 'Editar prova' : 'Lançar resultado / editar', iconName: 'edit' }),
           actionMenuItem({ action: 'delete-exam', id: exam.id, label: 'Excluir prova', iconName: 'trash', variant: 'danger' }),
-        ], 'Mais ações da prova')}</div>
+        ], 'Mais ações da prova')}<button type="button" class="exam-performed-toggle ${isExamPerformed(exam) ? 'is-performed' : ''}" data-action="toggle-exam-performed" data-id="${escapeHtml(exam.id)}" aria-pressed="${isExamPerformed(exam)}" aria-label="${isExamPerformed(exam) ? 'Prova realizada' : 'Marcar prova como realizada'}" title="${result ? 'Prova com resultado registrado' : (exam.performed ? 'Desmarcar prova realizada' : 'Marcar prova como realizada')}" ${result ? 'disabled' : ''}>✓</button></div>
       </article>`;
     }).join('');
   }
@@ -1144,6 +1147,12 @@
   }
 
   async function handleAction(action, id, entryId = null) {
+    if (action === 'toggle-exam-performed') {
+      const exam = state.exams.find(item => item.id === id);
+      if (!exam || hasExamResult(exam)) return;
+      exam.performed = !exam.performed; exam.updatedAt = new Date().toISOString();
+      saveExams(); renderAll(); showToast(exam.performed ? 'Prova marcada como realizada.' : 'Marcação de realizada removida.'); return;
+    }
     if (action === 'edit-simulation') { if (!requireAdmin('editar eventos de residência')) return; const simulation = state.simulations.find((item) => item.id === id); if (simulation) openSimulationModal(simulation); return; }
     if (action === 'delete-simulation') { if (!requireAdmin('excluir eventos de residência')) return; const simulation = state.simulations.find((item) => item.id === id); if (!simulation) return; if (!window.confirm(`Excluir “${simulation.name}”?`)) return; state.simulations = state.simulations.filter((item) => item.id !== id); personalStore.markCatalogDirty(); saveSimulations(); renderAll(); showToast('Simulado excluído.'); return; }
     if (action === 'edit-exam') { const exam = state.exams.find((item) => item.id === id); if (exam) openExamForm(exam); return; }
@@ -1311,7 +1320,7 @@
     });
     state.exams = (catalog.exams || []).map(item => {
       const old = oldExams.get(item.id) || {};
-      return normalizeExam({ ...item, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
+      return normalizeExam({ ...item, performed: old.performed, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
     });
     state.simulations = (catalog.simulations || []).map(item => {
       const old = oldSimulations.get(item.id);
