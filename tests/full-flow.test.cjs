@@ -122,6 +122,16 @@ assert.equal(a.document.getElementById('registerForm'),null);assert(a.document.g
 console.log('PASS Real app imports owner legacy data, publishes catalog and preserves private fields without notebook UI');
 const b=await boot(B);assert.equal(personalExam(b).correct,null);assert.equal(b.__app.state.materials[0].notes,'');
 assert.equal(b.__app.state.materials[0].source,'');assert.equal(b.__app.state.exams[0].source,'');
+await b.__app.handleAction('toggle-exam-performed','e');
+assert.equal(personalExam(b).performed,true);assert.equal(personalExam(b).total,null);
+await b.__cloud.sync();
+const performedDevice=await boot(B);assert.equal(personalExam(performedDevice).performed,true);assert.equal(personalExam(performedDevice).correct,null);
+assert(!performedDevice.__cloud.state.data.university.some(r=>r.user_id===B),'Marking performed never invents a ranking result');
+assert.equal(personalExam(a).performed,false,'Mark is private to the participant');
+await b.__cloud.reloadWorkspace();assert.equal(personalExam(b).performed,true);
+await b.__app.handleAction('toggle-exam-performed','e');await b.__cloud.sync();
+await performedDevice.__cloud.reloadWorkspace();assert.equal(personalExam(performedDevice).performed,false);
+console.log('PASS Performed exam without scores survives sync and fresh device, remains private, creates no ranking result and can be unmarked');
 enterResult(b,4);await b.__cloud.sync();assert.equal(b.PELEJA_STORAGE.snapshot().dirty,false,b.document.getElementById('authMessage').textContent);
 const b2=await boot(B);assert.equal(personalExam(b2).correct,4);assert.equal(b2.document.getElementById('examAccuracyKpi').textContent,'40%');
 console.log('PASS Participant result survives a fresh device and does not inherit the owner result');

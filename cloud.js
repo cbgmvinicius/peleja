@@ -97,9 +97,9 @@
     return [...RANKS].reverse().find((rank) => value >= rank.min) || RANKS[0];
   }
 
-  function rankBadge(accuracy) {
+  function rankBadge(accuracy, iconOnly = false) {
     const rank = rankForAccuracy(accuracy);
-    return '<span class="rank-badge rank-' + rank.key + '"><span class="rank-icon-slot" aria-hidden="true"><img src="' + html(rank.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" /></span>' + html(rank.name) + '</span>';
+    return '<span class="rank-badge rank-' + rank.key + '"><span class="rank-icon-slot" aria-hidden="true"><img src="' + html(rank.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" /></span>' + (iconOnly ? '<span class="sr-only">' + html(rank.name) + '</span>' : html(rank.name)) + '</span>';
   }
 
   function semesterOf(date) {
@@ -1035,7 +1035,7 @@
         const mine = row.userId === state.session.user.id;
         return '<div class="ranking-row' + (mine ? ' is-me' : '') + '">' +
           '<b class="ranking-position">' + (index + 1) + '</b>' +
-          '<div class="ranking-person">' + avatar(row.userId, row.name) + '<div class="ranking-person-copy"><div class="ranking-person-heading"><strong>' + html(row.name) + (mine ? ' <em>você</em>' : '') + '</strong>' + rankBadge(row.rankAccuracy) + '</div><small>' + row.correct + ' acertos em ' + row.total + ' questões · ' + row.unitCount + ' ' + (state.tab === 'materials' ? (row.unitCount === 1 ? 'área' : 'áreas') : (row.unitCount === 1 ? 'prova' : 'provas')) + '</small></div></div>' +
+          '<div class="ranking-person">' + avatar(row.userId, row.name) + '<div class="ranking-person-copy"><div class="ranking-person-heading"><strong>' + html(row.name) + (mine ? ' <em>você</em>' : '') + '</strong>' + rankBadge(row.rankAccuracy, true) + '</div><small>' + row.correct + ' acertos em ' + row.total + ' questões · ' + row.unitCount + ' ' + (state.tab === 'materials' ? (row.unitCount === 1 ? 'área' : 'áreas') : (row.unitCount === 1 ? 'prova' : 'provas')) + '</small></div></div>' +
           '<div class="ranking-score"><b>' + row.accuracy.toFixed(1) + '%</b><div><i style="width:' + Math.max(0, Math.min(100, row.accuracy)) + '%"></i></div></div>' +
           '<span>' + row.correct + '/' + row.total + '</span><span>' + row.unitCount + '</span></div>';
       }).join('');
