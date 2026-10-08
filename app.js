@@ -156,6 +156,7 @@
       date,
       materialIds: [...new Set((Array.isArray(item.materialIds) ? item.materialIds : []).map(String))],
       performed: item.performed === true,
+      grade: item.grade !== null && item.grade !== undefined && String(item.grade).trim() !== "" && Number.isFinite(Number(item.grade)) && Number(item.grade) >= 0 && Number(item.grade) <= 10 ? Number(item.grade) : null,
       total: completeNumbers ? total : null,
       correct: completeNumbers ? correct : null,
       wrong: completeNumbers ? wrong : null,
@@ -489,7 +490,9 @@
 
   function plural(value, singular, pluralForm) { return `${value} ${value === 1 ? singular : pluralForm}`; }
   function accuracy(correct, wrong) { const answered = Number(correct || 0) + Number(wrong || 0); return answered > 0 ? Math.round((Number(correct || 0) / answered) * 100) : 0; }
-  function isExamPerformed(exam) { return exam.performed === true || hasExamResult(exam); }
+  function isExamPerformed(exam) { return exam.performed === true || hasRecordedExamResult(exam); }
+  function hasExamGrade(exam) { return typeof exam.grade === "number" && Number.isFinite(exam.grade) && exam.grade >= 0 && exam.grade <= 10; }
+  function hasRecordedExamResult(exam) { return hasExamResult(exam) || hasExamGrade(exam); }
   function hasExamResult(exam) { return exam.total != null && exam.correct != null && exam.wrong != null && exam.total > 0 && exam.correct + exam.wrong === exam.total; }
 
   function icon(name) {
@@ -729,8 +732,8 @@
     return [...state.exams].filter((exam) => {
       if (subject !== 'all' && exam.subject !== subject) return false;
       if (status === 'upcoming' && (isExamPerformed(exam) || exam.date < today)) return false;
-      if (status === 'completed' && !hasExamResult(exam)) return false;
-      if (status === 'pending-result' && hasExamResult(exam)) return false;
+      if (status === 'completed' && !hasRecordedExamResult(exam)) return false;
+      if (status === 'pending-result' && hasRecordedExamResult(exam)) return false;
       return true;
     }).sort(examChronologicalSort);
   }
@@ -772,16 +775,16 @@
       const materials = exam.materialIds.map((id) => state.materials.find((m) => m.id === id)).filter(Boolean);
       const result = hasExamResult(exam);
       const examAccuracy = result ? accuracy(exam.correct, exam.wrong) : null;
-      return `<article class="exam-card ${result ? 'has-result' : ''}">
+      return `<article class="exam-card ${hasRecordedExamResult(exam) ? 'has-result' : ''}">
         <div class="exam-card-main">
           <div class="exam-card-heading"><div><span class="exam-type-badge">${escapeHtml(exam.type)}</span><span class="exam-timing-badge">${examTimingLabel(exam)}</span></div><h3>${escapeHtml(exam.subject)}</h3><p>${formatDate(exam.date)}</p></div>
           <div class="exam-syllabus"><span class="exam-section-label">APOSTILAS DA PROVA · ${materials.length}</span><div class="exam-material-chips">${renderExamMaterialList(exam, materials)}</div></div>
         </div>
-        <div class="exam-result-box ${result ? '' : 'pending'}">${result ? `<div><span>QUESTÕES</span><b>${exam.total}</b></div><div class="good"><span>ACERTOS</span><b>${exam.correct}</b></div><div class="bad"><span>ERROS</span><b>${exam.wrong}</b></div><div><span>APROVEITAMENTO</span><b>${examAccuracy}%</b></div>` : '<div class="exam-result-pending-copy"><strong>Resultado ainda não lançado</strong><small>Edite a prova depois da avaliação para registrar total, acertos e erros.</small></div>'}</div>
+        <div class="exam-result-box ${result ? '' : 'pending'}">${result ? `<div><span>QUESTÕES</span><b>${exam.total}</b></div><div class="good"><span>ACERTOS</span><b>${exam.correct}</b></div><div class="bad"><span>ERROS</span><b>${exam.wrong}</b></div><div><span>APROVEITAMENTO</span><b>${examAccuracy}%</b></div>${hasExamGrade(exam) ? `<div><span>NOTA</span><b>${exam.grade.toLocaleString("pt-BR")} / 10</b></div>` : ""}` : hasExamGrade(exam) ? `<div class="exam-result-pending-copy"><strong>Nota: ${exam.grade.toLocaleString('pt-BR')} / 10</strong><small>Nota registrada diretamente, sem contagem de questões.</small></div>` : '<div class="exam-result-pending-copy"><strong>Resultado ainda não lançado</strong><small>Edite a prova para registrar a nota ou os acertos e erros.</small></div>'}</div>
         <div class="exam-card-actions">${buildActionMenu([
-          actionMenuItem({ action: 'edit-exam', id: exam.id, label: result ? 'Editar prova' : 'Lançar resultado / editar', iconName: 'edit' }),
+          actionMenuItem({ action: 'edit-exam', id: exam.id, label: 'Editar', iconName: 'edit' }),
           actionMenuItem({ action: 'delete-exam', id: exam.id, label: 'Excluir prova', iconName: 'trash', variant: 'danger' }),
-        ], 'Mais ações da prova')}<button type="button" class="exam-performed-toggle ${isExamPerformed(exam) ? 'is-performed' : ''}" data-action="toggle-exam-performed" data-id="${escapeHtml(exam.id)}" aria-pressed="${isExamPerformed(exam)}" aria-label="${isExamPerformed(exam) ? 'Prova realizada' : 'Marcar prova como realizada'}" title="${result ? 'Prova com resultado registrado' : (exam.performed ? 'Desmarcar prova realizada' : 'Marcar prova como realizada')}" ${result ? 'disabled' : ''}>✓</button></div>
+        ], 'Mais ações da prova')}<button type="button" class="exam-performed-toggle ${isExamPerformed(exam) ? 'is-performed' : ''}" data-action="toggle-exam-performed" data-id="${escapeHtml(exam.id)}" aria-pressed="${isExamPerformed(exam)}" aria-label="${isExamPerformed(exam) ? 'Prova realizada' : 'Marcar prova como realizada'}" title="${hasRecordedExamResult(exam) ? 'Prova com resultado registrado' : (exam.performed ? 'Desmarcar prova realizada' : 'Marcar prova como realizada')}" ${hasRecordedExamResult(exam) ? 'disabled' : ''}>✓</button></div>
       </article>`;
     }).join('');
   }
@@ -1108,6 +1111,7 @@
     if (exam?.type && !EXAM_TYPES.includes(exam.type)) { const option = document.createElement('option'); option.value = exam.type; option.textContent = exam.type; els.examTypeInput.appendChild(option); els.examTypeInput.value = exam.type; }
     els.examDateInput.value = exam?.date || todayDateValue();
     els.examTotalInput.value = hasExamResult(exam || {}) ? exam.total : ''; els.examCorrectInput.value = hasExamResult(exam || {}) ? exam.correct : ''; els.examWrongInput.value = hasExamResult(exam || {}) ? exam.wrong : '';
+    $('#examGradeInput').value = hasExamGrade(exam || {}) ? exam.grade : '';
     renderExamMaterialOptions(exam?.subject || '', exam?.materialIds || []);
     [els.examSubjectInput, els.examTypeInput, els.examDateInput].forEach((control) => { if (control) control.disabled = !admin; });
     els.examMaterialOptions.querySelectorAll('input[type="checkbox"]').forEach((control) => { control.disabled = !admin; });
@@ -1126,10 +1130,13 @@
     const date = admin ? els.examDateInput.value : existing.date;
     const materialIds = admin ? getExamFormSelectedIds() : [...existing.materialIds];
     if (!subject || !type || !date) { els.examValidationMessage.textContent = 'Preencha disciplina, tipo e data da prova.'; return; }
-    if (!materialIds.length) { els.examValidationMessage.textContent = 'Selecione pelo menos uma apostila que faça parte desta prova.'; return; }
+    if (!materialIds.length && !existing) { els.examValidationMessage.textContent = 'Selecione pelo menos uma apostila que faça parte desta prova.'; return; }
     const invalidMaterial = materialIds.some((id) => state.materials.find((m) => m.id === id)?.subject !== subject);
     if (invalidMaterial) { els.examValidationMessage.textContent = 'Todas as apostilas selecionadas precisam pertencer à disciplina da prova.'; return; }
 
+    const rawGrade = $('#examGradeInput').value.trim();
+    const grade = rawGrade === '' ? null : Number(rawGrade.replace(',', '.'));
+    if (grade !== null && (!Number.isFinite(grade) || grade < 0 || grade > 10)) { els.examValidationMessage.textContent = 'Informe uma nota de 0 a 10.'; return; }
     const rawTotal = els.examTotalInput.value.trim(); const rawCorrect = els.examCorrectInput.value.trim(); const rawWrong = els.examWrongInput.value.trim();
     const hasAnyResult = rawTotal !== '' || rawCorrect !== '' || rawWrong !== '';
     let total = null; let correct = null; let wrong = null;
@@ -1140,7 +1147,7 @@
     }
 
     const now = new Date().toISOString();
-    const exam = normalizeExam({ ...(existing || {}), id: existing?.id || makeId('p'), subject, type, date, materialIds, total, correct, wrong, createdAt: existing?.createdAt || now, updatedAt: now });
+    const exam = normalizeExam({ ...(existing || {}), id: existing?.id || makeId('p'), subject, type, date, materialIds, grade, total, correct, wrong, createdAt: existing?.createdAt || now, updatedAt: now });
     if (existing) state.exams = state.exams.map((item) => item.id === exam.id ? exam : item); else state.exams.push(exam);
     if (admin) personalStore.markCatalogDirty();
     saveExams(); renderAll(); closeExamForm(); showToast(existing ? 'Prova atualizada.' : 'Prova adicionada.');
@@ -1149,7 +1156,7 @@
   async function handleAction(action, id, entryId = null) {
     if (action === 'toggle-exam-performed') {
       const exam = state.exams.find(item => item.id === id);
-      if (!exam || hasExamResult(exam)) return;
+      if (!exam || hasRecordedExamResult(exam)) return;
       exam.performed = !exam.performed; exam.updatedAt = new Date().toISOString();
       saveExams(); renderAll(); showToast(exam.performed ? 'Prova marcada como realizada.' : 'Marcação de realizada removida.'); return;
     }
@@ -1320,7 +1327,7 @@
     });
     state.exams = (catalog.exams || []).map(item => {
       const old = oldExams.get(item.id) || {};
-      return normalizeExam({ ...item, performed: old.performed, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
+      return normalizeExam({ ...item, performed: old.performed, grade: old.grade, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
     });
     state.simulations = (catalog.simulations || []).map(item => {
       const old = oldSimulations.get(item.id);
