@@ -726,6 +726,7 @@ td { font-size: 13px; }
 .exam-result-pending-copy strong { margin-bottom: 5px; font-size: 13px; }
 .exam-result-pending-copy small { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .exam-card-actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; gap: 8px; }
+.exam-card-actions .action-menu-toggle { width:44px; height:44px; border-radius:10px; }
 .exam-performed-toggle { width:44px; height:44px; border:1px solid var(--line); border-radius:10px; color:var(--muted); background:transparent; font-size:22px; }
 .exam-performed-toggle.is-performed { background:var(--teal-700); color:#fff; border-color:var(--teal-700); }
 .exam-performed-toggle:disabled { cursor:default; opacity:1; }
@@ -760,7 +761,6 @@ td { font-size: 13px; }
   .exam-card { position: relative; grid-template-columns: 1fr; padding-right:18px; }
   .exam-card-heading { padding-right: 56px; min-height:96px; }
   .exam-card-actions { position: absolute; top: 18px; right: 18px; grid-column: auto; justify-content: flex-start; }
-  .exam-card-actions .action-menu-toggle { width: 44px; height: 44px; }
   .exam-material-options { grid-template-columns: 1fr; }
 }
 
