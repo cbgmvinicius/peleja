@@ -6,7 +6,7 @@ const config=(key,url='https://fixture.supabase.co')=>fs.writeFileSync(path.join
 const run=()=>spawnSync(process.execPath,[path.join(temp,'scripts/build-pages.mjs')],{encoding:'utf8'});
 config('');assert.notEqual(run().status,0);config('sb_secret_test_not_real');assert.notEqual(run().status,0);
 config('sb_publishable_test_not_real');
-for(const n of ['index.html','styles.css','app.js','cloud.js','storage.js','ui.js','sw.js','academic-data.js','academic-data.json','manifest.webmanifest'])fs.copyFileSync(path.join(root,n),path.join(temp,n));
+for(const n of ['index.html','styles.css','courses-data.js','courses.js','app.js','cloud.js','storage.js','ui.js','sw.js','academic-data.js','academic-data.json','manifest.webmanifest'])fs.copyFileSync(path.join(root,n),path.join(temp,n));
 fs.cpSync(path.join(root,'assets'),path.join(temp,'assets'),{recursive:true});
 fs.writeFileSync(path.join(temp,'peleja-backup-personal.json'),'PRIVATE TEST FIXTURE');
 const built=run();assert.equal(built.status,0,built.stderr);

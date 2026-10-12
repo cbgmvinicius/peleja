@@ -946,7 +946,7 @@
   }
 
   function updatePrimaryAction() {
-    const rankingView = state.currentView === 'ranking';
+    const rankingView = ['ranking', 'courses'].includes(state.currentView);
     const structuralView = ['dashboard', 'materials', 'exams', 'simulations'].includes(state.currentView);
     els.primaryActionBtn.hidden = rankingView || (structuralView && !canManageStructure());
     if (els.primaryActionBtn.hidden) return;
@@ -956,7 +956,7 @@
   }
 
   function setView(view) {
-    const titles = { dashboard: 'Painel', materials: 'Biblioteca de apostilas', exams: 'Provas', simulations: 'Simulados', ranking: 'Ranking' };
+    const titles = { dashboard: 'Painel', materials: 'Biblioteca de apostilas', exams: 'Provas', simulations: 'Simulados', ranking: 'Ranking', courses: 'Cursos extras' };
     state.currentView = view;
     els.navItems.forEach((item) => item.classList.toggle('active', item.dataset.view === view));
     els.views.forEach((section) => section.classList.toggle('active', section.id === `${view}View`));
@@ -1196,7 +1196,7 @@
   async function exportData() {
     if (!personalStore.writable) { showToast('Entre na sua conta para exportar.'); return; }
     const owner = personalStore.scope, generation = personalStore.generation;
-    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations };
+    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations, courses: personalStore.snapshot().payload.courses };
     try { payload.cloudAttempts = await globalThis.PELEJA_CLOUD_BACKUP?.exportAttempts() || undefined; }
     catch { payload.note += ' Exportação local: tentativas online não puderam ser incluídas.'; }
     if (personalStore.scope !== owner || personalStore.generation !== generation) { showToast('A conta mudou. Exporte novamente.'); return; }
@@ -1212,6 +1212,7 @@
       if (personalStore.scope !== owner || personalStore.generation !== generation) throw new Error('A conta mudou. Importe novamente na conta correta.');
       if (!personalStore.canImport(Array.isArray(parsed) ? null : parsed.owner)) throw new Error('Este backup pertence a outra conta. Backups antigos são exclusivos de Vinícius.');
       if (!Array.isArray(rawMaterials)) throw new Error('Formato inválido');
+      if (parsed.courses !== undefined && !Array.isArray(parsed.courses)) throw new Error('Progresso dos cursos inválido.');
       if (!window.confirm('Importar este backup substituirá os dados atuais. Continuar?')) return;
       if (parsed.cloudAttempts) {
         await globalThis.PELEJA_CLOUD_BACKUP.restore(parsed); showToast('Backup e resultados online restaurados.'); return;
@@ -1220,6 +1221,7 @@
       if (!Array.isArray(parsed) && Array.isArray(parsed.exams)) exams = parsed.exams.map(normalizeExam); else exams = migrateLegacyExams(rawMaterials, materials);
       const simulations = !Array.isArray(parsed) && Array.isArray(parsed.simulations) ? parsed.simulations.map(normalizeSimulation) : [];
       if (canManageStructure()) personalStore.markCatalogDirty();
+      if (parsed.courses !== undefined) personalStore.setItem('medstudy_courses_v1', JSON.stringify(parsed.courses));
       state.materials = materials; state.exams = exams; state.simulations = simulations; saveAll(); renderAll(); showToast('Backup importado.');
     } catch (error) { console.error(error); showToast(error.message || 'Arquivo de backup inválido.'); }
     finally { els.importInput.value = ''; }

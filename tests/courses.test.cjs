@@ -1,0 +1,48 @@
+const {JSDOM}=require('jsdom');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),read=n=>fs.readFileSync(path.join(root,n),'utf8');
+const dom=new JSDOM(read('index.html'),{url:'https://peleja.test',runScripts:'outside-only',pretendToBeVisual:true});
+const w=dom.window;
+try {
+  const RealDate=w.Date;
+  let now='2026-10-12T12:00:00-03:00';
+  w.Date=class extends RealDate {constructor(...args){super(...(args.length?args:[now]));}};
+  w.eval(read('storage.js'));w.PELEJA_STORAGE.activateUser('person-a');
+  w.eval(read('courses-data.js'));w.eval(read('courses.js'));
+  const d=w.document,lessons=w.PELEJA_COURSES.modules.flatMap(m=>m.lessons);
+  assert.equal(lessons.length,128);assert.equal(new Set(lessons.map(l=>l.id)).size,128);
+  assert.equal(w.PELEJA_COURSES.modules.filter(m=>m.scheduled).flatMap(m=>m.lessons).length,121);
+  assert.match(d.getElementById('cardioQueueSummary').textContent,/16 aulas pendentes/);
+  assert.match(d.querySelector('#cardioQueue .course-lesson').textContent,/Por que infarto causa supra de ST/);
+  assert.match(d.querySelector('#cardioQueue .course-lesson').textContent,/Hoje/);
+  d.getElementById('enterCardio').click();
+  assert(d.querySelector('[data-module="m06"]').open);
+  assert.equal(d.querySelectorAll('.course-module').length,18);
+  let input=d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]');input.click();
+  assert.equal(w.PELEJA_STORAGE.snapshot().payload.courses[0].id,'ecg-m06-01');
+  assert(w.PELEJA_STORAGE.snapshot().dirty);assert(!w.PELEJA_STORAGE.snapshot().catalogDirty);
+  assert.match(d.getElementById('cardioQueueSummary').textContent,/15 aulas pendentes/);
+  const snapshot=w.PELEJA_STORAGE.snapshot().payload;
+  w.PELEJA_STORAGE.activateUser('person-b');
+  assert(!d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
+  assert.match(d.getElementById('cardioQueueSummary').textContent,/16 aulas pendentes/);
+  w.PELEJA_STORAGE.activateUser('person-a');w.PELEJA_STORAGE.replaceRemote(snapshot,1,0);
+  assert(d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
+  d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').click();
+  assert.equal(w.PELEJA_STORAGE.snapshot().payload.courses.length,0);
+  d.getElementById('coursePendingOnly').click();
+  assert.equal(d.querySelectorAll('#extraCourses [data-course-lesson]').length,16);
+  assert(!d.querySelector('[data-module="extra"]'));
+  now='2026-10-13T00:01:00-03:00';w.dispatchEvent(new w.Event('focus'));
+  assert.match(d.getElementById('cardioQueueSummary').textContent,/17 aulas pendentes/);
+  assert.match(d.querySelector('#cardioQueue .course-lesson').textContent,/Como é a regra do supra feliz/);
+  d.querySelector('[data-module="m06"] input').scrollIntoView=()=>{};
+  // The shortcut reveals today's module even if the pending filter was active.
+  w.HTMLElement.prototype.scrollIntoView=()=>{};
+  d.getElementById('jumpToToday').click();
+  assert(!d.getElementById('coursePendingOnly').checked);
+  assert.equal(d.activeElement.dataset.courseLesson,'ecg-m06-02');
+  w.PELEJA_STORAGE.deactivate();assert.equal(d.querySelectorAll('#cardioQueue input').length,0);
+  assert([...d.querySelectorAll('#extraCourses input[data-course-lesson]')].every(x=>x.disabled));
+  console.log('PASS Courses: 128 unique lessons, 121 scheduled, anchor date, pending filter, toggle, isolated accounts and remote restore');
+}finally{w.close();}

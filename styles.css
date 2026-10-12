@@ -1477,3 +1477,40 @@ body[data-access-state="locked"] #accountModal { align-items: center; justify-co
 }
 
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+/* Extra courses: compact daily queue and accessible module disclosures. */
+.course-dashboard{grid-column:1/-1}
+.extra-course-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.extra-course-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:12px;color:inherit;font:inherit;padding:28px;min-height:280px}
+button.extra-course-card{cursor:pointer;transition:border-color .2s,transform .2s}
+button.extra-course-card:hover{transform:translateY(-2px);border-color:#657f68}
+.extra-course-card h2,.extra-course-card p,.course-overview h2{margin:0}
+.course-symbol{display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:#e9ece3;color:#536e58;font-size:25px;font-weight:700}
+.course-symbol svg{width:32px;height:32px}
+.course-link{margin-top:auto;color:#536e58}
+.course-soon{background:#f5f3ed}
+.course-tag{padding:6px 12px;border-radius:12px;background:#e9e6de;font-size:14px}
+.course-back{margin-bottom:18px}
+.course-overview{padding:24px}
+.course-stats{display:flex;gap:36px;margin:22px 0 14px}
+.course-stats strong{font-size:30px;line-height:1.2;color:#536e58}
+.course-stats small{display:block;font-size:14px;font-weight:400;color:#747970;margin-top:6px}
+.course-overview progress{width:100%;height:10px;accent-color:#657f68}
+.course-schedule-note{font-size:13px;color:#747970;line-height:1.5;margin-bottom:0}
+.course-filter{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:20px 0}
+.course-filter label{display:flex;align-items:center;gap:10px;min-height:44px}
+.course-filter input,.course-lesson input{width:22px;height:22px;flex:0 0 22px;accent-color:#657f68}
+.course-modules{display:grid;gap:12px}
+.course-module{padding:0;overflow:hidden}
+.course-module summary{cursor:pointer;display:flex;align-items:center;gap:14px;padding:20px;font-weight:700;min-height:64px;list-style:none}
+.course-module summary::-webkit-details-marker{display:none}
+.course-module summary:before{content:'›';font-size:24px;color:#657f68}
+.course-module[open] summary:before{transform:rotate(90deg)}
+.course-module summary span{flex:1;min-width:0}
+.course-module summary small{color:#747970;font-weight:400;white-space:nowrap}
+.course-lesson{display:flex;align-items:center;gap:14px;padding:16px 20px;min-height:64px;cursor:pointer;border-top:1px solid #e6e3da;margin:0}
+.course-lesson-copy{display:grid;gap:5px;min-width:0}
+.course-lesson-copy strong{line-height:1.4;overflow-wrap:anywhere}
+.course-lesson-copy small{color:#747970;font-size:13px;line-height:1.4}
+.course-lesson.is-watched{background:#f0f3ec}
+#cardioQueue .course-lesson{border:1px solid #dedbd1;border-radius:14px;margin-top:10px}
+@media(max-width:760px){.extra-course-grid{grid-template-columns:1fr}.extra-course-card{min-height:240px;padding:22px}.course-overview{padding:20px}.course-stats{gap:28px}.course-module summary{padding:16px}.course-lesson{padding:16px}.course-filter{font-size:14px}}

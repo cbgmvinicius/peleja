@@ -16,7 +16,7 @@ if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.supabaseUrl||'') || !public
 const dest=path.join(root,'dist','public');
 await mkdir(path.dirname(dest),{recursive:true});
 await mkdir(dest); // Refuse reuse: no unrelated/private file can remain in the artifact.
-const files=['index.html','styles.css','app.js','cloud.js','storage.js','ui.js','sw.js','supabase-config.js','academic-data.js','academic-data.json','manifest.webmanifest'];
+const files=['index.html','styles.css','courses-data.js','courses.js','app.js','cloud.js','storage.js','ui.js','sw.js','supabase-config.js','academic-data.js','academic-data.json','manifest.webmanifest'];
 await mkdir(path.join(dest,'assets'));
 for (const name of ['peleja-icon-16.png','peleja-icon-32.png','peleja-icon-192.png','peleja-icon-512.png']) files.push('assets/'+name);
 for (const name of files) await copyFile(path.join(root,name),path.join(dest,name));

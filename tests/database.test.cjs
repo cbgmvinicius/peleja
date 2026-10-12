@@ -83,5 +83,24 @@ await db.exec('reset role;set role anon');await assert.rejects(()=>rpc('get_work
 await assert.rejects(()=>db.query('select * from public.profile_photos'),/permission denied/);
 await assert.rejects(()=>rpc('save_profile_photo',[null],['text']),/permission denied/);
 console.log('PASS Anonymous access denied');
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-courses.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-courses.sql'),'utf8'));
+await user(A);
+let courseState=await rpc('get_workspace',[],[]);
+const coursePayload={...courseState.payload,courses:[{id:'ecg-m06-01',watchedAt:'2026-10-12T15:00:00Z'}]};
+let courseSave=await save(coursePayload,courseState.revision,courseState.catalog_revision,false);
+const legacyPayload={...coursePayload};delete legacyPayload.courses;
+courseSave=await save(legacyPayload,courseSave.revision,courseSave.catalog_revision,false);
+assert.deepEqual((await rpc('get_workspace',[],[])).payload.courses,coursePayload.courses);
+const backup={...legacyPayload,owner:'user:'+A,cloudAttempts:{answers:[],votes:[],manual:[]}};
+courseSave=await rpc('restore_personal_backup',[JSON.stringify(backup),courseSave.revision,courseSave.catalog_revision],['jsonb','bigint','bigint']);
+assert.deepEqual((await rpc('get_workspace',[],[])).payload.courses,coursePayload.courses);
+await assert.rejects(()=>save({...coursePayload,courses:[{id:'x'},{id:'x'}]},courseSave.revision,courseSave.catalog_revision,false),/duplicadas/);
+backup.courses=[];
+courseSave=await rpc('restore_personal_backup',[JSON.stringify(backup),courseSave.revision,courseSave.catalog_revision],['jsonb','bigint','bigint']);
+assert.deepEqual((await rpc('get_workspace',[],[])).payload.courses,[]);
+console.log('PASS Courses migration reruns, old clients/backups preserve checks, new backups restore and duplicates rejected');
+
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});
