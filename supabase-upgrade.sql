@@ -103,6 +103,16 @@ begin
   select * into v_cat from public.academic_catalog where id for update;
   insert into public.user_workspace(user_id,payload) values(v_uid,'{}') on conflict do nothing;
   select revision,payload into v_revision,v_previous from public.user_workspace where user_id=v_uid for update;
+  if not (p_payload ? 'courses') then
+    p_payload:=p_payload||jsonb_build_object('courses',coalesce(v_previous->'courses','[]'::jsonb));
+  end if;
+  if jsonb_typeof(p_payload->'courses') is distinct from 'array' or jsonb_array_length(p_payload->'courses')>2000 then
+    raise exception 'Progresso dos cursos inválido';
+  end if;
+  if exists(select 1 from jsonb_array_elements(p_payload->'courses') x where jsonb_typeof(x) is distinct from 'object' or coalesce(x->>'id','')='' or length(x->>'id')>200)
+    or (select count(*)<>count(distinct x->>'id') from jsonb_array_elements(p_payload->'courses') x) then
+    raise exception 'Aulas inválidas ou duplicadas';
+  end if;
   if v_revision<>p_revision then raise exception 'CONFLICT: há alterações mais recentes na nuvem. Exporte seu backup antes de recarregar.'; end if;
   if p_catalog_revision<>v_cat.revision then raise exception 'CONFLICT: o catálogo foi atualizado em outro aparelho. Recarregue os dados.'; end if;
   if p_publish_catalog then
@@ -313,7 +323,7 @@ begin
   foreach v_key in array array['answers','votes','manual'] loop
     if jsonb_typeof(v_attempts->v_key) is distinct from 'array' then raise exception 'Backup incompleto'; end if;
   end loop;
-  v_result:=public.save_workspace(jsonb_build_object('materials',p_backup->'materials','exams',p_backup->'exams','simulations',p_backup->'simulations'),p_revision,p_catalog_revision,public.is_peleja_admin(),auth.uid());
+  v_result:=public.save_workspace(jsonb_build_object('materials',p_backup->'materials','exams',p_backup->'exams','simulations',p_backup->'simulations') || case when p_backup ? 'courses' then jsonb_build_object('courses',p_backup->'courses') else '{}'::jsonb end,p_revision,p_catalog_revision,public.is_peleja_admin(),auth.uid());
   delete from public.simulation_manual_results where user_id=auth.uid();
   delete from public.simulation_user_answers where user_id=auth.uid();
   delete from public.simulation_area_votes where user_id=auth.uid();

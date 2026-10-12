@@ -41,7 +41,7 @@ async function boot(id,seed=false){
   w.eval(fs.readFileSync(path.join(root,'storage.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8').replace(/\}\)\(\);\s*$/,'globalThis.__app={state,els,saveAll,handleAction,handleExamSubmit,handleSimulationSubmit,openSimulationModal};\n})();'));
   w.eval(fs.readFileSync(path.join(root,'cloud.js'),'utf8').replace('  init().catch(','  globalThis.__ready=init().catch(').replace(/\}\)\(\);\s*$/,'globalThis.__cloud={state,sync,loadRanking,reloadWorkspace,openSharedSimulation,saveSharedSimulation,readPages,authChanged};\n})();'));
-  await w.__ready;assert.equal(w.document.body.dataset.accessState,'granted',w.document.getElementById('authMessage').textContent);assert.equal(logs.length,0,logs.map(String).join('\n'));return w;
+  await w.__ready;w.eval(fs.readFileSync(path.join(root,'courses-data.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'courses.js'),'utf8'));assert.equal(w.document.body.dataset.accessState,'granted',w.document.getElementById('authMessage').textContent);assert.equal(logs.length,0,logs.map(String).join('\n'));return w;
 }
 function personalExam(w){return w.__app.state.exams.find(e=>e.id==='e');}
 function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.els.examTotalInput.value='10';w.__app.els.examCorrectInput.value=String(correct);w.__app.els.examWrongInput.value=String(10-correct);w.__app.handleExamSubmit({preventDefault(){}});}
@@ -69,6 +69,21 @@ await a.__api.rpc('save_profile_photo',{image_data:'data:image/jpeg;base64,YQ=='
 assert(rd.querySelector('.person-avatar img')); assert(rd.querySelector('#accountAvatar img'));
 clickRank('[data-ranking-tab="simulations"]');
 console.log('PASS Ranking search, periods, area chips, reset, guide and private photo refresh');
+// Real frontend/storage/RPC roundtrip for private course progress.
+a.document.getElementById('enterCardio').click();
+a.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').click();
+await a.__cloud.sync();
+const courseDevice=await boot(A);
+courseDevice.document.getElementById('enterCardio').click();
+assert(courseDevice.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
+const otherCourse=await boot(B);
+otherCourse.document.getElementById('enterCardio').click();
+assert(!otherCourse.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
+courseDevice.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').click();
+await courseDevice.__cloud.sync();await a.__cloud.reloadWorkspace();
+assert.equal(a.PELEJA_STORAGE.snapshot().payload.courses.length,0);
+console.log('PASS Courses frontend/cloud roundtrip across devices, account isolation and uncheck');
+
 
 assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'true','Restoring a valid session should dismiss the automatic login gate');
 a.document.getElementById('accountButton').click();

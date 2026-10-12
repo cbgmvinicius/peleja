@@ -2,7 +2,7 @@
   'use strict';
 
   // One atomic document per identity. Legacy keys remain untouched for recovery.
-  const LEGACY_KEYS = ['medstudy_materials_v1', 'medstudy_exams_v1', 'medstudy_simulations_v1'];
+  const LEGACY_KEYS = ['medstudy_materials_v1', 'medstudy_exams_v1', 'medstudy_simulations_v1', 'medstudy_courses_v1'];
   const PREFIX = 'peleja_account_v1:';
   const LOCAL_OWNER = 'local:vinicius';
   const BACKUP_KEY = 'peleja_legacy_backup_v1:vinicius';
@@ -93,7 +93,7 @@
     },
     snapshot() {
       const current = scope ? record(scope) : null;
-      const payload = Object.fromEntries(['materials','exams','simulations'].map((name,index) => [name, JSON.parse(current?.values[LEGACY_KEYS[index]] || '[]')]));
+      const payload = Object.fromEntries(['materials','exams','simulations','courses'].map((name,index) => [name, JSON.parse(current?.values[LEGACY_KEYS[index]] || '[]')]));
       return { payload, revision: current?.revision || 0, catalogRevision: current?.catalogRevision || 0,
         dirty: Boolean(current?.dirty), catalogDirty: Boolean(current?.catalogDirty) };
     },
@@ -106,7 +106,7 @@
       if (!scope) throw new Error('Nenhuma conta ativa.');
       const previous = record(scope);
       if (previous?.dirty) localStorage.setItem(keyFor(scope) + ':recovery', JSON.stringify(previous));
-      const values = Object.fromEntries(LEGACY_KEYS.map((key,index) => [key, JSON.stringify(payload[['materials','exams','simulations'][index]] || [])]));
+      const values = Object.fromEntries(LEGACY_KEYS.map((key,index) => [key, JSON.stringify(payload[['materials','exams','simulations','courses'][index]] || [])]));
       saveRecord(scope, values, { revision, catalogRevision, dirty: false, catalogDirty: false });
       window.dispatchEvent(new CustomEvent('peleja:storage-changed', { detail: { scope, generation } }));
     },

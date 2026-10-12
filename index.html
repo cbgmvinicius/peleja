@@ -85,6 +85,10 @@
           </span>
           <span class="nav-label">Ranking</span>
         </button>
+        <button class="nav-item" data-view="courses" title="Cursos extras">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m2 8 10-5 10 5-10 5zM6 10v7c4 3 8 3 12 0v-7M22 8v8"></path></svg></span>
+          <span class="nav-label">Cursos extras</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -144,7 +148,16 @@
             <div class="panel-header"><div><p class="eyebrow">PROVAS</p><h3>Próximas avaliações</h3></div><button class="text-button" data-go-view="exams">Ver provas</button></div>
             <div id="upcomingExamQueue" class="queue-list"></div>
           </article>
+          <article class="panel course-dashboard">
+            <div class="panel-header"><div><p class="eyebrow">CARDIOPAPERS ECG</p><h3>Uma aula por dia</h3></div><button class="text-button" id="openCardioCourse">Ver aulas</button></div>
+            <p id="cardioQueueSummary" class="muted"></p>
+            <div id="cardioQueue" class="queue-list"></div>
+          </article>
         </div>
+      </section>
+
+      <section class="view" id="coursesView">
+        <div id="extraCourses"></div>
       </section>
 
       <section class="view" id="materialsView">
@@ -433,5 +446,7 @@
   <script src="app.js"></script>
   <script src="cloud.js"></script>
   <script src="ui.js"></script>
+  <script src="courses-data.js"></script>
+  <script src="courses.js"></script>
 </body>
 </html>
