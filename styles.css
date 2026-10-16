@@ -1514,3 +1514,27 @@ button.extra-course-card:hover{transform:translateY(-2px);border-color:#657f68}
 .course-lesson.is-watched{background:#f0f3ec}
 #cardioQueue .course-lesson{border:1px solid #dedbd1;border-radius:14px;margin-top:10px}
 @media(max-width:760px){.extra-course-grid{grid-template-columns:1fr}.extra-course-card{min-height:240px;padding:22px}.course-overview{padding:20px}.course-stats{gap:28px}.course-module summary{padding:16px}.course-lesson{padding:16px}.course-filter{font-size:14px}}
+.study-comparison{margin-bottom:24px}
+.study-progress-controls{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.study-progress-tabs{display:flex;padding:4px;border:1px solid var(--line);border-radius:14px;gap:4px;background:#f1f0e9}
+.study-progress-tabs button{padding:10px 18px;min-height:44px;border:0;border-radius:10px;background:transparent;font:inherit;font-weight:700;color:var(--teal-900);cursor:pointer}
+.study-progress-tabs button[aria-pressed="true"]{background:var(--teal-900);color:#fff}
+.study-progress-switch{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;position:relative}
+.study-progress-switch[hidden]{display:none}
+.study-progress-switch input{position:absolute;width:44px;height:28px;opacity:0;left:50%;transform:translateX(-50%)}
+.study-switch-track{flex:0 0 44px;height:26px;border-radius:20px;background:#d5d9cf;position:relative;border:1px solid #8a9787}
+.study-switch-track:after{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .15s}
+.study-progress-switch input:checked+.study-switch-track{background:var(--teal-800)}
+.study-progress-switch input:checked+.study-switch-track:after{transform:translateX(18px)}
+.study-progress-switch input:focus-visible+.study-switch-track{outline:3px solid var(--teal-700);outline-offset:3px}
+.study-progress-hint{font-size:13px;color:var(--muted);line-height:1.5;margin:14px 0 0}
+.study-progress-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;margin-top:8px}
+.study-progress-row{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
+.study-avatar{display:grid;place-items:center;flex:0 0 40px;height:40px;background:var(--teal-800);color:white;border-radius:50%;font-weight:700}
+.study-progress-copy{flex:1;min-width:0}
+.study-progress-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:5px}
+.study-progress-title span{font-size:14px;font-weight:700;color:var(--teal-800)}
+.study-progress-copy small{display:block;color:var(--muted);line-height:1.4;font-size:13px;overflow-wrap:anywhere}
+.study-progress-exam{margin-top:4px}
+.study-progress-copy progress{display:block;width:100%;height:8px;margin-top:9px;accent-color:var(--teal-700)}
+@media(max-width:760px){.study-progress-list{grid-template-columns:1fr}.study-progress-controls{gap:16px}.study-progress-tabs{width:100%}.study-progress-tabs button{flex:1}.study-progress-switch{font-size:12px;width:100%;justify-content:space-between;gap:8px}}

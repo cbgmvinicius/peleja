@@ -6,8 +6,8 @@
     "node": ">=24.15.0"
   },
   "scripts": {
-    "test": "node tests/local.test.cjs && node tests/materials.test.cjs && node tests/database.test.cjs && node tests/full-flow.test.cjs && node tests/release.test.cjs && node tests/courses.test.cjs",
-    "check": "node --check app.js && node --check storage.js && node --check cloud.js && node --check ui.js && node --check sw.js && node --check courses.js && node --check courses-data.js"
+    "test": "node tests/local.test.cjs && node tests/materials.test.cjs && node tests/database.test.cjs && node tests/full-flow.test.cjs && node tests/release.test.cjs && node tests/courses.test.cjs && node tests/progress.test.cjs",
+    "check": "node --check app.js && node --check storage.js && node --check cloud.js && node --check ui.js && node --check sw.js && node --check courses.js && node --check courses-data.js && node --check progress.js"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",

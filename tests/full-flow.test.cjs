@@ -14,6 +14,7 @@ grant usage on schema public,auth to authenticated,anon,service_role;`);
 await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').replace(/^\uFEFF/,''));
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-progress.sql'),'utf8'));
 await db.query("insert into auth.users(id,email,raw_user_meta_data) values($1,'vinicius@peleja.invalid','{\"display_name\":\"Vinícius\"}'),($2,'wilton@peleja.invalid','{\"display_name\":\"Wilton\"}')",[A,B]);
 await db.query("insert into public.account_handles values($1,'vinicius',true),($2,'wilton',true)",[A,B]);
 function client(id){
@@ -73,6 +74,9 @@ console.log('PASS Ranking search, periods, area chips, reset, guide and private 
 a.document.getElementById('enterCardio').click();
 a.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').click();
 await a.__cloud.sync();
+const progressRows=await a.PELEJA_PROGRESS.load('2026-10-16');
+assert.equal(progressRows.find(r=>r.user_id===A).courses.done,1);
+assert.equal(progressRows.find(r=>r.user_id===B).courses.done,0);
 const courseDevice=await boot(A);
 courseDevice.document.getElementById('enterCardio').click();
 assert(courseDevice.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
