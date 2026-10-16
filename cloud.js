@@ -433,6 +433,7 @@
       if (result.error) throw result.error;
       personalStore.markSynced(snapshot.payload, result.data.revision, result.data.catalog_revision);
       saved = true;
+      window.dispatchEvent(new CustomEvent('peleja:workspace-synced'));
       syncNotice(personalStore.snapshot().dirty ? 'Enviando as alterações mais recentes…' : '');
       if (syncState) syncState.textContent = 'Dados sincronizados';
       if (!quiet) message('Progresso e resultados salvos na nuvem.', 'success');
@@ -473,6 +474,16 @@
         await restoreWorkspace(remote.data, {force: true});
         await loadRanking();
       } finally { if (state.syncing === account) state.syncing = false; }
+    },
+  };
+  globalThis.PELEJA_PROGRESS = {
+    async load(day) {
+      const account = accountContext();
+      if (!db || !account) throw new Error('Entre na sua conta.');
+      const result = await db.rpc('study_progress', {p_day: day});
+      assertAccount(account);
+      if (result.error) throw result.error;
+      return result.data;
     },
   };
   function syncNotice(text, error = false) {

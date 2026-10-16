@@ -45,3 +45,11 @@ O cache `peleja-v25.2` guarda somente uma lista explícita de arquivos públicos
 
 `checks.yml` valida alterações. `pages.yml` publica somente quando executado manualmente após configuração e revisão. O repositório remoto antigo não é a fonte desta versão local e não foi atualizado automaticamente.
 
+
+## Comparativo de estudos no painel
+
+Aplique `supabase-progress.sql` depois do esquema e da atualização principal, antes de publicar a interface. A função `study_progress` permite somente contas ativas e retorna totais de leitura e aulas vistas, sem abrir o histórico privado de outro usuário.
+
+Em Apostilas, o seletor alterna entre todas as provas pendentes (de hoje em diante ou sem data) e a próxima prova com data de cada pessoa. Provas já realizadas, com nota direta válida ou resultado são excluídas. Empates na próxima data incluem todas as avaliações daquele dia; apostilas repetidas contam uma vez. O painel mostra qual prova compõe o recorte. Apostilas sem prova vinculada não entram nesse comparativo.
+
+CardioPapers compara aulas vistas em todo o curso, incluindo os extras. Ao ampliar `courses-data.js`, atualize também a lista de IDs e o total na função SQL. Contas sem workspace são identificadas como sem dados sincronizados. O painel consulta os totais após salvar, ao retornar ao painel ou à janela e pelo botão Atualizar. Edições ainda não enviadas são indicadas; não são tratadas como já publicadas.

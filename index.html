@@ -139,6 +139,12 @@
       <p id="cloudSyncNotice" class="sync-notice" role="status" aria-live="polite" hidden></p>
 
       <section class="view active" id="dashboardView">
+        <article class="panel study-comparison" id="studyComparison">
+          <div class="panel-header"><div><p class="eyebrow">TURMA</p><h3>Progresso nos estudos</h3></div><button class="text-button" id="refreshStudyProgress">Atualizar</button></div>
+          <div class="study-progress-controls"><div class="study-progress-tabs" role="group" aria-label="Comparar progresso"><button type="button" data-progress-kind="materials" aria-pressed="true">Apostilas</button><button type="button" data-progress-kind="courses" aria-pressed="false">CardioPapers</button></div>
+          <label class="study-progress-switch" id="studyProgressScopeWrap"><span>Todas as provas pendentes</span><input type="checkbox" role="switch" id="studyProgressScope" aria-label="Mostrar apenas a próxima prova"><span class="study-switch-track" aria-hidden="true"></span><span>Próxima prova</span></label></div>
+          <p id="studyProgressHint" class="study-progress-hint"></p><div id="studyProgressList" class="study-progress-list"></div><p id="studyProgressStatus" class="study-progress-hint" role="status"></p>
+        </article>
         <div class="dashboard-grid dashboard-focus-grid">
           <article class="panel">
             <div class="panel-header"><div><p class="eyebrow">APOSTILAS</p><h3>Pendentes de leitura</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
@@ -448,5 +454,6 @@
   <script src="ui.js"></script>
   <script src="courses-data.js"></script>
   <script src="courses.js"></script>
+  <script src="progress.js"></script>
 </body>
 </html>
