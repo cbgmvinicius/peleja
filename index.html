@@ -147,7 +147,7 @@
         </article>
         <div class="dashboard-grid dashboard-focus-grid">
           <article class="panel">
-            <div class="panel-header"><div><p class="eyebrow">APOSTILAS</p><h3>Pendentes de leitura</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
+            <div class="panel-header"><div><p class="eyebrow">APOSTILAS</p><h3>Pendentes de estudo</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
             <div id="readingQueue" class="queue-list"></div>
           </article>
           <article class="panel">
@@ -170,7 +170,7 @@
         <div class="toolbar">
           <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar apostila, disciplina ou query..." /></div>
           <select id="subjectFilter" aria-label="Filtrar por disciplina"><option value="all">Todas as disciplinas</option></select>
-          <select id="statusFilter" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="pending">Não lidas</option><option value="read">Lidas</option></select>
+          <select id="statusFilter" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="pending">Não estudadas</option><option value="read">Estudadas</option></select>
           <select id="ankiFilter" aria-label="Filtrar por AnKing Notes"><option value="all">AnKing: todas</option><option value="with">Com AnKing Notes</option><option value="without">Sem AnKing Notes</option></select>
           <select id="materialExamFilter" aria-label="Filtrar por situação da prova"><option value="active" selected>Em uso</option><option value="all">Todas</option><option value="pending-exam">Com prova pendente</option><option value="completed-exam">Prova concluída</option><option value="no-exam">Sem prova</option></select>
           <select id="sortSelect" aria-label="Ordenar apostilas"><option value="class">Ordem das aulas</option><option value="newest">Mais recentes</option><option value="oldest">Mais antigas</option><option value="subject">Disciplina</option></select>
@@ -248,9 +248,10 @@
             <div id="rankingOptions" class="filter-chips" role="group" aria-label="Provas e períodos"></div>
           </div>
           <div id="rankingAreaChips" class="filter-chips" role="group" aria-label="Grande área"></div>
-          <label id="rankingMaterialExamWrap" hidden>Prova da faculdade
-            <select id="rankingMaterialExamFilter"><option value="all">Todas as provas</option></select>
-          </label>
+          <div id="rankingMaterialExamWrap" hidden>
+            <div id="rankingMaterialExamChips" class="filter-chips" role="group" aria-label="Prova da faculdade"></div>
+            <select id="rankingMaterialExamFilter" hidden><option value="all">Todas as provas</option></select>
+          </div>
           <p id="rankingFilterSummary" role="status"></p>
           <button type="button" id="clearRankingFilters" class="ghost-button" hidden>Limpar filtros</button>
           <div hidden><label id="rankingUnitWrap"><span>Recorte</span><select id="rankingUnitFilter"><option value="all">Comparação total</option></select></label><select id="rankingAreaFilter" aria-label="Grande área"><option value="all">Todas as áreas</option></select></div>
@@ -301,8 +302,8 @@
             </div>
             <small id="questionHistoryHint">Salve a apostila primeiro; depois use o botão +Q no cartão para registrar suas sessões.</small>
           </div>
-          <label class="checkbox-label made-checkbox"><input id="madeInput" type="checkbox" /><span>Apostila produzida</span></label>
-          <label class="checkbox-label"><input id="readInput" type="checkbox" /><span>Já concluí a leitura</span></label>
+          <label class="checkbox-label made-checkbox"><input id="madeInput" type="checkbox" /><span>Apostila criada</span></label>
+          <label class="checkbox-label"><input id="readInput" type="checkbox" /><span>Já concluí o estudo</span></label>
           <label class="full-width"><span>Observações</span><textarea id="notesInput" rows="3" placeholder="Pontos para revisar, dificuldade, páginas importantes..."></textarea></label>
         </div>
         <div class="validation-message" id="validationMessage" role="alert"></div>

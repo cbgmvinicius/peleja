@@ -74,7 +74,10 @@
   document.getElementById('openCardioCourse').onclick=()=>{document.querySelector('[data-view="courses"]').click();openCourse();};
   window.addEventListener('peleja:storage-changed',()=>{expanded=null;render();});
   window.addEventListener('peleja:data-changed',render);
-  window.addEventListener('peleja:view-changed',render);
+  window.addEventListener('peleja:view-changed',event=>{
+    if(event.detail?.view==='courses') courseOpen=false;
+    render();
+  });
   window.addEventListener('focus',render);
   // Refresh the daily queue even when the page remains open overnight.
   let lastDay=today();setInterval(()=>{if(today()!==lastDay){lastDay=today();render();}},60000);

@@ -41,8 +41,8 @@ const dom=new JSDOM(read('index.html'),{url:'https://peleja.test',runScripts:'ou
 w.PELEJA_ACCESS={signedIn:true,accessAllowed:true};w.PELEJA_STORAGE={snapshot:()=>({dirty:false})};
 w.PELEJA_PROGRESS={load:async()=>rows};w.eval(read('progress.js'));await new Promise(r=>setTimeout(r,0));
 const d=w.document;assert.equal(d.querySelectorAll('.study-progress-row').length,3);
-assert.match(d.getElementById('studyProgressList').textContent,/2 de 3 apostilas lidas/);
-d.getElementById('studyProgressScope').click();assert.match(d.getElementById('studyProgressList').textContent,/1 de 2 apostilas lidas/);
+assert.match(d.getElementById('studyProgressList').textContent,/2 de 3 apostilas estudadas/);
+d.getElementById('studyProgressScope').click();assert.match(d.getElementById('studyProgressList').textContent,/1 de 2 apostilas estudadas/);
 d.querySelector('[data-progress-kind="courses"]').click();assert(d.getElementById('studyProgressScopeWrap').hidden);assert.match(d.getElementById('studyProgressList').textContent,/2 de 128 aulas vistas/);
 d.querySelector('[data-progress-kind="materials"]').click();assert(d.getElementById('studyProgressScope').checked);
 // Logout invalidates an in-flight response and clears every participant immediately.
