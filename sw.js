@@ -1,4 +1,4 @@
-const CACHE_NAME = 'peleja-v25.21';
+const CACHE_NAME = 'peleja-v25.22';
 const APP_SHELL = ['./', './index.html', './styles.css', './courses-data.js', './courses.js', './progress.js', './storage.js', './app.js', './ui.js', './academic-data.js', './academic-data.json', './supabase-config.js', './cloud.js', './manifest.webmanifest'];
 const SHELL_URLS = new Set(APP_SHELL.map((path) => new URL(path, self.location.href).href));
 self.addEventListener('install', (event) => {

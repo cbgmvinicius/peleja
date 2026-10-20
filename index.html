@@ -248,9 +248,10 @@
             <div id="rankingOptions" class="filter-chips" role="group" aria-label="Provas e períodos"></div>
           </div>
           <div id="rankingAreaChips" class="filter-chips" role="group" aria-label="Grande área"></div>
-          <label id="rankingMaterialExamWrap" hidden>Prova da faculdade
-            <select id="rankingMaterialExamFilter"><option value="all">Todas as provas</option></select>
-          </label>
+          <div id="rankingMaterialExamWrap" hidden>
+            <div id="rankingMaterialExamChips" class="filter-chips" role="group" aria-label="Prova da faculdade"></div>
+            <select id="rankingMaterialExamFilter" hidden><option value="all">Todas as provas</option></select>
+          </div>
           <p id="rankingFilterSummary" role="status"></p>
           <button type="button" id="clearRankingFilters" class="ghost-button" hidden>Limpar filtros</button>
           <div hidden><label id="rankingUnitWrap"><span>Recorte</span><select id="rankingUnitFilter"><option value="all">Comparação total</option></select></label><select id="rankingAreaFilter" aria-label="Grande área"><option value="all">Todas as áreas</option></select></div>

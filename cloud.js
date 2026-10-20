@@ -1083,6 +1083,10 @@
     $('#rankingOptions').innerHTML = options.map(o => '<button type="button" data-ranking-option="' + html(o.value) + '" aria-pressed="' + (o.value === unit.value) + '">' + html(o.text) + '</button>').join('') || '<p>Nenhum resultado encontrado.</p>';
     const shortAreas = ['Todas', 'Clínica', 'Cirurgia', 'Pediatria', 'GO', 'Preventiva', 'Outras'];
     $('#rankingAreaChips').innerHTML = [...area.options].map((o,i) => '<button type="button" data-ranking-area="' + html(o.value) + '" aria-label="' + html(o.text) + '" title="' + html(o.text) + '" aria-pressed="' + (o.value === area.value) + '"><span class="area-long">' + html(o.text) + '</span><span class="area-short" aria-hidden="true">' + html(shortAreas[i] || o.text) + '</span></button>').join('');
+    const examFilter = $('#rankingMaterialExamFilter');
+    const focusedExam = focus?.dataset.rankingExam;
+    $('#rankingMaterialExamChips').innerHTML = [...examFilter.options].map(o => '<button type="button" data-ranking-exam="' + html(o.value) + '" aria-pressed="' + (o.value === examFilter.value) + '">' + html(o.text) + '</button>').join('');
+    if (focusedExam) [...$('#rankingMaterialExamChips').children].find(b => b.dataset.rankingExam === focusedExam)?.focus();
     if (focusValue) [...$('#rankingOptions').children, ...$('#rankingAreaChips').children].find(b => b.dataset[focusKey] === focusValue)?.focus();
     $('#clearRankingFilters').hidden = unit.value === 'all' && area.value === 'all' && state.cutMode === 'all' && (state.tab !== 'materials' || $('#rankingMaterialExamFilter').value === 'all');
     $('#rankingFilterSummary').textContent = (state.tab === 'materials' ? $('#rankingMaterialExamFilter').selectedOptions[0]?.text : (unit.selectedOptions[0]?.text || 'Comparação total')) + ' · ' + (area.selectedOptions[0]?.text || 'Todas as áreas');
@@ -1234,7 +1238,10 @@
     $$('.ranking-tab').forEach((button) => button.addEventListener('click', () => setTab(button.dataset.rankingTab)));
     $('#rankingUnitFilter')?.addEventListener('change', renderRanking);
     $('#rankingAreaFilter')?.addEventListener('change', renderRanking);
-    $('#rankingMaterialExamFilter').addEventListener('change', renderRanking);
+    $('#rankingMaterialExamChips').addEventListener('click', e => {
+      const button = e.target.closest('[data-ranking-exam]'); if (!button) return;
+      $('#rankingMaterialExamFilter').value = button.dataset.rankingExam; renderRanking();
+    });
     $('#rankingSearch').addEventListener('input', renderFilterControls);
     $('#rankingCutModes').addEventListener('click', e => {
       const b = e.target.closest('[data-ranking-mode]'); if (!b) return;
