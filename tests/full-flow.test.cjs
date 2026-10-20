@@ -15,6 +15,7 @@ await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').repl
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-progress.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-material-exams.sql'),'utf8'));
 await db.query("insert into auth.users(id,email,raw_user_meta_data) values($1,'vinicius@peleja.invalid','{\"display_name\":\"Vinícius\"}'),($2,'wilton@peleja.invalid','{\"display_name\":\"Wilton\"}')",[A,B]);
 await db.query("insert into public.account_handles values($1,'vinicius',true),($2,'wilton',true)",[A,B]);
 function client(id){

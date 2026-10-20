@@ -528,7 +528,7 @@
     if (syncState) syncState.textContent = 'Atualizando ranking…';
     try {
       const userId = account.userId;
-      const [profiles, catalogs, questions, answers, votes, simulations, manualSimulations, university, materials, bases] = await Promise.all([
+      const [profiles, catalogs, questions, answers, votes, simulations, manualSimulations, university, materials, bases, materialExams] = await Promise.all([
         readPages('profiles', 'id,display_name,role', ['id']),
         readPages('simulation_catalog', 'key,name,date,created_by', ['key']),
         readPages('simulation_questions', 'simulation_key,question_number,official_answer,accepted_area', ['simulation_key','question_number']),
@@ -539,9 +539,10 @@
         readPages('university_results', 'user_id,exam_key,exam_name,exam_date,area,total,correct,wrong,updated_at', ['user_id','exam_key']),
         readPages('material_area_results', 'user_id,area,total,correct,wrong', ['user_id','area']),
         db.rpc('simulation_bases'),
+        db.rpc('material_exam_results'),
       ]);
       if (!sameAccount(account)) return;
-      const failed = [profiles, catalogs, questions, answers, votes, simulations, manualSimulations, university, materials, bases].find((x) => x.error);
+      const failed = [profiles, catalogs, questions, answers, votes, simulations, manualSimulations, university, materials, bases, materialExams].find((x) => x.error);
       if (failed) throw failed.error;
       state.data = {
         bases: bases.data || {},
@@ -554,6 +555,7 @@
         manualSimulations: manualSimulations.data || [],
         university: university.data || [],
         materials: materials.data || [],
+        materialExams: materialExams.data || { types: [], rows: [] },
       };
       fillFilters();
       renderRanking();
@@ -648,7 +650,17 @@
     select.innerHTML = '<option value="all">Comparação total</option>' +
       options.map((x) => '<option value="' + html(x.value) + '">' + html(x.label) + '</option>').join('');
     if (Array.from(select.options).some((option) => option.value === current)) select.value = current;
+    const examFilter = $('#rankingMaterialExamFilter');
+    const examType = examFilter.value;
+    examFilter.innerHTML = '<option value="all">Todas as provas</option>' +
+      [...state.data.materialExams.types].sort((a,b) => a.localeCompare(b, 'pt-BR', {numeric:true})).map(type => '<option value="' + html(type) + '">' + html(type) + '</option>').join('');
+    if ([...examFilter.options].some(o => o.value === examType)) examFilter.value = examType;
     renderFilterControls();
+  }
+
+  function selectedMaterialResults() {
+    const type = $('#rankingMaterialExamFilter')?.value || 'all';
+    return type === 'all' ? state.data.materials : state.data.materialExams.rows.filter(row => row.exam_type === type);
   }
 
   function totalAccuracyForUser(userId, unit) {
@@ -670,7 +682,7 @@
         total += Number(item.total) || 0;
       });
     } else {
-      state.data.materials.forEach((item) => {
+      selectedMaterialResults().forEach((item) => {
         if (item.user_id !== userId) return;
         correct += Number(item.correct) || 0;
         total += Number(item.total) || 0;
@@ -715,7 +727,7 @@
         add(item.user_id, item.correct, item.total, item.exam_key);
       });
     } else {
-      state.data.materials.forEach((item) => {
+      selectedMaterialResults().forEach((item) => {
         if (area !== 'all' && item.area !== area) return;
         add(item.user_id, item.correct, item.total, item.area);
       });
@@ -1056,6 +1068,7 @@
   function renderFilterControls() {
     const unit = $('#rankingUnitFilter'), area = $('#rankingAreaFilter');
     if (!unit || !area) return;
+    $('#rankingMaterialExamWrap').hidden = state.tab !== 'materials';
     $('#rankingCutModes').hidden = state.tab === 'materials';
     $('#rankingPicker').hidden = state.cutMode === 'all' || state.tab === 'materials';
     const searching = state.cutMode === 'exam';
@@ -1071,8 +1084,8 @@
     const shortAreas = ['Todas', 'Clínica', 'Cirurgia', 'Pediatria', 'GO', 'Preventiva', 'Outras'];
     $('#rankingAreaChips').innerHTML = [...area.options].map((o,i) => '<button type="button" data-ranking-area="' + html(o.value) + '" aria-label="' + html(o.text) + '" title="' + html(o.text) + '" aria-pressed="' + (o.value === area.value) + '"><span class="area-long">' + html(o.text) + '</span><span class="area-short" aria-hidden="true">' + html(shortAreas[i] || o.text) + '</span></button>').join('');
     if (focusValue) [...$('#rankingOptions').children, ...$('#rankingAreaChips').children].find(b => b.dataset[focusKey] === focusValue)?.focus();
-    $('#clearRankingFilters').hidden = unit.value === 'all' && area.value === 'all' && state.cutMode === 'all';
-    $('#rankingFilterSummary').textContent = (unit.selectedOptions[0]?.text || 'Comparação total') + ' · ' + (area.selectedOptions[0]?.text || 'Todas as áreas');
+    $('#clearRankingFilters').hidden = unit.value === 'all' && area.value === 'all' && state.cutMode === 'all' && (state.tab !== 'materials' || $('#rankingMaterialExamFilter').value === 'all');
+    $('#rankingFilterSummary').textContent = (state.tab === 'materials' ? $('#rankingMaterialExamFilter').selectedOptions[0]?.text : (unit.selectedOptions[0]?.text || 'Comparação total')) + ' · ' + (area.selectedOptions[0]?.text || 'Todas as áreas');
   }
 
   function avatarContent(id, name) {
@@ -1124,6 +1137,7 @@
   function setTab(tab) {
     state.tab = ['simulations', 'faculty', 'materials'].includes(tab) ? tab : 'simulations';
     state.cutMode = 'all';
+    $('#rankingMaterialExamFilter').value = 'all';
     $('#rankingSearch').value = '';
     $$('.ranking-tab').forEach((button) => {
       button.classList.toggle('active', button.dataset.rankingTab === state.tab);
@@ -1220,6 +1234,7 @@
     $$('.ranking-tab').forEach((button) => button.addEventListener('click', () => setTab(button.dataset.rankingTab)));
     $('#rankingUnitFilter')?.addEventListener('change', renderRanking);
     $('#rankingAreaFilter')?.addEventListener('change', renderRanking);
+    $('#rankingMaterialExamFilter').addEventListener('change', renderRanking);
     $('#rankingSearch').addEventListener('input', renderFilterControls);
     $('#rankingCutModes').addEventListener('click', e => {
       const b = e.target.closest('[data-ranking-mode]'); if (!b) return;
