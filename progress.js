@@ -17,7 +17,7 @@
     list.innerHTML=rows.map(r=>{
       const metric=kind==='courses'?r.courses:next?r.next:r.materials;
       const percent=metric.total?Math.round(metric.done*100/metric.total):0;
-      const detail=!r.has_data?'Ainda sem dados sincronizados':kind==='courses'?`${metric.done} de ${metric.total} aulas vistas`:next&&!metric.date?'Nenhuma próxima prova com data':!metric.total?'Nenhuma apostila vinculada neste recorte':`${metric.done} de ${metric.total} apostilas lidas`;
+      const detail=!r.has_data?'Ainda sem dados sincronizados':kind==='courses'?`${metric.done} de ${metric.total} aulas vistas`:next&&!metric.date?'Nenhuma próxima prova com data':!metric.total?'Nenhuma apostila vinculada neste recorte':`${metric.done} de ${metric.total} apostilas estudadas`;
       const exam=kind==='materials'&&next&&metric.date?`${new Date(metric.date+'T12:00:00').toLocaleDateString('pt-BR')} · ${(metric.exams||[]).join(' / ')}`:'';
       return `<div class="study-progress-row"><span class="study-avatar" aria-hidden="true">${escape(r.name.slice(0,1))}</span><div class="study-progress-copy"><div class="study-progress-title"><strong>${escape(r.name)}</strong><span>${r.has_data&&metric.total?percent+'%':'—'}</span></div><small>${escape(detail)}</small>${exam?`<small class="study-progress-exam">${escape(exam)}</small>`:''}<progress value="${r.has_data?metric.done:0}" max="${metric.total||1}" aria-label="${escape(r.name+': '+detail)}"></progress></div></div>`;
     }).join('');
