@@ -103,6 +103,16 @@ begin
   select * into v_cat from public.academic_catalog where id for update;
   insert into public.user_workspace(user_id,payload) values(v_uid,'{}') on conflict do nothing;
   select revision,payload into v_revision,v_previous from public.user_workspace where user_id=v_uid for update;
+  -- Older devices omit these fields: keep the user's existing choices.
+  if not (p_payload ? 'preferences') then
+    p_payload:=p_payload||jsonb_build_object('preferences',coalesce(v_previous->'preferences','{}'::jsonb));
+  end if;
+  if jsonb_typeof(p_payload->'preferences') is distinct from 'object' or octet_length((p_payload->'preferences')::text)>10000 then raise exception 'Preferências inválidas'; end if;
+  p_payload:=jsonb_set(p_payload,'{exams}',coalesce((select jsonb_agg(
+    case when not (e ? 'performedOverride') and old ? 'performedOverride'
+      then e||jsonb_build_object('performedOverride',old->'performedOverride') else e end order by n)
+    from jsonb_array_elements(p_payload->'exams') with ordinality as entries(e,n)
+    left join lateral (select x as old from jsonb_array_elements(coalesce(v_previous->'exams','[]')) x where x->>'id'=e->>'id') previous on true),'[]'));
   if not (p_payload ? 'courses') then
     p_payload:=p_payload||jsonb_build_object('courses',coalesce(v_previous->'courses','[]'::jsonb));
   end if;
@@ -121,7 +131,7 @@ begin
       v_materials:=v_materials||jsonb_build_array(jsonb_build_object(
         'id',v_item->>'id','title',v_item->>'title','subject',v_item->>'subject','classDate',v_item->>'classDate',
         'classOrder',v_item->'classOrder','code',v_item->>'code','period',v_item->>'period','area',v_item->>'area',
-        'specialty',v_item->>'specialty','standalone',v_item->'standalone'));
+        'specialty',v_item->>'specialty','standalone',v_item->'standalone','sketchyTags',coalesce(v_item->>'sketchyTags','')));
     end loop;
     for v_item in select value from jsonb_array_elements(p_payload->'exams') loop
       if jsonb_typeof(v_item->'materialIds') is distinct from 'array' then raise exception 'Vínculos inválidos'; end if;
@@ -323,7 +333,7 @@ begin
   foreach v_key in array array['answers','votes','manual'] loop
     if jsonb_typeof(v_attempts->v_key) is distinct from 'array' then raise exception 'Backup incompleto'; end if;
   end loop;
-  v_result:=public.save_workspace(jsonb_build_object('materials',p_backup->'materials','exams',p_backup->'exams','simulations',p_backup->'simulations') || case when p_backup ? 'courses' then jsonb_build_object('courses',p_backup->'courses') else '{}'::jsonb end,p_revision,p_catalog_revision,public.is_peleja_admin(),auth.uid());
+  v_result:=public.save_workspace(jsonb_build_object('materials',p_backup->'materials','exams',p_backup->'exams','simulations',p_backup->'simulations') || case when p_backup ? 'preferences' then jsonb_build_object('preferences',p_backup->'preferences') else '{}'::jsonb end || case when p_backup ? 'courses' then jsonb_build_object('courses',p_backup->'courses') else '{}'::jsonb end,p_revision,p_catalog_revision,public.is_peleja_admin(),auth.uid());
   delete from public.simulation_manual_results where user_id=auth.uid();
   delete from public.simulation_user_answers where user_id=auth.uid();
   delete from public.simulation_area_votes where user_id=auth.uid();

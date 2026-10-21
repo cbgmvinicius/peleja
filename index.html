@@ -42,7 +42,7 @@
           </span>
           <span class="nav-label">Painel</span>
         </button>
-        <button class="nav-item" data-view="materials" title="Apostilas">
+        <button class="nav-item" data-view="materials" title="Biblioteca">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5A2.5 2.5 0 0 0 16.5 16H5z"></path>
@@ -51,7 +51,7 @@
               <path d="M8.5 11h7"></path>
             </svg>
           </span>
-          <span class="nav-label">Apostilas</span>
+          <span class="nav-label">Biblioteca</span>
         </button>
         <button class="nav-item" data-view="exams" title="Provas">
           <span class="nav-icon" aria-hidden="true">
@@ -133,7 +133,7 @@
           <p class="eyebrow" id="todayLabel"></p>
           <h1 id="pageTitle">Painel</h1>
         </div>
-        <button class="primary-button" id="primaryActionBtn">+ Nova apostila</button>
+        <div class="new-event-control"><button class="primary-button" id="primaryActionBtn" aria-expanded="false" aria-controls="newEventOptions">+ Novo evento</button><div id="newEventOptions" hidden><button type="button" data-new-event="material">Apostila</button><button type="button" data-new-event="exam">Faculdade</button><button type="button" data-new-event="simulation">Residência</button></div></div>
       </header>
 
       <p id="cloudSyncNotice" class="sync-notice" role="status" aria-live="polite" hidden></p>
@@ -167,13 +167,16 @@
       </section>
 
       <section class="view" id="materialsView">
-        <div class="toolbar">
-          <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar apostila, disciplina ou query..." /></div>
+        <div class="toolbar library-toolbar">
+          <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" aria-label="Buscar apostilas" placeholder="Buscar apostila, disciplina ou query..." /></div>
           <select id="subjectFilter" aria-label="Filtrar por disciplina"><option value="all">Todas as disciplinas</option></select>
-          <select id="statusFilter" aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="pending">Não estudadas</option><option value="read">Estudadas</option></select>
-          <select id="ankiFilter" aria-label="Filtrar por AnKing Notes"><option value="all">AnKing: todas</option><option value="with">Com AnKing Notes</option><option value="without">Sem AnKing Notes</option></select>
-          <select id="materialExamFilter" aria-label="Filtrar por situação da prova"><option value="active" selected>Em uso</option><option value="all">Todas</option><option value="pending-exam">Com prova pendente</option><option value="completed-exam">Prova concluída</option><option value="no-exam">Sem prova</option></select>
-          <select id="sortSelect" aria-label="Ordenar apostilas"><option value="class">Ordem das aulas</option><option value="newest">Mais recentes</option><option value="oldest">Mais antigas</option><option value="subject">Disciplina</option></select>
+          <select id="materialExamTypeFilter" aria-label="Filtrar por prova"><option value="all">Todas as provas</option></select>
+          <label id="ankiFilterControl" class="anki-filter-control" hidden><img src="assets/anking.png" alt="AnKing"><input id="ankiFilter" type="checkbox" role="switch" aria-label="Somente apostilas com AnKing"><span class="switch-track" aria-hidden="true"></span></label>
+          <button id="clearLibraryFilters" class="ghost-button" type="button">Limpar filtros</button>
+          <div class="library-filter-settings">
+            <button id="configureLibraryFilters" class="action-button" type="button" aria-label="Escolher filtros visíveis" title="Escolher filtros visíveis" aria-expanded="false" aria-controls="libraryFilterOptions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7m4 0h7M3 12h2m4 0h12M3 18h11m4 0h3M10 3v6M5 9v6M14 15v6"/></svg></button>
+            <div id="libraryFilterOptions" role="group" aria-label="Filtros visíveis na biblioteca" hidden></div>
+          </div>
         </div>
         <div id="materialsList" class="materials-list"></div>
       </section>
@@ -292,7 +295,8 @@
           <label><span>Data da aula</span><input id="classDateInput" type="date" /></label>
           <label><span>Número/ordem da aula</span><input id="classOrderInput" type="number" min="0" step="1" placeholder="Ex.: 3" /></label>
           <fieldset class="full-width material-exam-picker"><legend>Provas desta apostila</legend><p id="materialExamHint">Escolha a disciplina para ver as provas.</p><div id="materialExamOptions"></div></fieldset>
-          <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea><small>Cole a query completa do Anki. No cartão, os NIDs ficam ocultos; aparece apenas o total de notas e o botão para copiar a query.</small></label>
+          <label><span>Especialidade</span><input id="specialtyInput" list="materialSpecialties" placeholder="Ex.: Hematologia, Neurologia, Dermatologia"><datalist id="materialSpecialties"></datalist></label>
+          <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea><small>Cole a query completa do Anki. Todos os participantes poderão copiar a seleção pelo ícone do AnKing. Só o administrador pode editá-la.</small></label>
           <div class="full-width question-history-section">
             <div class="question-history-heading"><div><span>HISTÓRICO DE QUESTÕES</span><small>Os totais são calculados automaticamente a partir das entradas registradas.</small></div><button type="button" class="ghost-button" id="openQuestionManagerFromMaterial">Gerenciar entradas</button></div>
             <div class="question-summary question-summary-editor" aria-label="Resumo de questões desta apostila">

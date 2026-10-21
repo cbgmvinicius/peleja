@@ -156,6 +156,7 @@
       date,
       materialIds: [...new Set((Array.isArray(item.materialIds) ? item.materialIds : []).map(String))],
       performed: item.performed === true,
+      performedOverride: typeof item.performedOverride === 'boolean' ? item.performedOverride : null,
       grade: item.grade !== null && item.grade !== undefined && String(item.grade).trim() !== "" && Number.isFinite(Number(item.grade)) && Number(item.grade) >= 0 && Number(item.grade) <= 10 ? Number(item.grade) : null,
       total: completeNumbers ? total : null,
       correct: completeNumbers ? correct : null,
@@ -446,7 +447,7 @@
     materialModal: $('#materialModal'), closeModal: $('#closeModal'), cancelModal: $('#cancelModal'), materialForm: $('#materialForm'), materialId: $('#materialId'), modalTitle: $('#modalTitle'), subjectInput: $('#subjectInput'), titleInput: $('#titleInput'), classDateInput: $('#classDateInput'), classOrderInput: $('#classOrderInput'), sketchyTagsInput: $('#sketchyTagsInput'), madeInput: $('#madeInput'), readInput: $('#readInput'), notesInput: $('#notesInput'), validationMessage: $('#validationMessage'),
     openQuestionManagerFromMaterial: $('#openQuestionManagerFromMaterial'), modalQuestionsTotal: $('#modalQuestionsTotal'), modalCorrectTotal: $('#modalCorrectTotal'), modalWrongTotal: $('#modalWrongTotal'), questionHistoryHint: $('#questionHistoryHint'),
     questionModal: $('#questionModal'), closeQuestionModal: $('#closeQuestionModal'), questionModalTitle: $('#questionModalTitle'), questionModalSubtitle: $('#questionModalSubtitle'), questionEntryForm: $('#questionEntryForm'), questionMaterialId: $('#questionMaterialId'), questionEntryId: $('#questionEntryId'), questionDateInput: $('#questionDateInput'), questionTotalInput: $('#questionTotalInput'), questionCorrectInput: $('#questionCorrectInput'), questionWrongInput: $('#questionWrongInput'), questionValidationMessage: $('#questionValidationMessage'), questionEntryFormKicker: $('#questionEntryFormKicker'), saveQuestionEntry: $('#saveQuestionEntry'), cancelQuestionEntryEdit: $('#cancelQuestionEntryEdit'), questionModalTotal: $('#questionModalTotal'), questionModalCorrect: $('#questionModalCorrect'), questionModalWrong: $('#questionModalWrong'), questionModalAccuracy: $('#questionModalAccuracy'), questionEntryCount: $('#questionEntryCount'), questionEntryList: $('#questionEntryList'),
-    searchInput: $('#searchInput'), subjectFilter: $('#subjectFilter'), statusFilter: $('#statusFilter'), ankiFilter: $('#ankiFilter'), materialExamFilter: $('#materialExamFilter'), sortSelect: $('#sortSelect'), materialsList: $('#materialsList'),
+    searchInput: $('#searchInput'), subjectFilter: $('#subjectFilter'), ankiFilter: $('#ankiFilter'), materialExamTypeFilter: $('#materialExamTypeFilter'), materialsList: $('#materialsList'),
     examSubjectFilter: $('#examSubjectFilter'), examStatusFilter: $('#examStatusFilter'), examsList: $('#examsList'), examFormModal: $('#examFormModal'), closeExamFormModal: $('#closeExamFormModal'), cancelExamForm: $('#cancelExamForm'), examForm: $('#examForm'), examId: $('#examId'), examFormTitle: $('#examFormTitle'), examSubjectInput: $('#examSubjectInput'), examTypeInput: $('#examTypeInput'), examDateInput: $('#examDateInput'), examMaterialOptions: $('#examMaterialOptions'), examMaterialSelectionCount: $('#examMaterialSelectionCount'), examTotalInput: $('#examTotalInput'), examCorrectInput: $('#examCorrectInput'), examWrongInput: $('#examWrongInput'), examValidationMessage: $('#examValidationMessage'),
     simulationCountKpi: $('#simulationCountKpi'), simulationCountNote: $('#simulationCountNote'), simulationAccuracyKpi: $('#simulationAccuracyKpi'), simulationAccuracyNote: $('#simulationAccuracyNote'), simulationWeakAreaKpi: $('#simulationWeakAreaKpi'), simulationWeakAreaNote: $('#simulationWeakAreaNote'), simulationStrongAreaKpi: $('#simulationStrongAreaKpi'), simulationStrongAreaNote: $('#simulationStrongAreaNote'), simulationAreaStats: $('#simulationAreaStats'), simulationsList: $('#simulationsList'), errorSimulationFilter: $('#errorSimulationFilter'), errorAreaFilter: $('#errorAreaFilter'), errorCardFilter: $('#errorCardFilter'), errorNotebookCount: $('#errorNotebookCount'), errorNotebookList: $('#errorNotebookList'), exportSimulationFlashcardsBtn: $('#exportSimulationFlashcardsBtn'),
     simulationModal: $('#simulationModal'), closeSimulationModal: $('#closeSimulationModal'), cancelSimulationModal: $('#cancelSimulationModal'), simulationForm: $('#simulationForm'), simulationId: $('#simulationId'), simulationModalTitle: $('#simulationModalTitle'), simulationNameInput: $('#simulationNameInput'), simulationDateInput: $('#simulationDateInput'), simulationQuestionCountInput: $('#simulationQuestionCountInput'), generateSimulationQuestionsBtn: $('#generateSimulationQuestionsBtn'), simulationQuestionRows: $('#simulationQuestionRows'), simulationValidationMessage: $('#simulationValidationMessage'), simulationDraftTotal: $('#simulationDraftTotal'), simulationDraftAnswered: $('#simulationDraftAnswered'), simulationDraftCorrect: $('#simulationDraftCorrect'), simulationDraftWrong: $('#simulationDraftWrong'), simulationDraftAccuracy: $('#simulationDraftAccuracy'),
@@ -490,7 +491,11 @@
 
   function plural(value, singular, pluralForm) { return `${value} ${value === 1 ? singular : pluralForm}`; }
   function accuracy(correct, wrong) { const answered = Number(correct || 0) + Number(wrong || 0); return answered > 0 ? Math.round((Number(correct || 0) / answered) * 100) : 0; }
-  function isExamPerformed(exam) { return exam.performed === true || hasRecordedExamResult(exam); }
+  function isExamPerformed(exam) {
+    if (hasRecordedExamResult(exam)) return true;
+    if (typeof exam.performedOverride === 'boolean') return exam.performedOverride;
+    return exam.performed === true || Boolean(exam.date && exam.date < todayDateValue());
+  }
   function hasExamGrade(exam) { return typeof exam.grade === "number" && Number.isFinite(exam.grade) && exam.grade >= 0 && exam.grade <= 10; }
   function hasRecordedExamResult(exam) { return hasExamResult(exam) || hasExamGrade(exam); }
   function hasExamResult(exam) { return exam.total != null && exam.correct != null && exam.wrong != null && exam.total > 0 && exam.correct + exam.wrong === exam.total; }
@@ -621,6 +626,7 @@
 
   function renderAll() {
     renderSubjectFilters();
+    renderLibraryFilters();
     renderDashboard();
     renderMaterials();
     renderExams();
@@ -677,38 +683,26 @@
   function getFilteredMaterials() {
     const query = els.searchInput.value.trim().toLocaleLowerCase('pt-BR');
     const subject = els.subjectFilter.value;
-    const status = els.statusFilter.value;
-    const ankiFilter = els.ankiFilter?.value || 'all';
-    const examFilter = els.materialExamFilter?.value || 'active';
-    const sort = els.sortSelect.value;
+
+    const ankiFilter = els.ankiFilter.checked;
+    const examType = els.materialExamTypeFilter.value;
     const filtered = state.materials.filter((m) => {
-      const matchesQuery = !query || `${m.title} ${m.subject} ${m.notes} ${m.sketchyTags}`.toLocaleLowerCase('pt-BR').includes(query);
+      const matchesQuery = !query || `${m.title} ${m.subject} ${m.specialty || ''} ${m.notes} ${m.sketchyTags}`.toLocaleLowerCase('pt-BR').includes(query);
       const matchesSubject = subject === 'all' || m.subject === subject;
-      const matchesStatus = status === 'all' || (status === 'read' ? m.read : !m.read);
+
       const hasAnkiNotes = Boolean(String(m.sketchyTags || '').trim());
-      const matchesAnki = ankiFilter === 'all'
-        || (ankiFilter === 'with' && hasAnkiNotes)
-        || (ankiFilter === 'without' && !hasAnkiNotes);
+      const matchesAnki = !ankiFilter || hasAnkiNotes;
       const examState = getMaterialExamState(m.id);
-      const matchesExam = examFilter === 'all'
-        || (examFilter === 'active' && !examState.completedOnly)
-        || (examFilter === 'pending-exam' && examState.hasPendingExam)
-        || (examFilter === 'completed-exam' && examState.completedOnly)
-        || (examFilter === 'no-exam' && examState.linkedExams.length === 0);
-      return matchesQuery && matchesSubject && matchesStatus && matchesAnki && matchesExam;
+      const matchesType = examType === 'all' || examState.linkedExams.some(exam => exam.type === examType && (subject === 'all' || exam.subject === subject));
+      return matchesQuery && matchesSubject && matchesAnki && matchesType;
     });
-    return filtered.sort((a, b) => {
-      if (sort === 'newest') return (b.classDate || b.createdAt).localeCompare(a.classDate || a.createdAt);
-      if (sort === 'oldest') return (a.classDate || a.createdAt).localeCompare(b.classDate || b.createdAt);
-      if (sort === 'subject') return a.subject.localeCompare(b.subject, 'pt-BR') || classSort(a, b);
-      return classSort(a, b);
-    });
+    return filtered.sort(classSort);
   }
 
   function renderMaterials() {
     const materials = getFilteredMaterials();
     if (!materials.length) {
-      els.materialsList.innerHTML = state.materials.length ? '<div class="empty-state"><strong>Nenhum resultado.</strong>Ajuste a busca ou os filtros.</div>' : '<div class="empty-state"><strong>Sua biblioteca está vazia.</strong>Clique em “Nova apostila” para cadastrar a primeira aula.</div>';
+      els.materialsList.innerHTML = state.materials.length ? '<div class="empty-state"><strong>Nenhum resultado.</strong>Ajuste a busca ou os filtros.</div>' : '<div class="empty-state"><strong>Sua biblioteca está vazia.</strong>Use “Novo evento → Apostila” para cadastrar a primeira aula.</div>';
       return;
     }
     els.materialsList.innerHTML = materials.map((m, index) => {
@@ -718,7 +712,11 @@
       ], 'Mais ações da apostila');
       return `<article class="material-card ${m.read ? 'read' : ''}">
         <div class="material-order">${m.classOrder !== '' ? escapeHtml(m.classOrder) : index + 1}</div>
-        <div class="material-info"><div class="material-title-row"><h3>${escapeHtml(m.title)}</h3>${m.read ? '<span class="material-studied-check" role="img" aria-label="Estudo concluído" title="Estudo concluído"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"></path></svg></span>' : '<span class="material-pending-mark" role="img" aria-label="Estudo pendente" title="Estudo pendente"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg></span>'}${m.made ? '<span class="status-badge made">CRIADA</span>' : ''}</div><p class="material-meta">${escapeHtml(m.subject)} · Aula: ${formatDate(m.classDate)}</p>${m.sketchyTags ? `<div class="anki-notes-block"><div class="anki-notes-header"><span>AnKing Notes · ${getAnkiNoteCount(m.sketchyTags)} ${getAnkiNoteCount(m.sketchyTags) === 1 ? 'nota' : 'notas'}</span><button class="copy-query-button" type="button" data-action="copy-sketchy" data-id="${escapeHtml(m.id)}">Copiar query</button></div></div>` : ''}</div>
+        <div class="material-info"><div class="material-title-row"><h3>${escapeHtml(m.title)}</h3><button type="button" class="material-indicator ${m.read ? 'material-studied-check' : 'material-pending-mark'}" data-action="indicator" data-id="study-${escapeHtml(m.id)}" data-indicator-id="study-${escapeHtml(m.id)}" aria-label="${m.read ? 'Estudado' : 'Estudo pendente'}"><svg viewBox="0 0 24 24" aria-hidden="true">${m.read ? '<path d="m5 12 4 4L19 6"/>' : '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'}</svg><span class="indicator-label">${m.read ? 'Estudado' : 'Estudo pendente'}</span></button></div><p class="material-meta">${escapeHtml(m.subject)}${m.specialty ? ` · ${escapeHtml(m.specialty)}` : ''} · Aula: ${formatDate(m.classDate)}</p><div class="material-indicators">
+
+          ${m.made ? `<button type="button" class="material-indicator" data-action="indicator" data-id="made-${escapeHtml(m.id)}" data-indicator-id="made-${escapeHtml(m.id)}" aria-label="Apostila criada">${icon('madeOn')}<span class="indicator-label">Apostila criada</span></button>` : ''}
+          ${m.sketchyTags ? `<button class="material-indicator anki-copy" type="button" data-action="copy-sketchy" data-id="${escapeHtml(m.id)}" aria-label="Copiar AnKing NIDs"><img src="assets/anking.png" alt=""><span class="indicator-label">Copiar AnKing NIDs</span></button>` : ''}
+        </div></div>
         <div class="question-summary" aria-label="Resumo de questões"><div class="question-summary-total"><span>QUESTÕES</span><b>${m.questions}</b></div><div class="question-summary-correct good"><span>ACERTOS</span><b>${m.correct}</b></div><div class="question-summary-wrong bad"><span>ERROS</span><b>${m.wrong}</b></div></div>
         <div class="material-actions"><button class="action-button question-add-action" data-action="add-questions" data-id="${escapeHtml(m.id)}" title="Registrar questões" aria-label="Registrar questões">${icon('addQuestions')}</button>${canManageStructure() ? `<button class="action-button made-action ${m.made ? 'active' : ''}" data-action="toggle-made" data-id="${escapeHtml(m.id)}" aria-pressed="${m.made}" title="${m.made ? 'Marcar como não criada' : 'Marcar como criada'}" aria-label="${m.made ? 'Marcar como não criada' : 'Marcar como criada'}">${icon(m.made ? 'madeOn' : 'madeOff')}</button>` : ''}<button class="action-button read-action ${m.read ? 'active' : ''}" data-action="toggle-read" data-id="${escapeHtml(m.id)}" aria-pressed="${m.read}" title="${m.read ? 'Desmarcar estudo concluído' : 'Marcar estudo concluído'}" aria-label="${m.read ? 'Desmarcar estudo concluído' : 'Marcar estudo concluído'}">${icon(m.read ? 'readOn' : 'readOff')}</button>${actionMenu}</div>
       </article>`;
@@ -784,7 +782,7 @@
         <div class="exam-card-actions">${buildActionMenu([
           actionMenuItem({ action: 'edit-exam', id: exam.id, label: 'Editar', iconName: 'edit' }),
           actionMenuItem({ action: 'delete-exam', id: exam.id, label: 'Excluir prova', iconName: 'trash', variant: 'danger' }),
-        ], 'Mais ações da prova')}<button type="button" class="exam-performed-toggle ${isExamPerformed(exam) ? 'is-performed' : ''}" data-action="toggle-exam-performed" data-id="${escapeHtml(exam.id)}" aria-pressed="${isExamPerformed(exam)}" aria-label="${isExamPerformed(exam) ? 'Prova realizada' : 'Marcar prova como realizada'}" title="${hasRecordedExamResult(exam) ? 'Prova com resultado registrado' : (exam.performed ? 'Desmarcar prova realizada' : 'Marcar prova como realizada')}" ${hasRecordedExamResult(exam) ? 'disabled' : ''}>✓</button></div>
+        ], 'Mais ações da prova')}<button type="button" class="exam-performed-toggle ${isExamPerformed(exam) ? 'is-performed' : ''}" data-action="toggle-exam-performed" data-id="${escapeHtml(exam.id)}" aria-pressed="${isExamPerformed(exam)}" aria-label="${isExamPerformed(exam) ? 'Prova realizada' : 'Marcar prova como realizada'}" title="${hasRecordedExamResult(exam) ? 'Prova com resultado registrado' : (isExamPerformed(exam) ? 'Desmarcar prova realizada' : 'Marcar prova como realizada')}" ${hasRecordedExamResult(exam) ? 'disabled' : ''}>✓</button></div>
       </article>`;
     }).join('');
   }
@@ -940,23 +938,17 @@
       showToast('A criação de apostilas, provas e eventos de residência é exclusiva do administrador.');
       return;
     }
-    if (state.currentView === 'exams') { openExamForm(); return; }
-    if (state.currentView === 'simulations') { openSimulationModal(); return; }
-    openMaterialModal();
+    const menu = $('#newEventOptions'); menu.hidden = !menu.hidden;
+    els.primaryActionBtn.setAttribute('aria-expanded', String(!menu.hidden));
   }
 
   function updatePrimaryAction() {
-    const rankingView = ['ranking', 'courses'].includes(state.currentView);
-    const structuralView = ['dashboard', 'materials', 'exams', 'simulations'].includes(state.currentView);
-    els.primaryActionBtn.hidden = rankingView || (structuralView && !canManageStructure());
-    if (els.primaryActionBtn.hidden) return;
-    if (state.currentView === 'exams') els.primaryActionBtn.textContent = '+ Nova prova';
-    else if (state.currentView === 'simulations') els.primaryActionBtn.textContent = '+ Novo evento';
-    else els.primaryActionBtn.textContent = '+ Nova apostila';
+    els.primaryActionBtn.hidden = !canManageStructure();
+    els.primaryActionBtn.textContent = '+ Novo evento';
   }
 
   function setView(view) {
-    const titles = { dashboard: 'Painel', materials: 'Biblioteca de apostilas', exams: 'Provas', simulations: 'Simulados', ranking: 'Ranking', courses: 'Cursos extras' };
+    const titles = { dashboard: 'Painel', materials: 'Biblioteca', exams: 'Provas', simulations: 'Simulados', ranking: 'Ranking', courses: 'Cursos extras' };
     state.currentView = view;
     els.navItems.forEach((item) => item.classList.toggle('active', item.dataset.view === view));
     els.views.forEach((section) => section.classList.toggle('active', section.id === `${view}View`));
@@ -1002,6 +994,8 @@
     if (!requireAdmin(material ? 'editar apostilas' : 'criar apostilas')) return;
     els.materialForm.reset(); els.validationMessage.textContent = '';
     $('#materialSubjects').innerHTML = [...new Set([...state.materials, ...state.exams].map(item => item.subject).filter(Boolean))].sort().map(subject => `<option value="${escapeHtml(subject)}"></option>`).join('');
+    $('#specialtyInput').value = material?.specialty || '';
+    $('#materialSpecialties').innerHTML = [...new Set(state.materials.map(m => m.specialty).filter(Boolean))].sort().map(s => `<option value="${escapeHtml(s)}"></option>`).join('');
     updateMaterialQuestionSummary(material);
     if (material) {
       els.modalTitle.textContent = 'Editar apostila'; els.materialId.value = material.id; els.subjectInput.value = material.subject; els.titleInput.value = material.title; els.classDateInput.value = material.classDate; els.classOrderInput.value = material.classOrder; els.sketchyTagsInput.value = material.sketchyTags; els.madeInput.checked = material.made; els.readInput.checked = material.read; els.notesInput.value = material.notes;
@@ -1025,7 +1019,7 @@
     if ([...selectedExams].some(examId => !state.exams.some(e => e.id === examId && e.subject === subject))) {
       els.validationMessage.textContent = 'A lista de provas mudou. Confira a disciplina e selecione novamente.'; return;
     }
-    const material = normalizeMaterial({ ...(existing || {}), id, subject, title, classDate: els.classDateInput.value, classOrder: els.classOrderInput.value, sketchyTags: els.sketchyTagsInput.value, made: els.madeInput.checked, questionEntries: existing?.questionEntries || [], read: els.readInput.checked, notes: els.notesInput.value.trim(), createdAt: existing?.createdAt || now, updatedAt: now });
+    const material = normalizeMaterial({ ...(existing || {}), id, subject, title, specialty: $('#specialtyInput').value.trim(), classDate: els.classDateInput.value, classOrder: els.classOrderInput.value, sketchyTags: els.sketchyTagsInput.value, made: els.madeInput.checked, questionEntries: existing?.questionEntries || [], read: els.readInput.checked, notes: els.notesInput.value.trim(), createdAt: existing?.createdAt || now, updatedAt: now });
     if (existing) state.materials = state.materials.map((m) => m.id === id ? material : m); else state.materials.push(material);
 
     let removedLinks = 0;
@@ -1154,10 +1148,11 @@
   }
 
   async function handleAction(action, id, entryId = null) {
+    if (action === 'indicator') { const el = [...document.querySelectorAll('[data-indicator-id]')].find(item => item.dataset.indicatorId === id); if (el) el.classList.toggle('show-label'); return; }
     if (action === 'toggle-exam-performed') {
       const exam = state.exams.find(item => item.id === id);
       if (!exam || hasRecordedExamResult(exam)) return;
-      exam.performed = !exam.performed; exam.updatedAt = new Date().toISOString();
+      exam.performed = !isExamPerformed(exam); exam.performedOverride = exam.performed; exam.updatedAt = new Date().toISOString();
       saveExams(); renderAll(); showToast(exam.performed ? 'Prova marcada como realizada.' : 'Marcação de realizada removida.'); return;
     }
     if (action === 'edit-simulation') { if (!requireAdmin('editar eventos de residência')) return; const simulation = state.simulations.find((item) => item.id === id); if (simulation) openSimulationModal(simulation); return; }
@@ -1167,7 +1162,7 @@
     if (action === 'toggle-exam-materials') { if (state.expandedExamIds.has(id)) state.expandedExamIds.delete(id); else state.expandedExamIds.add(id); renderExams(); return; }
     if (action === 'open-topic') {
       const target = state.materials.find((m) => m.id === id); if (!target) return;
-      els.searchInput.value = target.title; renderSubjectFilters(); els.subjectFilter.value = target.subject; els.statusFilter.value = 'all'; if (els.ankiFilter) els.ankiFilter.value = 'all'; if (els.materialExamFilter) els.materialExamFilter.value = 'all'; setView('materials'); renderMaterials(); return;
+      els.searchInput.value = target.title; renderSubjectFilters(); els.subjectFilter.value = target.subject; els.materialExamTypeFilter.value = 'all'; els.ankiFilter.checked = false; setView('materials'); renderMaterials(); return;
     }
 
     const material = state.materials.find((m) => m.id === id); if (!material) return;
@@ -1196,7 +1191,7 @@
   async function exportData() {
     if (!personalStore.writable) { showToast('Entre na sua conta para exportar.'); return; }
     const owner = personalStore.scope, generation = personalStore.generation;
-    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations, courses: personalStore.snapshot().payload.courses };
+    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations, courses: personalStore.snapshot().payload.courses, preferences: personalStore.snapshot().payload.preferences };
     try { payload.cloudAttempts = await globalThis.PELEJA_CLOUD_BACKUP?.exportAttempts() || undefined; }
     catch { payload.note += ' Exportação local: tentativas online não puderam ser incluídas.'; }
     if (personalStore.scope !== owner || personalStore.generation !== generation) { showToast('A conta mudou. Exporte novamente.'); return; }
@@ -1222,6 +1217,7 @@
       const simulations = !Array.isArray(parsed) && Array.isArray(parsed.simulations) ? parsed.simulations.map(normalizeSimulation) : [];
       if (canManageStructure()) personalStore.markCatalogDirty();
       if (parsed.courses !== undefined) personalStore.setItem('medstudy_courses_v1', JSON.stringify(parsed.courses));
+      if (parsed.preferences && typeof parsed.preferences === 'object' && !Array.isArray(parsed.preferences)) personalStore.setItem('peleja_preferences_v1', JSON.stringify(parsed.preferences));
       state.materials = materials; state.exams = exams; state.simulations = simulations; saveAll(); renderAll(); showToast('Backup importado.');
     } catch (error) { console.error(error); showToast(error.message || 'Arquivo de backup inválido.'); }
     finally { els.importInput.value = ''; }
@@ -1243,6 +1239,9 @@
       state.exams = migrateLegacyExams(rawMaterials, state.materials);
     }
     state.expandedExamIds.clear();
+    els.searchInput.value = '';
+    Object.keys(libraryFilterDefaults).forEach(clearLibraryFilter);
+    closeLibraryFilterOptions();
     if (personalStore.getItem(MATERIALS_KEY) === null) applyAcademicData(currentAcademicData);
     // Discard old drafts and rendered private details before the new identity is shown.
     $$('.modal-backdrop').filter((modal) => modal.id !== 'accountModal').forEach((modal) => {
@@ -1260,7 +1259,58 @@
     updatePrimaryAction();
   }
 
+  const libraryFilterDefaults = { subjectFilter: true, materialExamTypeFilter: true, ankiFilter: false };
+  const libraryFilterLabels = { subjectFilter: 'Disciplina', materialExamTypeFilter: 'Prova', ankiFilter: 'AnKing' };
+  function libraryFilterControl(id) { return id === 'ankiFilter' ? $('#ankiFilterControl') : els[id]; }
+  function clearLibraryFilter(id) { if (id === 'ankiFilter') els[id].checked = false; else els[id].value = 'all'; }
+  function libraryPreferences() {
+    try { const value = JSON.parse(personalStore.getItem('peleja_preferences_v1') || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { return {}; }
+  }
+  function renderLibraryFilters() {
+    const visible = libraryPreferences().libraryFilters || {};
+    for (const [id, fallback] of Object.entries(libraryFilterDefaults)) {
+      const show = typeof visible[id] === 'boolean' ? visible[id] : fallback;
+      libraryFilterControl(id).hidden = !show;
+      if (!show) clearLibraryFilter(id);
+    }
+    const typeSelect = els.materialExamTypeFilter;
+    const current = typeSelect.value;
+    const types = [...new Set(state.exams.map(exam => exam.type))].sort((a,b) => a.localeCompare(b,'pt-BR',{numeric:true}));
+    const shortType = type => type.toLocaleLowerCase('pt-BR') === 'segunda chamada' ? '2ª CH' : type.toLocaleLowerCase('pt-BR') === 'prova final' ? 'PF' : type;
+    typeSelect.innerHTML = '<option value="all">Todas as provas</option>' + types.map(type => `<option value="${escapeHtml(type)}">${escapeHtml(shortType(type))}</option>`).join('');
+    typeSelect.value = types.includes(current) ? current : 'all';
+    $('#libraryFilterOptions').innerHTML = Object.keys(libraryFilterDefaults).map(id => `<label><input type="checkbox" data-library-filter="${id}" ${!libraryFilterControl(id).hidden ? 'checked' : ''}> ${libraryFilterLabels[id]}</label>`).join('');
+  }
+  function closeLibraryFilterOptions() {
+    $('#libraryFilterOptions').hidden = true;
+    $('#configureLibraryFilters').setAttribute('aria-expanded','false');
+  }
+
   function bindEvents() {
+    $('#clearLibraryFilters').addEventListener('click', () => { els.searchInput.value = ''; Object.keys(libraryFilterDefaults).forEach(clearLibraryFilter); renderMaterials(); });
+    $('#configureLibraryFilters').addEventListener('click', () => {
+      const panel = $('#libraryFilterOptions'); panel.hidden = !panel.hidden;
+      $('#configureLibraryFilters').setAttribute('aria-expanded', String(!panel.hidden));
+    });
+    $('#libraryFilterOptions').addEventListener('change', event => {
+      const id = event.target.dataset.libraryFilter;
+      if (!(id in libraryFilterDefaults)) return;
+      const prefs = libraryPreferences();
+      prefs.libraryFilters = { ...prefs.libraryFilters, [id]: event.target.checked };
+      if (!personalStore.writable) return;
+      if (personalStore.setItem('peleja_preferences_v1', JSON.stringify(prefs))) notifyDataChanged('preferences');
+      // Keep focus on the checkbox while updating the visible controls.
+      libraryFilterControl(id).hidden = !event.target.checked;
+      if (!event.target.checked) clearLibraryFilter(id);
+      renderMaterials();
+    });
+    document.addEventListener('click', event => { if (!event.target.closest('.library-filter-settings')) closeLibraryFilterOptions(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#libraryFilterOptions').hidden) { closeLibraryFilterOptions(); $('#configureLibraryFilters').focus(); } });
+    window.addEventListener('focus', renderAll);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) renderAll(); });
+    let renderedDay = todayDateValue();
+    setInterval(() => { if (!document.hidden && renderedDay !== todayDateValue()) { renderedDay = todayDateValue(); renderAll(); } }, 60000);
+
     window.addEventListener('peleja:storage-changed', reloadAccountData);
     els.navItems.forEach((item) => item.addEventListener('click', () => setView(item.dataset.view)));
     $$('[data-go-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.goView)));
@@ -1274,6 +1324,16 @@
       renderAll();
     });
     els.primaryActionBtn.addEventListener('click', handlePrimaryActionClick);
+    $('#newEventOptions').addEventListener('click', event => {
+      const kind = event.target.closest('[data-new-event]')?.dataset.newEvent;
+      if (!kind) return;
+      $('#newEventOptions').hidden = true; els.primaryActionBtn.setAttribute('aria-expanded','false');
+      if (kind === 'material') openMaterialModal();
+      else if (kind === 'exam') openExamForm();
+      else if (kind === 'simulation') openSimulationModal();
+    });
+    document.addEventListener('click', event => { if (!event.target.closest('.new-event-control')) { $('#newEventOptions').hidden = true; els.primaryActionBtn.setAttribute('aria-expanded','false'); } });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#newEventOptions').hidden) { $('#newEventOptions').hidden = true; els.primaryActionBtn.setAttribute('aria-expanded','false'); els.primaryActionBtn.focus(); } });
     els.closeModal.addEventListener('click', closeMaterialModal); els.cancelModal.addEventListener('click', closeMaterialModal); els.materialForm.addEventListener('submit', handleMaterialSubmit);
     els.subjectInput.addEventListener('input', () => renderMaterialExamOptions());
     els.openQuestionManagerFromMaterial.addEventListener('click', () => { const material = state.materials.find((item) => item.id === els.openQuestionManagerFromMaterial.dataset.id); if (material) openQuestionModal(material); });
@@ -1299,7 +1359,7 @@
       else if (els.questionModal.classList.contains('open')) closeQuestionModal();
       else if (els.materialModal.classList.contains('open')) closeMaterialModal();
     });
-    els.searchInput.addEventListener('input', renderMaterials); [els.subjectFilter, els.statusFilter, els.ankiFilter, els.materialExamFilter, els.sortSelect].forEach((control) => control?.addEventListener('change', renderMaterials));
+    els.searchInput.addEventListener('input', renderMaterials); [els.subjectFilter, els.ankiFilter, els.materialExamTypeFilter].forEach((control) => control?.addEventListener('change', renderMaterials));
     [els.examSubjectFilter, els.examStatusFilter].forEach((control) => control.addEventListener('change', renderExams));
     document.addEventListener('click', (event) => {
       const toggle = event.target.closest('.action-menu-toggle');
@@ -1324,12 +1384,12 @@
     state.materials = (catalog.materials || []).map(item => {
       const old = oldMaterials.get(item.id) || {};
       return normalizeMaterial({ ...item, made: old.made, read: old.read, questionEntries: old.questionEntries || [],
-        notes: old.notes, sketchyTags: old.sketchyTags, source: old.source || item.source,
+        notes: old.notes, sketchyTags: item.sketchyTags ?? (canManageStructure() ? old.sketchyTags : ''), source: old.source || item.source,
         dateConfidence: old.dateConfidence || item.dateConfidence, createdAt: old.createdAt, updatedAt: old.updatedAt });
     });
     state.exams = (catalog.exams || []).map(item => {
       const old = oldExams.get(item.id) || {};
-      return normalizeExam({ ...item, performed: old.performed, grade: old.grade, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
+      return normalizeExam({ ...item, performed: old.performed, performedOverride: old.performedOverride, grade: old.grade, total: old.total, correct: old.correct, wrong: old.wrong, source: old.source || item.source, createdAt: old.createdAt, updatedAt: old.updatedAt });
     });
     state.simulations = (catalog.simulations || []).map(item => {
       const old = oldSimulations.get(item.id);

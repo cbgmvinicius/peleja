@@ -3,6 +3,7 @@
 
   // One atomic document per identity. Legacy keys remain untouched for recovery.
   const LEGACY_KEYS = ['medstudy_materials_v1', 'medstudy_exams_v1', 'medstudy_simulations_v1', 'medstudy_courses_v1'];
+  const PREFERENCES_KEY = 'peleja_preferences_v1';
   const PREFIX = 'peleja_account_v1:';
   const LOCAL_OWNER = 'local:vinicius';
   const BACKUP_KEY = 'peleja_legacy_backup_v1:vinicius';
@@ -80,12 +81,12 @@
     },
     deactivate() { changeScope(null); },
     getItem(key) {
-      if (!LEGACY_KEYS.includes(key)) throw new Error('Chave pessoal desconhecida.');
+      if (![...LEGACY_KEYS, PREFERENCES_KEY].includes(key)) throw new Error('Chave pessoal desconhecida.');
       return scope ? (record(scope)?.values[key] ?? null) : null;
     },
     setItem(key, value, { seed = false } = {}) {
       if (!scope) return false; // No authenticated owner: no personal persistence.
-      if (!LEGACY_KEYS.includes(key)) throw new Error('Chave pessoal desconhecida.');
+      if (![...LEGACY_KEYS, PREFERENCES_KEY].includes(key)) throw new Error('Chave pessoal desconhecida.');
       const current = record(scope);
       if (current?.values[key] === value) return false;
       saveRecord(scope, { ...(current?.values || {}), [key]: value }, { ...(current || {}), dirty: Boolean(current?.dirty || !seed) });
@@ -94,6 +95,7 @@
     snapshot() {
       const current = scope ? record(scope) : null;
       const payload = Object.fromEntries(['materials','exams','simulations','courses'].map((name,index) => [name, JSON.parse(current?.values[LEGACY_KEYS[index]] || '[]')]));
+      payload.preferences = JSON.parse(current?.values[PREFERENCES_KEY] || '{}');
       return { payload, revision: current?.revision || 0, catalogRevision: current?.catalogRevision || 0,
         dirty: Boolean(current?.dirty), catalogDirty: Boolean(current?.catalogDirty) };
     },
@@ -107,6 +109,7 @@
       const previous = record(scope);
       if (previous?.dirty) localStorage.setItem(keyFor(scope) + ':recovery', JSON.stringify(previous));
       const values = Object.fromEntries(LEGACY_KEYS.map((key,index) => [key, JSON.stringify(payload[['materials','exams','simulations','courses'][index]] || [])]));
+      values[PREFERENCES_KEY] = JSON.stringify(payload.preferences || {});
       saveRecord(scope, values, { revision, catalogRevision, dirty: false, catalogDirty: false });
       window.dispatchEvent(new CustomEvent('peleja:storage-changed', { detail: { scope, generation } }));
     },

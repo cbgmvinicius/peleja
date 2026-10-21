@@ -102,5 +102,20 @@ courseSave=await rpc('restore_personal_backup',[JSON.stringify(backup),courseSav
 assert.deepEqual((await rpc('get_workspace',[],[])).payload.courses,[]);
 console.log('PASS Courses migration reruns, old clients/backups preserve checks, new backups restore and duplicates rejected');
 
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-library.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-library.sql'),'utf8'));
+await user(A);
+const libraryState=await rpc('get_workspace',[],[]);
+const libraryPayload={...libraryState.payload,preferences:{libraryFilters:{ankiFilter:true}},exams:[{id:'override-only',performedOverride:false,total:null}]};
+let librarySave=await save(libraryPayload,libraryState.revision,libraryState.catalog_revision,false);
+const oldLibraryPayload={...libraryPayload,exams:[{id:'override-only',total:null}]};delete oldLibraryPayload.preferences;
+librarySave=await save(oldLibraryPayload,librarySave.revision,librarySave.catalog_revision,false);
+const retained=(await rpc('get_workspace',[],[])).payload;
+assert.equal(retained.preferences.libraryFilters.ankiFilter,true);
+assert.equal(retained.exams[0].performedOverride,false);
+await assert.rejects(()=>save({...retained,preferences:[]},librarySave.revision,librarySave.catalog_revision,false),/Preferências inválidas/);
+console.log('PASS Library migration reruns, old clients preserve visibility and explicit exam override, invalid preferences rejected');
+
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});
