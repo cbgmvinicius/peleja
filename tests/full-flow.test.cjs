@@ -41,7 +41,7 @@ async function boot(id,seed=false){
   w.__api=client(id);w.PELEJA_ACADEMIC_DATA={materials:[],exams:[]};w.fetch=async()=>({ok:false});w.confirm=()=>true;w.supabase={createClient:()=>w.__api};
   if(seed)keys.forEach((k,i)=>w.localStorage.setItem(k,JSON.stringify(legacy[['materials','exams','simulations'][i]])));
   w.eval(fs.readFileSync(path.join(root,'storage.js'),'utf8'));
-  w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8').replace(/\}\)\(\);\s*$/,'globalThis.__app={state,els,saveAll,handleAction,handleExamSubmit,handleSimulationSubmit,openSimulationModal};\n})();'));
+  w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8').replace(/\}\)\(\);\s*$/,'globalThis.__app={state,els,renderMaterials,saveAll,handleAction,handleExamSubmit,handleSimulationSubmit,openSimulationModal};\n})();'));
   w.eval(fs.readFileSync(path.join(root,'cloud.js'),'utf8').replace('  init().catch(','  globalThis.__ready=init().catch(').replace(/\}\)\(\);\s*$/,'globalThis.__cloud={state,sync,loadRanking,reloadWorkspace,openSharedSimulation,saveSharedSimulation,readPages,authChanged};\n})();'));
   await w.__ready;w.eval(fs.readFileSync(path.join(root,'courses-data.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'courses.js'),'utf8'));assert.equal(w.document.body.dataset.accessState,'granted',w.document.getElementById('authMessage').textContent);assert.equal(logs.length,0,logs.map(String).join('\n'));return w;
 }
@@ -141,6 +141,16 @@ assert.equal(a.document.querySelector('[data-field="flashFront"]'),null);assert.
 assert.equal(a.document.getElementById('registerForm'),null);assert(a.document.getElementById('loginUsername'));
 console.log('PASS Real app imports owner legacy data, publishes catalog and preserves private fields without notebook UI');
 const b=await boot(B);assert.equal(personalExam(b).correct,null);assert.equal(b.__app.state.materials[0].notes,'');
+for(const device of [a,b]){device.document.getElementById('materialExamFilter').value='all';device.__app.renderMaterials();}
+assert(a.document.querySelector('[data-action="toggle-made"]'),'Admin retains created control');
+assert(!b.document.querySelector('[data-action="toggle-made"]'),'Participant has no created control');
+assert(b.document.querySelector('[data-action="toggle-read"]'));
+assert(b.document.querySelector('[data-action="add-questions"]'));
+const madeBefore=b.__app.state.materials[0].made;
+await b.__app.handleAction('toggle-made',b.__app.state.materials[0].id);
+assert.equal(b.__app.state.materials[0].made,madeBefore);
+console.log('PASS Created control visible only to admin; participant retains study/questions and cannot invoke created action');
+
 assert.equal(b.__app.state.materials[0].source,'');assert.equal(b.__app.state.exams[0].source,'');
 await b.__app.handleAction('toggle-exam-performed','e');
 assert.equal(personalExam(b).performed,true);assert.equal(personalExam(b).total,null);
