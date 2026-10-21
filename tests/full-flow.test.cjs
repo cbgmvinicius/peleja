@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const root=path.resolve(process.argv[2]||path.join(__dirname,'..'));
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
 const keys=['medstudy_materials_v1','medstudy_exams_v1','medstudy_simulations_v1'];
-const legacy={materials:[{id:'m',subject:'Pediatria',title:'Aula',read:true,made:true,notes:'Somente Vinícius',questionEntries:[{id:'q',date:'2026-09-28',questions:10,correct:8,wrong:2}]}],exams:[{id:'e',subject:'Pediatria',type:'Prova',date:'2026-09-28',materialIds:['m'],total:10,correct:8,wrong:2}],simulations:[{id:'s',name:'Evento',date:'2026-09-28',questions:[{id:'q1',number:1,area:'Pediatria',correctAnswer:'A',userAnswer:'A',flashFront:'LEGADO',flashBack:'PRESERVADO'},{id:'q2',number:2,area:'Cirurgia',correctAnswer:'B',userAnswer:'C'}]}]};
+const legacy={materials:[{id:'m',subject:'Pediatria',title:'Aula',read:true,made:true,notes:'Somente Vinícius',sketchyTags:'nid:123,456',questionEntries:[{id:'q',date:'2026-09-28',questions:10,correct:8,wrong:2}]}],exams:[{id:'e',subject:'Pediatria',type:'Prova',date:'2026-09-28',materialIds:['m'],total:10,correct:8,wrong:2}],simulations:[{id:'s',name:'Evento',date:'2026-09-28',questions:[{id:'q1',number:1,area:'Pediatria',correctAnswer:'A',userAnswer:'A',flashFront:'LEGADO',flashBack:'PRESERVADO'},{id:'q2',number:2,area:'Cirurgia',correctAnswer:'B',userAnswer:'C'}]}]};
 (async()=>{
 const db=new PGlite();const windows=[];let queue=Promise.resolve();
 await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;
@@ -13,6 +13,7 @@ create function auth.jwt() returns jsonb language sql stable as $$select jsonb_b
 grant usage on schema public,auth to authenticated,anon,service_role;`);
 await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').replace(/^\uFEFF/,''));
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-library.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-progress.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-material-exams.sql'),'utf8'));
@@ -88,6 +89,19 @@ courseDevice.document.querySelector('#extraCourses [data-course-lesson="ecg-m06-
 await courseDevice.__cloud.sync();await a.__cloud.reloadWorkspace();
 assert.equal(a.PELEJA_STORAGE.snapshot().payload.courses.length,0);
 console.log('PASS Courses frontend/cloud roundtrip across devices, account isolation and uncheck');
+// Preferences round trip using the actual frontend and private workspace RPC.
+a.document.getElementById('configureLibraryFilters').click();
+a.document.querySelector('[data-library-filter="ankiFilter"]').click();
+await a.__cloud.sync();
+const prefsDevice=await boot(A);
+assert(!prefsDevice.document.getElementById('ankiFilterControl').hidden);
+assert(otherCourse.document.getElementById('ankiFilterControl').hidden);
+assert.equal(otherCourse.__app.state.materials[0].sketchyTags,'nid:123,456');
+assert.equal(otherCourse.__app.state.materials[0].notes,'');
+assert(otherCourse.document.querySelector('.anki-copy'));
+assert(!otherCourse.document.getElementById('primaryActionBtn').offsetParent);
+console.log('PASS Private filter preferences across devices and shared admin AnKing query without personal notes');
+
 
 
 assert.equal(a.document.getElementById('accountModal').getAttribute('aria-hidden'),'true','Restoring a valid session should dismiss the automatic login gate');
@@ -141,7 +155,7 @@ assert.equal(a.document.querySelector('[data-field="flashFront"]'),null);assert.
 assert.equal(a.document.getElementById('registerForm'),null);assert(a.document.getElementById('loginUsername'));
 console.log('PASS Real app imports owner legacy data, publishes catalog and preserves private fields without notebook UI');
 const b=await boot(B);assert.equal(personalExam(b).correct,null);assert.equal(b.__app.state.materials[0].notes,'');
-for(const device of [a,b]){device.document.getElementById('materialExamFilter').value='all';device.__app.renderMaterials();}
+for(const device of [a,b]){device.__app.renderMaterials();}
 assert(a.document.querySelector('[data-action="toggle-made"]'),'Admin retains created control');
 assert(!b.document.querySelector('[data-action="toggle-made"]'),'Participant has no created control');
 assert(b.document.querySelector('[data-action="toggle-read"]'));
@@ -153,14 +167,14 @@ console.log('PASS Created control visible only to admin; participant retains stu
 
 assert.equal(b.__app.state.materials[0].source,'');assert.equal(b.__app.state.exams[0].source,'');
 await b.__app.handleAction('toggle-exam-performed','e');
-assert.equal(personalExam(b).performed,true);assert.equal(personalExam(b).total,null);
+assert.equal(personalExam(b).performedOverride,false);assert.equal(personalExam(b).total,null);
 await b.__cloud.sync();
-const performedDevice=await boot(B);assert.equal(personalExam(performedDevice).performed,true);assert.equal(personalExam(performedDevice).correct,null);
+const performedDevice=await boot(B);assert.equal(personalExam(performedDevice).performedOverride,false);assert.equal(personalExam(performedDevice).correct,null);
 assert(!performedDevice.__cloud.state.data.university.some(r=>r.user_id===B),'Marking performed never invents a ranking result');
 assert.equal(personalExam(a).performed,false,'Mark is private to the participant');
-await b.__cloud.reloadWorkspace();assert.equal(personalExam(b).performed,true);
+await b.__cloud.reloadWorkspace();assert.equal(personalExam(b).performedOverride,false);
 await b.__app.handleAction('toggle-exam-performed','e');await b.__cloud.sync();
-await performedDevice.__cloud.reloadWorkspace();assert.equal(personalExam(performedDevice).performed,false);
+await performedDevice.__cloud.reloadWorkspace();assert.equal(personalExam(performedDevice).performedOverride,true);
 console.log('PASS Performed exam without scores survives sync and fresh device, remains private, creates no ranking result and can be unmarked');
 await b.__app.handleAction('edit-exam','e');
 const gradeInput=b.document.getElementById('examGradeInput');
