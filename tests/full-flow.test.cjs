@@ -53,6 +53,26 @@ const a=await boot(A,true);assert.equal(personalExam(a).correct,8);assert.equal(
 assert.equal(a.document.getElementById('accountModalTitle').textContent,'Minha conta');
 await a.__cloud.loadRanking();
 const rd=a.document, clickRank=s=>rd.querySelector(s).click();
+clickRank('[data-view="simulations"]');
+assert(rd.querySelector('.simulation-library-card'));
+assert.equal(rd.querySelectorAll('.simulation-library-card .material-actions button').length,2);
+assert(!rd.querySelector('.exams-intro'));assert(!rd.getElementById('examSubjectFilter'));
+const simulationSearch=rd.getElementById('simulationSearch');
+simulationSearch.value='não existe';simulationSearch.dispatchEvent(new a.Event('input'));
+assert.match(rd.getElementById('sharedSimulationEvents').textContent,/Nenhum simulado encontrado/);
+clickRank('#clearSimulationSearch');assert(rd.querySelector('.simulation-library-card'));
+if(process.env.PELEJA_PREVIEW_DIR){
+  const preview=rd.documentElement.outerHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
+  fs.writeFileSync(path.join(process.env.PELEJA_PREVIEW_DIR,'simulations.html'),'<!doctype html>'+preview);
+}
+clickRank('[data-event-ranking="res::s"]');await a.__cloud.loadRanking();
+assert(rd.getElementById('rankingView').classList.contains('active'));
+assert.equal(rd.getElementById('rankingUnitFilter').value,'res::s');
+assert.equal(rd.getElementById('rankingAreaFilter').value,'all');
+assert.equal(rd.getElementById('rankingMyAccuracyKpi').textContent,'50.0%');
+clickRank('[data-view="simulations"]');clickRank('[data-shared-event="res::s"]');
+assert(rd.getElementById('sharedSimulationModal').classList.contains('open'));clickRank('#closeSharedSimulationModal');
+console.log('PASS Simulation cards, search/reset, result editor and event-specific personal ranking after refresh');
 assert(!rd.querySelector('.ranking-intro')); assert(!rd.querySelector('.rank-legend'));
 clickRank('[data-ranking-mode="exam"]'); assert.equal(rd.getElementById('rankingPicker').hidden,false);
 const search=rd.getElementById('rankingSearch'); search.value='inexistente'; search.dispatchEvent(new a.Event('input'));

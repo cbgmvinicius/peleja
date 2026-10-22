@@ -838,23 +838,26 @@
       container.innerHTML = '<div class="shared-events-locked"><strong>Entre para acessar os eventos da turma.</strong><span>O administrador publica a prova e o gabarito; cada participante envia o próprio gabarito.</span><button type="button" class="primary-button" data-open-account>Entrar</button></div>';
       return;
     }
-    const catalogs = state.data?.catalogs || [];
+    const query = ($('#simulationSearch')?.value || '').trim().toLocaleLowerCase('pt-BR');
+    const catalogs = (state.data?.catalogs || []).filter(event => !query || `${event.name} ${event.date || ''}`.toLocaleLowerCase('pt-BR').includes(query));
+    if (!catalogs.length && query) { container.innerHTML = '<div class="empty-state compact">Nenhum simulado encontrado. Ajuste a busca.</div>'; return; }
     if (!catalogs.length) {
       container.innerHTML = '<div class="empty-state compact"><strong>Nenhum evento de Residência publicado.</strong>' + (isAdmin() ? 'Crie um simulado no Peleja e sincronize para publicá-lo.' : 'Quando o administrador publicar uma prova, ela aparecerá aqui.') + '</div>';
       return;
     }
     container.innerHTML = catalogs.map((event) => {
       const progress = eventProgress(event.key);
-      const accepted = progress.questions.filter((q) => q.accepted_area).length;
       const result = ownEventResult(event.key);
       const resultLabel = result && result.total ? ((Number(result.correct) / Number(result.total)) * 100).toFixed(1) + '% · ' + rankForAccuracy((Number(result.correct) / Number(result.total)) * 100).name : '';
       const status = !progress.ready ? 'Gabarito oficial incompleto' : (resultLabel || (progress.answered ? progress.answered + '/' + progress.valid.length + ' respondidas' : 'Pendente'));
-      const button = progress.ready
-        ? '<button type="button" class="ghost-button" data-shared-event="' + html(event.key) + '">' + (progress.complete ? 'Revisar resultado' : 'Registrar resultado') + '</button>'
-        : '<button type="button" class="ghost-button" disabled>Aguardando gabarito oficial</button>';
-      return '<article class="shared-event-card">' +
-        '<div><span class="shared-event-kicker">RESIDÊNCIA</span><strong>' + html(event.name) + '</strong><small>' + (event.date ? new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR') : 'Data não informada') + ' · ' + progress.questions.length + ' questões · ' + accepted + ' áreas consensuais</small></div>' +
-        '<div class="shared-event-status"><span>' + html(status) + '</span>' + button + '</div></article>';
+      const label = progress.complete ? 'Revisar resultado' : 'Registrar resultado';
+      const targetIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>';
+      const chartIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V12h4v8M10 20V8h4v12M15 20V4h4v16"/></svg>';
+      return '<article class="material-card simulation-library-card">' +
+        '<div class="material-info"><div class="material-title-row"><h3>' + html(event.name) + '</h3></div><p class="material-meta">Residência · ' + (event.date ? new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR') : 'Data não informada') + ' · ' + progress.questions.length + ' questões</p><small class="simulation-result-note">' + html(status) + '</small></div>' +
+        '<div class="question-summary" aria-label="Meu resultado"><div class="question-summary-total"><span>QUESTÕES</span><b>' + (result?.total ?? '—') + '</b></div><div class="question-summary-correct good"><span>ACERTOS</span><b>' + (result?.correct ?? '—') + '</b></div><div class="question-summary-wrong bad"><span>ERROS</span><b>' + (result ? Number(result.total)-Number(result.correct) : '—') + '</b></div></div>' +
+        '<div class="material-actions"><button type="button" class="action-button" data-shared-event="' + html(event.key) + '" aria-label="' + (progress.ready ? label : 'Aguardando gabarito oficial') + '" title="' + (progress.ready ? label : 'Aguardando gabarito oficial') + '" ' + (progress.ready ? '' : 'disabled') + '>' + targetIcon + '</button>' +
+        '<button type="button" class="action-button" data-event-ranking="' + html(event.key) + '" aria-label="Ver meu desempenho neste simulado" title="Ver meu desempenho neste simulado">' + chartIcon + '</button></div></article>';
     }).join('');
   }
 
@@ -1268,7 +1271,19 @@
     $('#closeRankGuide').addEventListener('click', closeGuide);
     guide.addEventListener('click', e => { if (e.target === guide) closeGuide(); });
     $('#rankingSyncButton')?.addEventListener('click', async () => { await sync({ quiet: true }); await loadRanking(); });
+    $('#simulationSearch')?.addEventListener('input', renderSharedEvents);
+    $('#clearSimulationSearch')?.addEventListener('click', () => { $('#simulationSearch').value = ''; renderSharedEvents(); });
     $('#sharedSimulationEvents')?.addEventListener('click', (event) => {
+      const ranking = event.target.closest('[data-event-ranking]');
+      if (ranking) {
+        setTab('simulations'); state.cutMode = 'exam';
+        $('#rankingUnitFilter').value = ranking.dataset.eventRanking;
+        renderRanking();
+        document.querySelector('[data-view="ranking"]').click();
+        const accuracy = $('#rankingMyAccuracyKpi');
+        accuracy?.setAttribute('tabindex','-1'); accuracy?.focus();
+        return;
+      }
       const button = event.target.closest('[data-shared-event]');
       if (button) openSharedSimulation(button.dataset.sharedEvent);
     });
