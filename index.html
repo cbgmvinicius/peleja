@@ -182,18 +182,6 @@
       </section>
 
       <section class="view" id="examsView">
-        <div class="analysis-toolbar panel exams-intro">
-          <div>
-            <p class="eyebrow">CALENDÁRIO DE PROVAS</p>
-            <h3>Provas por disciplina</h3>
-            <p>Cadastre cada prova uma única vez, escolha a disciplina e vincule as apostilas que fazem parte dela. Depois da avaliação, lance os resultados no mesmo registro.</p>
-          </div>
-          <div class="analysis-controls">
-            <label><span>Disciplina</span><select id="examSubjectFilter"><option value="all">Todas as disciplinas</option></select></label>
-            <label><span>Mostrar</span><select id="examStatusFilter"><option value="all">Todas</option><option value="upcoming">Próximas</option><option value="completed">Com resultado</option><option value="pending-result">Sem resultado</option></select></label>
-          </div>
-        </div>
-
         <div class="performance-kpi-grid exams-kpi-grid">
           <article class="stat-card"><span>Provas cadastradas</span><strong id="examCountKpi">0</strong><small id="examUpcomingKpi">0 próximas</small></article>
           <article class="stat-card"><span>Próxima prova</span><strong class="compact-kpi" id="nextExamKpi">—</strong><small id="nextExamDateKpi">Nenhuma agendada</small></article>
@@ -205,14 +193,16 @@
       </section>
 
       <section class="view" id="simulationsView">
-        <article class="panel shared-events-panel">
-          <div class="panel-header shared-events-header">
-            <div><p class="eyebrow">RESIDÊNCIA · TURMA</p><h3>Eventos compartilhados</h3><p>O administrador cria o evento e publica o gabarito oficial. Cada participante envia apenas o próprio gabarito e pode sugerir a grande área de cada questão.</p></div>
-            <span class="shared-events-role" id="sharedEventsRole">Modo local</span>
-          </div>
+        <div class="toolbar simulation-library-toolbar">
+          <div class="search-box"><span aria-hidden="true">⌕</span><input id="simulationSearch" type="search" aria-label="Buscar simulados" placeholder="Buscar simulado..."></div>
+          <button id="clearSimulationSearch" type="button" class="ghost-button">Limpar busca</button>
+        </div>
+        <article class="shared-events-panel simulation-library-panel">
+          <span id="sharedEventsRole" hidden></span>
           <div class="backend-notice" id="simulationOnlineNotice" hidden></div>
           <div id="sharedSimulationEvents" class="shared-simulation-events"></div>
         </article>
+        <details class="simulation-summary-details"><summary>Resumo de desempenho e gerenciamento</summary>
         <div class="simulation-kpi-grid">
           <article class="stat-card"><span>Simulados</span><strong id="simulationCountKpi">0</strong><small id="simulationCountNote">Nenhum registrado</small></article>
           <article class="stat-card accent"><span>Aproveitamento geral</span><strong id="simulationAccuracyKpi">—</strong><small id="simulationAccuracyNote">0 questões corrigidas</small></article>
@@ -223,6 +213,7 @@
           <article class="panel simulation-area-panel"><div class="panel-header"><div><p class="eyebrow">GRANDES ÁREAS</p><h3>Desempenho acumulado</h3></div></div><div id="simulationAreaStats" class="simulation-area-stats"></div></article>
           <article class="panel simulation-list-panel"><div class="panel-header"><div><p class="eyebrow">SIMULADOS</p><h3>Histórico semanal</h3></div></div><div id="simulationsList" class="simulations-list"></div></article>
         </div>
+        </details>
       </section>
 
       <section class="view" id="rankingView">

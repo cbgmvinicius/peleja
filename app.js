@@ -543,14 +543,15 @@
   function applySidebarCollapsedState() {
     document.body.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
     if (!els.sidebarCollapseButton) return;
-    const label = state.sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral';
+    const label = window.innerWidth <= 820 ? 'Fechar menu' : (state.sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral');
     els.sidebarCollapseButton.setAttribute('aria-label', label);
     els.sidebarCollapseButton.setAttribute('title', label);
   }
 
   function toggleSidebarCollapsed() {
     if (window.innerWidth <= 820) {
-      els.sidebar.classList.toggle('open');
+      els.sidebar.classList.remove('open');
+      els.menuButton.focus();
       return;
     }
     state.sidebarCollapsed = !state.sidebarCollapsed;
@@ -724,8 +725,8 @@
   }
 
   function getFilteredExams() {
-    const subject = els.examSubjectFilter.value || 'all';
-    const status = els.examStatusFilter.value || 'all';
+    const subject = els.examSubjectFilter?.value || 'all';
+    const status = els.examStatusFilter?.value || 'all';
     const today = todayDateValue();
     return [...state.exams].filter((exam) => {
       if (subject !== 'all' && exam.subject !== subject) return false;
@@ -1318,6 +1319,7 @@
     els.sidebarCollapseButton?.addEventListener('click', toggleSidebarCollapsed);
     window.addEventListener('resize', () => {
       if (window.innerWidth > 820) els.sidebar.classList.remove('open');
+      applySidebarCollapsedState();
     });
     window.addEventListener('peleja:access-changed', () => {
       updatePrimaryAction();
@@ -1360,7 +1362,7 @@
       else if (els.materialModal.classList.contains('open')) closeMaterialModal();
     });
     els.searchInput.addEventListener('input', renderMaterials); [els.subjectFilter, els.ankiFilter, els.materialExamTypeFilter].forEach((control) => control?.addEventListener('change', renderMaterials));
-    [els.examSubjectFilter, els.examStatusFilter].forEach((control) => control.addEventListener('change', renderExams));
+    [els.examSubjectFilter, els.examStatusFilter].forEach((control) => control?.addEventListener('change', renderExams));
     document.addEventListener('click', (event) => {
       const toggle = event.target.closest('.action-menu-toggle');
       if (toggle) {

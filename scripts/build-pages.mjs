@@ -18,6 +18,8 @@ await mkdir(path.dirname(dest),{recursive:true});
 await mkdir(dest); // Refuse reuse: no unrelated/private file can remain in the artifact.
 const files=['index.html','styles.css','courses-data.js','courses.js','progress.js','app.js','cloud.js','storage.js','ui.js','sw.js','supabase-config.js','academic-data.js','academic-data.json','manifest.webmanifest'];
 await mkdir(path.join(dest,'assets'));
+await mkdir(path.join(dest,'assets/fonts'));
+for (const name of ['GoogleSans-latin.woff2','OFL.txt','SOURCE.md']) files.push('assets/fonts/'+name);
 for (const name of ['peleja-icon-16.png','peleja-icon-32.png','peleja-icon-192.png','peleja-icon-512.png','anking.png']) files.push('assets/'+name);
 for (const name of files) await copyFile(path.join(root,name),path.join(dest,name));
 await writeFile(path.join(dest,'.nojekyll'),'');

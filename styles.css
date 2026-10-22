@@ -73,11 +73,18 @@ button { cursor: pointer; }
   border-radius: inherit;
 }
 .brand strong, .brand span { display: block; }
+@font-face {
+  font-family: 'Peleja Google Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./assets/fonts/GoogleSans-latin.woff2') format('woff2');
+}
 .brand-title {
-  font-family: "Arial Rounded MT Bold", "Trebuchet MS", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Peleja Google Sans', sans-serif;
   font-size: 24px;
   line-height: 1;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -.04em;
   color: #f3eadc;
   text-transform: lowercase;
@@ -1575,3 +1582,19 @@ button.extra-course-card:hover{transform:translateY(-2px);border-color:#657f68}
 #newEventOptions[hidden] { display:none; }
 #newEventOptions button { display:block; width:100%; text-align:left; padding:12px; background:none; border:0; border-radius:8px; cursor:pointer; }
 #newEventOptions button:hover { background:#e8e9e1; }
+
+.simulation-library-toolbar { display:flex; gap:12px; }
+.simulation-library-toolbar .search-box { flex:1; }
+.simulation-library-panel { margin-bottom:20px; }
+.simulation-library-card { grid-template-columns:minmax(0,1fr) auto auto; }
+.simulation-result-note { color:var(--muted); }
+.simulation-summary-details > summary { cursor:pointer; color:var(--muted); padding:12px 0; margin-bottom:12px; }
+@media(max-width:820px) {
+  .sidebar .sidebar-toggle,body.sidebar-collapsed .sidebar .sidebar-toggle { display:inline-grid; top:18px; right:12px; width:36px; height:36px; z-index:5; }
+  .sidebar .sidebar-header { padding-right:32px; }
+  .simulation-library-card { grid-template-columns:minmax(0,1fr) auto; }
+  .simulation-library-card .material-info { grid-column:1 / -1; }
+  .simulation-library-card .question-summary { grid-column:1; }
+  .simulation-library-card .material-actions { grid-column:2; }
+}
+@media(max-width:480px) { .simulation-library-card .question-summary { grid-column:1 / -1; } .simulation-library-card .material-actions { grid-column:1 / -1; } }
