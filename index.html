@@ -133,7 +133,7 @@
           <p class="eyebrow" id="todayLabel"></p>
           <h1 id="pageTitle">Painel</h1>
         </div>
-        <div class="new-event-control"><button class="primary-button" id="primaryActionBtn" aria-expanded="false" aria-controls="newEventOptions">+ Novo evento</button><div id="newEventOptions" hidden><button type="button" data-new-event="material">Apostila</button><button type="button" data-new-event="exam">Faculdade</button><button type="button" data-new-event="simulation">Residência</button></div></div>
+        <div class="new-event-control"><button class="primary-button" id="primaryActionBtn" aria-expanded="false" aria-controls="newEventOptions">+ Novo evento</button><div id="newEventOptions" hidden><button type="button" data-new-event="material">Apostila</button><button type="button" data-new-event="questions">Questões</button><button type="button" data-new-event="exam">Faculdade</button><button type="button" data-new-event="simulation">Residência</button></div></div>
       </header>
 
       <p id="cloudSyncNotice" class="sync-notice" role="status" aria-live="polite" hidden></p>
@@ -170,7 +170,7 @@
         <div class="toolbar library-toolbar">
           <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" aria-label="Buscar apostilas" placeholder="Buscar apostila, disciplina ou query..." /></div>
           <select id="subjectFilter" aria-label="Filtrar por disciplina"><option value="all">Todas as disciplinas</option></select>
-          <select id="materialExamTypeFilter" aria-label="Filtrar por prova"><option value="all">Todas as provas</option></select>
+          <select id="materialExamTypeFilter" aria-label="Filtrar por prova"><option value="all">Todas as provas</option><option value="pending" selected>Prova pendente</option></select>
           <label id="ankiFilterControl" class="anki-filter-control" hidden><img src="assets/anking.png" alt="AnKing"><input id="ankiFilter" type="checkbox" role="switch" aria-label="Somente apostilas com AnKing"><span class="switch-track" aria-hidden="true"></span></label>
           <button id="clearLibraryFilters" class="ghost-button" type="button">Limpar filtros</button>
           <div class="library-filter-settings">
@@ -327,6 +327,27 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="standaloneQuestionsModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="standaloneQuestionsTitle">
+      <div class="modal-header"><div><p class="eyebrow">QUESTÕES</p><h2 id="standaloneQuestionsTitle">Questões por disciplina</h2><p class="question-modal-subtitle">Registre uma sessão por disciplina ou especialidade, sem precisar vincular a uma apostila.</p></div><button type="button" class="icon-button" id="closeStandaloneQuestions" aria-label="Fechar">×</button></div>
+      <form id="standaloneQuestionsForm">
+        <input type="hidden" id="sessionId">
+        <div class="form-grid">
+          <label><span>Disciplina *</span><input id="sessionSubject" list="sessionSubjects" required maxlength="120" placeholder="Ex.: Clínica Médica III"><datalist id="sessionSubjects"></datalist></label>
+          <label><span>Especialidade (opcional)</span><input id="sessionSpecialty" list="sessionSpecialties" maxlength="120" placeholder="Ex.: Hematologia"><datalist id="sessionSpecialties"></datalist></label>
+          <label><span>Data *</span><input id="sessionDate" type="date" required></label>
+          <label><span>Total de questões *</span><input id="sessionTotal" type="number" min="1" max="100000" step="1" required></label>
+          <label><span>Acertos *</span><input id="sessionCorrect" type="number" min="0" max="100000" step="1" required></label>
+          <label><span>Erros *</span><input id="sessionWrong" type="number" min="0" max="100000" step="1" required></label>
+        </div>
+        <p class="question-modal-subtitle">Entra no ranking Apostilas, em Todas as provas. Como não há vínculo com uma prova, não entra no recorte PR1, PR2 etc. Registre apenas questões que ainda não lançou nas apostilas.</p>
+        <div id="sessionMessage" class="validation-message" role="status"></div>
+        <div class="modal-actions"><button type="button" id="cancelSessionEdit" class="ghost-button" hidden>Cancelar edição</button><button type="submit" id="saveSession" class="primary-button">Adicionar questões</button></div>
+      </form>
+      <div class="question-entry-history"><h3>Meu histórico por disciplina e especialidade</h3><div id="sessionHistory" class="question-entry-list"></div></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="examFormModal" aria-hidden="true">
     <div class="modal exam-form-modal" role="dialog" aria-modal="true" aria-labelledby="examFormTitle">
       <div class="modal-header"><div><p class="eyebrow">PROVA</p><h2 id="examFormTitle">Adicionar prova</h2><p class="question-modal-subtitle">Cadastre a avaliação e vincule o conteúdo diretamente às apostilas da biblioteca.</p></div><button class="icon-button" id="closeExamFormModal" aria-label="Fechar">×</button></div>
@@ -450,6 +471,7 @@
   <script src="storage.js"></script>
   <script src="app.js"></script>
   <script src="cloud.js"></script>
+  <script src="questions.js"></script>
   <script src="ui.js"></script>
   <script src="courses-data.js"></script>
   <script src="courses.js"></script>

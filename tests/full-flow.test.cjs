@@ -14,6 +14,7 @@ grant usage on schema public,auth to authenticated,anon,service_role;`);
 await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').replace(/^\uFEFF/,''));
 await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-library.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-question-sessions.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-progress.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-material-exams.sql'),'utf8'));
@@ -44,7 +45,7 @@ async function boot(id,seed=false){
   w.eval(fs.readFileSync(path.join(root,'storage.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8').replace(/\}\)\(\);\s*$/,'globalThis.__app={state,els,renderMaterials,saveAll,handleAction,handleExamSubmit,handleSimulationSubmit,openSimulationModal};\n})();'));
   w.eval(fs.readFileSync(path.join(root,'cloud.js'),'utf8').replace('  init().catch(','  globalThis.__ready=init().catch(').replace(/\}\)\(\);\s*$/,'globalThis.__cloud={state,sync,loadRanking,reloadWorkspace,openSharedSimulation,saveSharedSimulation,readPages,authChanged};\n})();'));
-  await w.__ready;w.eval(fs.readFileSync(path.join(root,'courses-data.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'courses.js'),'utf8'));assert.equal(w.document.body.dataset.accessState,'granted',w.document.getElementById('authMessage').textContent);assert.equal(logs.length,0,logs.map(String).join('\n'));return w;
+  await w.__ready;w.document.getElementById('clearLibraryFilters').click();w.eval(fs.readFileSync(path.join(root,'courses-data.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'courses.js'),'utf8'));assert.equal(w.document.body.dataset.accessState,'granted',w.document.getElementById('authMessage').textContent);assert.equal(logs.length,0,logs.map(String).join('\n'));return w;
 }
 function personalExam(w){return w.__app.state.exams.find(e=>e.id==='e');}
 function enterResult(w,correct){w.__app.handleAction('edit-exam','e');w.__app.els.examTotalInput.value='10';w.__app.els.examCorrectInput.value=String(correct);w.__app.els.examWrongInput.value=String(10-correct);w.__app.handleExamSubmit({preventDefault(){}});}
@@ -118,8 +119,11 @@ assert(!prefsDevice.document.getElementById('ankiFilterControl').hidden);
 assert(otherCourse.document.getElementById('ankiFilterControl').hidden);
 assert.equal(otherCourse.__app.state.materials[0].sketchyTags,'nid:123,456');
 assert.equal(otherCourse.__app.state.materials[0].notes,'');
+otherCourse.document.getElementById('clearLibraryFilters').click();
 assert(otherCourse.document.querySelector('.anki-copy'));
-assert(!otherCourse.document.getElementById('primaryActionBtn').offsetParent);
+assert(!otherCourse.document.getElementById('primaryActionBtn').hidden);
+assert(otherCourse.document.querySelector('[data-new-event="material"]').hidden);
+assert(!otherCourse.document.querySelector('[data-new-event="questions"]').hidden);
 console.log('PASS Private filter preferences across devices and shared admin AnKing query without personal notes');
 
 
@@ -288,6 +292,18 @@ await b2.__cloud.authChanged(null,'SIGNED_OUT');assert.equal(b2.PELEJA_STORAGE.s
 assert.equal(b2.document.getElementById('accountModalTitle').textContent,'Entrar no Peleja');
 assert.equal(b2.document.getElementById('accountModal').getAttribute('aria-hidden'),'false','Signed-out users still need the login gate');
 console.log('PASS Ranking reads more than 1000 records without truncation; logout removes active personal state');
+const qsPhone=await boot(B), qsDesktop=await boot(B);
+qsPhone.eval(fs.readFileSync(path.join(root,'questions.js'),'utf8'));
+qsPhone.document.querySelector('[data-new-event="questions"]').click();
+for(const [id,value] of Object.entries({sessionSubject:'Pediatria',sessionSpecialty:'Neonatologia',sessionTotal:20,sessionCorrect:15,sessionWrong:5}))qsPhone.document.getElementById(id).value=value;
+qsPhone.document.getElementById('standaloneQuestionsForm').dispatchEvent(new qsPhone.Event('submit',{cancelable:true}));
+assert.equal(qsPhone.PELEJA_STORAGE.snapshot().payload.questionSessions.length,1);
+await qsPhone.__cloud.sync();assert(!qsPhone.PELEJA_STORAGE.snapshot().dirty);
+await qsDesktop.__cloud.sync();assert.equal(qsDesktop.PELEJA_STORAGE.snapshot().payload.questionSessions[0].correct,15);
+await qsDesktop.__cloud.loadRanking();
+assert(qsDesktop.__cloud.state.data.materials.some(r=>r.user_id===B && r.area==='Pediatria' && r.total>=20 && r.correct>=15));
+const qsOther=await boot(A);assert.equal(qsOther.PELEJA_STORAGE.snapshot().payload.questionSessions.length,0);
+console.log('PASS Participant question sessions sync from phone to desktop, join Apostilas ranking and remain private');
 console.log('PASS Full frontend + PostgreSQL integration complete (simulated browser; no production services)');
 }finally{for(const w of windows)w.close();await queue;await db.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
