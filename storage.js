@@ -2,7 +2,7 @@
   'use strict';
 
   // One atomic document per identity. Legacy keys remain untouched for recovery.
-  const LEGACY_KEYS = ['medstudy_materials_v1', 'medstudy_exams_v1', 'medstudy_simulations_v1', 'medstudy_courses_v1'];
+  const LEGACY_KEYS = ['medstudy_materials_v1', 'medstudy_exams_v1', 'medstudy_simulations_v1', 'medstudy_courses_v1', 'peleja_question_sessions_v1'];
   const PREFERENCES_KEY = 'peleja_preferences_v1';
   const PREFIX = 'peleja_account_v1:';
   const LOCAL_OWNER = 'local:vinicius';
@@ -18,6 +18,20 @@
     for (const key of LEGACY_KEYS) {
       if (values[key] != null && !Array.isArray(JSON.parse(values[key]))) {
         throw new Error('Histórico inválido; os dados originais foram preservados.');
+      }
+    }
+    if (values.peleja_question_sessions_v1 != null) {
+      const entries = JSON.parse(values.peleja_question_sessions_v1), ids = new Set();
+      if (entries.length > 3000) throw new Error('Histórico de questões muito grande.');
+      for (const entry of entries) {
+        if (!entry || typeof entry.id !== 'string' || !entry.id || entry.id.length > 200 || ids.has(entry.id) ||
+          typeof entry.subject !== 'string' || !entry.subject.trim() || entry.subject.length > 120 ||
+          (entry.specialty != null && (typeof entry.specialty !== 'string' || entry.specialty.length > 120)) ||
+          typeof entry.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
+          ![entry.questions, entry.correct, entry.wrong].every(Number.isInteger) || entry.questions < 1 || entry.questions > 100000 || entry.correct < 0 || entry.wrong < 0 || entry.correct + entry.wrong !== entry.questions) {
+          throw new Error('Sessão de questões inválida; os dados originais foram preservados.');
+        }
+        ids.add(entry.id);
       }
     }
     return values;
@@ -94,7 +108,7 @@
     },
     snapshot() {
       const current = scope ? record(scope) : null;
-      const payload = Object.fromEntries(['materials','exams','simulations','courses'].map((name,index) => [name, JSON.parse(current?.values[LEGACY_KEYS[index]] || '[]')]));
+      const payload = Object.fromEntries(['materials','exams','simulations','courses','questionSessions'].map((name,index) => [name, JSON.parse(current?.values[LEGACY_KEYS[index]] || '[]')]));
       payload.preferences = JSON.parse(current?.values[PREFERENCES_KEY] || '{}');
       return { payload, revision: current?.revision || 0, catalogRevision: current?.catalogRevision || 0,
         dirty: Boolean(current?.dirty), catalogDirty: Boolean(current?.catalogDirty) };
@@ -108,7 +122,7 @@
       if (!scope) throw new Error('Nenhuma conta ativa.');
       const previous = record(scope);
       if (previous?.dirty) localStorage.setItem(keyFor(scope) + ':recovery', JSON.stringify(previous));
-      const values = Object.fromEntries(LEGACY_KEYS.map((key,index) => [key, JSON.stringify(payload[['materials','exams','simulations','courses'][index]] || [])]));
+      const values = Object.fromEntries(LEGACY_KEYS.map((key,index) => [key, JSON.stringify(payload[['materials','exams','simulations','courses','questionSessions'][index]] || [])]));
       values[PREFERENCES_KEY] = JSON.stringify(payload.preferences || {});
       saveRecord(scope, values, { revision, catalogRevision, dirty: false, catalogDirty: false });
       window.dispatchEvent(new CustomEvent('peleja:storage-changed', { detail: { scope, generation } }));

@@ -694,7 +694,7 @@
       const hasAnkiNotes = Boolean(String(m.sketchyTags || '').trim());
       const matchesAnki = !ankiFilter || hasAnkiNotes;
       const examState = getMaterialExamState(m.id);
-      const matchesType = examType === 'all' || examState.linkedExams.some(exam => exam.type === examType && (subject === 'all' || exam.subject === subject));
+      const matchesType = examType === 'all' || (examType === 'pending' ? examState.hasPendingExam : examState.linkedExams.some(exam => exam.type === examType && (subject === 'all' || exam.subject === subject)));
       return matchesQuery && matchesSubject && matchesAnki && matchesType;
     });
     return filtered.sort(classSort);
@@ -935,16 +935,14 @@
   }
 
   function handlePrimaryActionClick() {
-    if (!canManageStructure()) {
-      showToast('A criação de apostilas, provas e eventos de residência é exclusiva do administrador.');
-      return;
-    }
+    if (!personalStore.writable) return;
     const menu = $('#newEventOptions'); menu.hidden = !menu.hidden;
     els.primaryActionBtn.setAttribute('aria-expanded', String(!menu.hidden));
   }
 
   function updatePrimaryAction() {
-    els.primaryActionBtn.hidden = !canManageStructure();
+    els.primaryActionBtn.hidden = !personalStore.writable;
+    $$('#newEventOptions [data-new-event]').forEach(button => { button.hidden = button.dataset.newEvent !== 'questions' && !canManageStructure(); });
     els.primaryActionBtn.textContent = '+ Novo evento';
   }
 
@@ -1192,7 +1190,7 @@
   async function exportData() {
     if (!personalStore.writable) { showToast('Entre na sua conta para exportar.'); return; }
     const owner = personalStore.scope, generation = personalStore.generation;
-    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations, courses: personalStore.snapshot().payload.courses, preferences: personalStore.snapshot().payload.preferences };
+    const payload = { app: 'Peleja', version: 14, owner: personalStore.scope, exportedAt: new Date().toISOString(), note: 'Backup pessoal com apostilas, histórico de questões, provas e simulados. Campos legados são preservados para recuperação.', materials: state.materials, exams: state.exams, simulations: state.simulations, courses: personalStore.snapshot().payload.courses, preferences: personalStore.snapshot().payload.preferences, questionSessions: personalStore.snapshot().payload.questionSessions };
     try { payload.cloudAttempts = await globalThis.PELEJA_CLOUD_BACKUP?.exportAttempts() || undefined; }
     catch { payload.note += ' Exportação local: tentativas online não puderam ser incluídas.'; }
     if (personalStore.scope !== owner || personalStore.generation !== generation) { showToast('A conta mudou. Exporte novamente.'); return; }
@@ -1208,6 +1206,7 @@
       if (personalStore.scope !== owner || personalStore.generation !== generation) throw new Error('A conta mudou. Importe novamente na conta correta.');
       if (!personalStore.canImport(Array.isArray(parsed) ? null : parsed.owner)) throw new Error('Este backup pertence a outra conta. Backups antigos são exclusivos de Vinícius.');
       if (!Array.isArray(rawMaterials)) throw new Error('Formato inválido');
+      if (parsed.questionSessions !== undefined && !Array.isArray(parsed.questionSessions)) throw new Error('Histórico de questões inválido.');
       if (parsed.courses !== undefined && !Array.isArray(parsed.courses)) throw new Error('Progresso dos cursos inválido.');
       if (!window.confirm('Importar este backup substituirá os dados atuais. Continuar?')) return;
       if (parsed.cloudAttempts) {
@@ -1217,6 +1216,7 @@
       if (!Array.isArray(parsed) && Array.isArray(parsed.exams)) exams = parsed.exams.map(normalizeExam); else exams = migrateLegacyExams(rawMaterials, materials);
       const simulations = !Array.isArray(parsed) && Array.isArray(parsed.simulations) ? parsed.simulations.map(normalizeSimulation) : [];
       if (canManageStructure()) personalStore.markCatalogDirty();
+      if (parsed.questionSessions !== undefined) personalStore.setItem('peleja_question_sessions_v1', JSON.stringify(parsed.questionSessions));
       if (parsed.courses !== undefined) personalStore.setItem('medstudy_courses_v1', JSON.stringify(parsed.courses));
       if (parsed.preferences && typeof parsed.preferences === 'object' && !Array.isArray(parsed.preferences)) personalStore.setItem('peleja_preferences_v1', JSON.stringify(parsed.preferences));
       state.materials = materials; state.exams = exams; state.simulations = simulations; saveAll(); renderAll(); showToast('Backup importado.');
@@ -1231,6 +1231,7 @@
     const text = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()); els.todayLabel.textContent = text.charAt(0).toUpperCase() + text.slice(1);
   }
 
+  let libraryScope;
   function reloadAccountData() {
     const rawMaterials = parseStoredArray(MATERIALS_KEY);
     state.materials = rawMaterials.map(normalizeMaterial);
@@ -1240,8 +1241,12 @@
       state.exams = migrateLegacyExams(rawMaterials, state.materials);
     }
     state.expandedExamIds.clear();
-    els.searchInput.value = '';
-    Object.keys(libraryFilterDefaults).forEach(clearLibraryFilter);
+    if (libraryScope !== personalStore.scope) {
+      libraryScope = personalStore.scope;
+      els.searchInput.value = '';
+      Object.keys(libraryFilterDefaults).forEach(clearLibraryFilter);
+      els.materialExamTypeFilter.value = 'pending';
+    }
     closeLibraryFilterOptions();
     if (personalStore.getItem(MATERIALS_KEY) === null) applyAcademicData(currentAcademicData);
     // Discard old drafts and rendered private details before the new identity is shown.
@@ -1276,10 +1281,10 @@
     }
     const typeSelect = els.materialExamTypeFilter;
     const current = typeSelect.value;
-    const types = [...new Set(state.exams.map(exam => exam.type))].sort((a,b) => a.localeCompare(b,'pt-BR',{numeric:true}));
-    const shortType = type => type.toLocaleLowerCase('pt-BR') === 'segunda chamada' ? '2ª CH' : type.toLocaleLowerCase('pt-BR') === 'prova final' ? 'PF' : type;
-    typeSelect.innerHTML = '<option value="all">Todas as provas</option>' + types.map(type => `<option value="${escapeHtml(type)}">${escapeHtml(shortType(type))}</option>`).join('');
-    typeSelect.value = types.includes(current) ? current : 'all';
+    const types = [...new Set(state.exams.map(exam => exam.type).filter(type => !['Segunda chamada','Prova final'].includes(type)))].sort((a,b) => a.localeCompare(b,'pt-BR',{numeric:true}));
+    const shortType = type => type.toLocaleLowerCase('pt-BR') === 'segunda chamada' ? '2CH' : type.toLocaleLowerCase('pt-BR') === 'prova final' ? 'PF' : type;
+    typeSelect.innerHTML = '<option value="all">Todas as provas</option><option value="pending">Prova pendente</option>' + [...types,'Segunda chamada','Prova final'].map(type => `<option value="${escapeHtml(type)}">${escapeHtml(shortType(type))}</option>`).join('');
+    typeSelect.value = ['all','pending',...types,'Segunda chamada','Prova final'].includes(current) ? current : 'pending';
     $('#libraryFilterOptions').innerHTML = Object.keys(libraryFilterDefaults).map(id => `<label><input type="checkbox" data-library-filter="${id}" ${!libraryFilterControl(id).hidden ? 'checked' : ''}> ${libraryFilterLabels[id]}</label>`).join('');
   }
   function closeLibraryFilterOptions() {
@@ -1331,6 +1336,7 @@
       if (!kind) return;
       $('#newEventOptions').hidden = true; els.primaryActionBtn.setAttribute('aria-expanded','false');
       if (kind === 'material') openMaterialModal();
+      else if (kind === 'questions') window.dispatchEvent(new Event('peleja:open-questions'));
       else if (kind === 'exam') openExamForm();
       else if (kind === 'simulation') openSimulationModal();
     });

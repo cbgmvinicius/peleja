@@ -1598,3 +1598,9 @@ button.extra-course-card:hover{transform:translateY(-2px);border-color:#657f68}
   .simulation-library-card .material-actions { grid-column:2; }
 }
 @media(max-width:480px) { .simulation-library-card .question-summary { grid-column:1 / -1; } .simulation-library-card .material-actions { grid-column:1 / -1; } }
+
+.standalone-session { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.standalone-session > div { flex:1; min-width:180px; }
+.standalone-session small { display:block; color:var(--muted); margin-top:6px; }
+
+#newEventOptions button[hidden] { display:none; }

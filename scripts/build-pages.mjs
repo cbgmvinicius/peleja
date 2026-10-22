@@ -16,7 +16,7 @@ if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.supabaseUrl||'') || !public
 const dest=path.join(root,'dist','public');
 await mkdir(path.dirname(dest),{recursive:true});
 await mkdir(dest); // Refuse reuse: no unrelated/private file can remain in the artifact.
-const files=['index.html','styles.css','courses-data.js','courses.js','progress.js','app.js','cloud.js','storage.js','ui.js','sw.js','supabase-config.js','academic-data.js','academic-data.json','manifest.webmanifest'];
+const files=['index.html','styles.css','courses-data.js','courses.js','progress.js','app.js','cloud.js','storage.js','ui.js','questions.js','sw.js','supabase-config.js','academic-data.js','academic-data.json','manifest.webmanifest'];
 await mkdir(path.join(dest,'assets'));
 await mkdir(path.join(dest,'assets/fonts'));
 for (const name of ['GoogleSans-latin.woff2','OFL.txt','SOURCE.md']) files.push('assets/fonts/'+name);
