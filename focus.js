@@ -1,3 +1,17 @@
+// Deterministic phases use active elapsed time, including breaks; no client transition writes.
+globalThis.PELEJA_FOCUS_PHASE = (session, elapsed) => {
+  const ms=Math.max(0,Number(elapsed)||0),focus=Number(session.planned_minutes)*60000;
+  if(!session.cycles_enabled||!focus)return {kind:'free',focusMs:ms,remaining:0,ratio:focus?Math.min(1,ms/focus):0};
+  const short=5*60000,long=15*60000,block=4*focus+3*short+long;
+  const blocks=Math.floor(ms/block);let rest=ms%block,focusMs=blocks*4*focus;
+  for(let i=0;i<4;i++){
+    const cycle=blocks*4+i+1;
+    if(rest<focus)return {kind:'focus',cycle,focusMs:focusMs+rest,remaining:focus-rest,ratio:rest/focus};
+    rest-=focus;focusMs+=focus;const duration=i===3?long:short;
+    if(rest<duration)return {kind:i===3?'long':'break',cycle,focusMs,remaining:duration-rest,ratio:rest/duration};
+    rest-=duration;
+  }
+};
 /* Server-timestamped focus sessions. No pause/end action is queued while offline. */
 (() => {
   const $=id=>document.getElementById(id),store=globalThis.PELEJA_STORAGE;
@@ -7,7 +21,15 @@
   const verbs={pause:'pausar',resume:'retomar',end:'encerrar'};
   const clock=ms=>{const s=Math.max(0,Math.floor(ms/1000));return `${Math.floor(s/3600)?Math.floor(s/3600)+':':''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;};
   function elapsed(s){return Number(s.elapsed_ms)+(s.running_since?Math.max(0,server+(performance.now()-anchor)-Date.parse(s.running_since)):0);}
-  function tick(){if(!active)return;const ms=elapsed(active);$('focusClock').textContent=clock(ms);const ratio=active.planned_minutes?Math.min(1,ms/(active.planned_minutes*60000)):0;$('focusDial').style.setProperty('--focus-progress',`${ratio*360}deg`);$('focusGoal').textContent=active.planned_minutes?`${active.planned_minutes} min planejados${ratio===1?' · meta atingida':''}`:'Tempo livre';}
+  function tick(){
+    if(!active)return;
+    const ms=elapsed(active),phase=PELEJA_FOCUS_PHASE(active,ms),cyclic=phase.kind!=='free';
+    const label=phase.kind==='focus'?'Em foco':phase.kind==='long'?'Intervalo longo':'Intervalo';
+    $('focusClock').textContent=clock(cyclic?Math.ceil(phase.remaining/1000)*1000:ms);
+    $('focusDial').style.setProperty('--focus-progress',`${phase.ratio*360}deg`);
+    $('focusGoal').textContent=cyclic?`Ciclo ${phase.cycle} · ${clock(phase.focusMs)} de foco`:active.planned_minutes?`${active.planned_minutes} min planejados${phase.ratio===1?' · meta atingida':''}`:'Tempo livre';
+    $('focusState').textContent=(active.status==='running'&&cyclic?label:statusNames[active.status])+(active.peer_id?' · Em dupla':'');
+  }
   function controls(){
     if(!active)return '';
     const button=(action,label,primary=false)=>`<button type="button" class="${primary?'primary-button':'ghost-button'}" data-focus-action="${action}">${label}</button>`;
@@ -20,9 +42,9 @@
     $('focusSetup').hidden=!!active;$('focusActive').hidden=!active;
     if(active){$('focusTitle').textContent=active.title;$('focusState').textContent=statusNames[active.status]+(active.peer_id?' · Em dupla':'');$('focusActions').innerHTML=controls();tick();}
     const history=(data?.sessions||[]).filter(s=>s.status==='ended');
-    $('focusHistory').innerHTML=history.length?history.map(s=>`<div class="focus-history-row"><div><strong>${escape(s.title)}</strong><small>${new Date(s.created_at).toLocaleDateString('pt-BR')}${s.peer_id?' · Em dupla':''}</small></div><span>${clock(s.elapsed_ms)}</span></div>`).join(''):'<p class="muted">Suas sessões concluídas aparecerão aqui.</p>';
+    $('focusHistory').innerHTML=history.length?history.map(s=>`<div class="focus-history-row"><div><strong>${escape(s.title)}</strong><small>${new Date(s.created_at).toLocaleDateString('pt-BR')}${s.peer_id?' · Em dupla':''}</small></div><span>${clock(PELEJA_FOCUS_PHASE(s,s.elapsed_ms).focusMs)}</span></div>`).join(''):'<p class="muted">Suas sessões concluídas aparecerão aqui.</p>';
     const peerValue=$('focusPeer').value;$('focusPeer').replaceChildren(new Option('Sozinho',''),...(data?.peers||[]).map(p=>new Option(p.name,p.id)));$('focusPeer').value=peerValue||'';
-    document.querySelector('[data-view="sessions"]').classList.toggle('has-invite',!!active&&(active.status==='invited'&&active.peer_id===data?.user_id||active.pending_by&&active.pending_by!==data?.user_id));
+    document.querySelector('[data-view="sessions"]').classList.toggle('has-invite',!!active&&(active.status==='invited'&&active.peer_id===data?.user_id||!!active.pending_by&&active.pending_by!==data?.user_id));
   }
   async function request(method,args){
     const version=epoch,id=++requestId;

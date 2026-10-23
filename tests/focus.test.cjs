@@ -4,12 +4,13 @@ const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222
 (async()=>{const db=new PGlite();try{
 await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create table public.account_handles(user_id uuid primary key,username text,active boolean);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.uid',true),'')::uuid$$;create function public.has_peleja_access() returns boolean language sql security definer set search_path='' as $$select exists(select 1 from public.account_handles where user_id=auth.uid() and active)$$;grant usage on schema public,auth to authenticated,anon;`);
 await db.exec(read('supabase-sessions.sql'));await db.exec(read('supabase-sessions.sql'));
+await db.exec(read('supabase-sessions-cycles.sql'));await db.exec(read('supabase-sessions-cycles.sql'));
 for(const [id,name] of [[A,'Ana'],[B,'Beto'],[C,'Caio']]){await db.query('insert into auth.users values($1)',[id]);await db.query('insert into public.account_handles values($1,$2,true)',[id,name]);}
 const user=async id=>{await db.exec('reset role');await db.query("select set_config('request.uid',$1,false)",[id]);await db.exec('set role authenticated');};
 const state=async()=> (await db.query('select public.focus_state() as data')).rows[0].data;
 const create=async(peer=null)=>(await db.query("select public.focus_create('Hematologia',25,$1) as data",[peer])).rows[0].data;
 const act=async(s,action)=>(await db.query('select public.focus_act($1,$2,$3) as data',[s.id,s.version,action])).rows[0].data;
-await user(A);let data=await create(B),s=data.sessions[0];assert.equal(s.status,'invited');assert.equal(s.running_since,null);
+await user(A);let data=await create(B),s=data.sessions[0];assert.equal(s.cycles_enabled,true);assert.equal(s.status,'invited');assert.equal(s.running_since,null);
 await assert.rejects(()=>act(s,'accept'),/Confirme/);await assert.rejects(()=>create(),/já tem/);
 await user(C);assert.equal((await state()).sessions.length,0);await assert.rejects(()=>act(s,'accept'),/indisponível/);assert.equal((await db.query('select * from public.focus_sessions')).rows.length,0);
 await assert.rejects(()=>db.query('update public.focus_sessions set elapsed_ms=100000'),/permission denied/);
