@@ -19,6 +19,7 @@ create table if not exists public.focus_sessions (
  check((pending_action is null)=(pending_by is null)),
  check(pending_by is null or pending_by=owner_id or pending_by=peer_id)
 );
+alter table public.focus_sessions add column if not exists cycles_enabled boolean not null default false;
 create index if not exists focus_owner_recent on public.focus_sessions(owner_id,created_at desc);
 create index if not exists focus_peer_recent on public.focus_sessions(peer_id,created_at desc) where peer_id is not null;
 alter table public.focus_sessions enable row level security;
@@ -53,8 +54,8 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(lock_id::text,714));
  end loop;
  if exists(select 1 from public.focus_sessions where status in ('invited','running','paused') and (owner_id=u or peer_id=u or owner_id=p_peer or peer_id=p_peer)) then raise exception 'Um dos participantes já tem uma sessão ou convite aberto';end if;
- insert into public.focus_sessions(owner_id,peer_id,title,planned_minutes,status,running_since)
- values(u,p_peer,btrim(p_title),p_minutes,case when p_peer is null then 'running' else 'invited' end,case when p_peer is null then clock_timestamp() end);
+ insert into public.focus_sessions(owner_id,peer_id,title,planned_minutes,cycles_enabled,status,running_since)
+ values(u,p_peer,btrim(p_title),p_minutes,p_minutes>0,case when p_peer is null then 'running' else 'invited' end,case when p_peer is null then clock_timestamp() end);
  return public.focus_state();
 end;$$;
 
