@@ -24,9 +24,11 @@ try {
   assert.match(d.getElementById('cardioQueueSummary').textContent,/15 aulas pendentes/);
   const snapshot=w.PELEJA_STORAGE.snapshot().payload;
   w.PELEJA_STORAGE.activateUser('person-b');
+  d.getElementById('enterCardio').click();
   assert(!d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
   assert.match(d.getElementById('cardioQueueSummary').textContent,/16 aulas pendentes/);
   w.PELEJA_STORAGE.activateUser('person-a');w.PELEJA_STORAGE.replaceRemote(snapshot,1,0);
+  d.getElementById('enterCardio').click();
   assert(d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').checked);
   d.querySelector('#extraCourses [data-course-lesson="ecg-m06-01"]').click();
   assert.equal(w.PELEJA_STORAGE.snapshot().payload.courses.length,0);

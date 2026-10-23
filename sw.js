@@ -1,5 +1,5 @@
-const CACHE_NAME = 'peleja-v25.26';
-const APP_SHELL = ['./', './index.html', './styles.css', './assets/anking.png', './assets/fonts/GoogleSans-latin.woff2', './courses-data.js', './courses.js', './progress.js', './storage.js', './app.js', './ui.js', './questions.js', './academic-data.js', './academic-data.json', './supabase-config.js', './cloud.js', './manifest.webmanifest'];
+const CACHE_NAME = 'peleja-v25.27';
+const APP_SHELL = ['./', './index.html', './styles.css', './assets/anking.png', './assets/fonts/GoogleSans-latin.woff2', './courses-data.js', './courses.js', './english.js', './english-data.js', './progress.js', './storage.js', './app.js', './ui.js', './appearance.js', './focus.js', './questions.js', './academic-data.js', './academic-data.json', './supabase-config.js', './cloud.js', './manifest.webmanifest'];
 const SHELL_URLS = new Set(APP_SHELL.map((path) => new URL(path, self.location.href).href));
 self.addEventListener('install', (event) => {
   // A new worker must not seed its cache with an older HTTP-cached release.

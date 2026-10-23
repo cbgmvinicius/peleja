@@ -33,7 +33,7 @@ try {
   api.handleMaterialSubmit({preventDefault(){}});assert(!state.exams.find(e=>e.id==='later').materialIds.includes(created.id));
   state.exams.push(exam('tie',today));
   api.openMaterialModal();els.subjectInput.value='Pediatria';els.subjectInput.dispatchEvent(new w.Event('input'));assert.equal(checked().length,0,'No arbitrary choice between same-day exams');
-  els.subjectInput.value='Sem provas';els.subjectInput.dispatchEvent(new w.Event('input'));els.titleInput.value='Sem vínculo';api.handleMaterialSubmit({preventDefault(){}});
+  els.subjectInput.value='HMP VII';els.subjectInput.dispatchEvent(new w.Event('input'));els.titleInput.value='Sem vínculo';api.handleMaterialSubmit({preventDefault(){}});
   assert(state.materials.some(m=>m.title==='Sem vínculo'));
   const material=(id,read=false)=>({id,title:id,subject:'Pediatria',classDate:'2026-01-01',classOrder:'',createdAt:'2026-01-01',read});
   state.materials=['past-only','future','today','unlinked','both'].map(id=>material(id));state.materials.push(material('read',true));

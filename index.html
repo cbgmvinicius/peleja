@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#3f5847" />
-  <meta name="description" content="Organizador acadêmico para acompanhar apostilas, provas, leituras e desempenho em questões." />
+  <meta name="description" content="Organizador acadêmico para acompanhar assuntos, provas, leituras e desempenho em questões." />
   <link rel="icon" type="image/png" sizes="32x32" href="./assets/peleja-icon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="./assets/peleja-icon-16.png" />
   <link rel="apple-touch-icon" sizes="192x192" href="./assets/peleja-icon-192.png" />
@@ -89,6 +89,7 @@
           <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m2 8 10-5 10 5-10 5zM6 10v7c4 3 8 3 12 0v-7M22 8v8"></path></svg></span>
           <span class="nav-label">Cursos extras</span>
         </button>
+        <button class="nav-item" data-view="sessions" title="Sessions"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Sessions</span></button>
       </nav>
 
       <div class="sidebar-footer">
@@ -133,21 +134,21 @@
           <p class="eyebrow" id="todayLabel"></p>
           <h1 id="pageTitle">Painel</h1>
         </div>
-        <div class="new-event-control"><button class="primary-button" id="primaryActionBtn" aria-expanded="false" aria-controls="newEventOptions">+ Novo evento</button><div id="newEventOptions" hidden><button type="button" data-new-event="material">Apostila</button><button type="button" data-new-event="questions">Questões</button><button type="button" data-new-event="exam">Faculdade</button><button type="button" data-new-event="simulation">Residência</button></div></div>
+        <button type="button" class="icon-button global-refresh" id="refreshStudyProgress" title="Sincronizar e atualizar" aria-label="Sincronizar e atualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.5 7a8 8 0 0 1 13-1L20 9M4 15l1.5 3a8 8 0 0 0 13-1"/></svg></button><div class="new-event-control"><button class="primary-button" id="primaryActionBtn" aria-expanded="false" aria-controls="newEventOptions">+ Novo evento</button><div id="newEventOptions" hidden><button type="button" data-new-event="material">Assunto</button><button type="button" data-new-event="questions">Questões</button><button type="button" data-new-event="exam">Faculdade</button><button type="button" data-new-event="simulation">Residência</button></div></div>
       </header>
 
       <p id="cloudSyncNotice" class="sync-notice" role="status" aria-live="polite" hidden></p>
 
       <section class="view active" id="dashboardView">
         <article class="panel study-comparison" id="studyComparison">
-          <div class="panel-header"><div><p class="eyebrow">TURMA</p><h3>Progresso nos estudos</h3></div><button class="text-button" id="refreshStudyProgress">Atualizar</button></div>
-          <div class="study-progress-controls"><div class="study-progress-tabs" role="group" aria-label="Comparar progresso"><button type="button" data-progress-kind="materials" aria-pressed="true">Apostilas</button><button type="button" data-progress-kind="courses" aria-pressed="false">CardioPapers</button></div>
+
+          <div class="study-progress-controls"><div class="study-progress-tabs" role="group" aria-label="Comparar progresso"><button type="button" data-progress-kind="materials" aria-pressed="true">Assuntos</button><button type="button" data-progress-kind="courses" aria-pressed="false">CardioPapers</button></div>
           <label class="study-progress-switch" id="studyProgressScopeWrap"><span>Todas as provas pendentes</span><input type="checkbox" role="switch" id="studyProgressScope" aria-label="Mostrar apenas a próxima prova"><span class="study-switch-track" aria-hidden="true"></span><span>Próxima prova</span></label></div>
-          <p id="studyProgressHint" class="study-progress-hint"></p><div id="studyProgressList" class="study-progress-list"></div><p id="studyProgressStatus" class="study-progress-hint" role="status"></p>
+          <p id="studyProgressHint" hidden></p><div id="studyProgressList" class="study-progress-list"></div><p id="studyProgressStatus" class="study-progress-hint" role="status"></p>
         </article>
         <div class="dashboard-grid dashboard-focus-grid">
           <article class="panel">
-            <div class="panel-header"><div><p class="eyebrow">APOSTILAS</p><h3>Pendentes de estudo</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
+            <div class="panel-header"><div><p class="eyebrow">ASSUNTOS</p><h3>Pendentes de estudo</h3></div><button class="text-button" data-go-view="materials">Ver todas</button></div>
             <div id="readingQueue" class="queue-list"></div>
           </article>
           <article class="panel">
@@ -168,10 +169,10 @@
 
       <section class="view" id="materialsView">
         <div class="toolbar library-toolbar">
-          <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" aria-label="Buscar apostilas" placeholder="Buscar apostila, disciplina ou query..." /></div>
+          <div class="search-box"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" aria-label="Buscar assuntos" placeholder="Buscar assunto, disciplina ou query..." /></div>
           <select id="subjectFilter" aria-label="Filtrar por disciplina"><option value="all">Todas as disciplinas</option></select>
           <select id="materialExamTypeFilter" aria-label="Filtrar por prova"><option value="all">Todas as provas</option><option value="pending" selected>Prova pendente</option></select>
-          <label id="ankiFilterControl" class="anki-filter-control" hidden><img src="assets/anking.png" alt="AnKing"><input id="ankiFilter" type="checkbox" role="switch" aria-label="Somente apostilas com AnKing"><span class="switch-track" aria-hidden="true"></span></label>
+          <label id="ankiFilterControl" class="anki-filter-control" hidden><img src="assets/anking.png" alt="AnKing"><input id="ankiFilter" type="checkbox" role="switch" aria-label="Somente assuntos com AnKing"><span class="switch-track" aria-hidden="true"></span></label>
           <button id="clearLibraryFilters" class="ghost-button" type="button">Limpar filtros</button>
           <div class="library-filter-settings">
             <button id="configureLibraryFilters" class="action-button" type="button" aria-label="Escolher filtros visíveis" title="Escolher filtros visíveis" aria-expanded="false" aria-controls="libraryFilterOptions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7m4 0h7M3 12h2m4 0h12M3 18h11m4 0h3M10 3v6M5 9v6M14 15v6"/></svg></button>
@@ -216,19 +217,22 @@
         </details>
       </section>
 
+      <section class="view" id="sessionsView">
+        <div class="focus-layout"><article class="panel focus-panel"><p class="eyebrow">SESSIONS</p>
+        <form id="focusSetup"><h2>Hora de focar</h2><label><span>Assunto</span><select id="focusSubject" required></select></label><button type="submit" id="focusStart" class="focus-preview-dial" aria-label="Começar sessão" title="Começar sessão"><span aria-hidden="true">▶</span></button><div class="form-grid"><label><span>Duração</span><select id="focusMinutes"><option value="0">Tempo livre</option><option value="25" selected>25 minutos</option><option value="45">45 minutos</option><option value="50">50 minutos</option><option value="60">60 minutos</option><option value="90">90 minutos</option></select></label><label><span>Companhia</span><select id="focusPeer"><option value="">Sozinho</option></select></label></div></form>
+        <div id="focusActive" hidden><h2 id="focusTitle"></h2><p id="focusState"></p><div id="focusDial" class="focus-dial"><span id="focusClock" aria-live="off">00:00</span></div><p id="focusGoal"></p><div id="focusActions" class="focus-actions"></div></div><p id="focusMessage" role="status"></p></article>
+        <article class="panel focus-history"><h2>Histórico</h2><div id="focusHistory"></div></article></div>
+      </section>
       <section class="view" id="rankingView">
-        <div class="ranking-actions">
-          <button type="button" class="ghost-button" id="openRankGuide">Entenda os ranks</button>
-          <div class="ranking-cloud-state"><span id="rankingSyncState" role="status">Modo local</span><button type="button" class="ghost-button" id="rankingSyncButton">Atualizar</button></div>
-        </div>
+
 
         <div class="backend-notice" id="rankingBackendNotice" hidden></div>
 
-        <div class="ranking-tabs" role="group" aria-label="Tipo de ranking">
+<div class="ranking-header">        <div class="ranking-tabs" role="group" aria-label="Tipo de ranking">
           <button type="button" class="ranking-tab active" data-ranking-tab="simulations">Residência</button>
           <button type="button" class="ranking-tab" data-ranking-tab="faculty">Faculdade</button>
-          <button type="button" class="ranking-tab" data-ranking-tab="materials">Apostilas</button>
-        </div>
+          <button type="button" class="ranking-tab" data-ranking-tab="materials">Assuntos</button>
+        </div><div class="ranking-actions"><button type="button" class="icon-button" id="openRankGuide" title="Entenda os ranks" aria-label="Entenda os ranks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 1 1 4 3c-1 .4-1 1-1 2M12 17v1"/></svg></button><button type="button" class="icon-button" id="rankingSyncButton" title="Atualizar ranking" aria-label="Atualizar ranking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.5 7a8 8 0 0 1 13-1L20 9M4 15l1.5 3a8 8 0 0 0 13-1"/></svg></button><span id="rankingSyncState" class="sr-only" role="status"></span></div></div>
 
         <div class="ranking-filters">
           <div id="rankingCutModes" class="filter-chips" role="group" aria-label="Comparar resultados">
@@ -277,32 +281,32 @@
   </div>
   <div class="modal-backdrop" id="materialModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-header"><div><p class="eyebrow">APOSTILA</p><h2 id="modalTitle">Adicionar nova apostila</h2></div><button class="icon-button" id="closeModal" aria-label="Fechar">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">ASSUNTO</p><h2 id="modalTitle">Adicionar novo assunto</h2></div><button class="icon-button" id="closeModal" aria-label="Fechar">×</button></div>
       <form id="materialForm">
         <input type="hidden" id="materialId" />
         <div class="form-grid">
-          <label><span>Disciplina *</span><input id="subjectInput" list="materialSubjects" required placeholder="Ex.: Pediatria" /><datalist id="materialSubjects"></datalist></label>
-          <label><span>Título da apostila *</span><input id="titleInput" required placeholder="Ex.: PED02 ANEMIAS EM PEDIATRIA" /></label>
+          <label><span>Disciplina *</span><select id="subjectInput" required></select><datalist id="materialSubjects"></datalist></label>
+          <label><span>Título do assunto *</span><input id="titleInput" required placeholder="Ex.: PED02 ANEMIAS EM PEDIATRIA" /></label>
           <label><span>Data da aula</span><input id="classDateInput" type="date" /></label>
-          <label><span>Número/ordem da aula</span><input id="classOrderInput" type="number" min="0" step="1" placeholder="Ex.: 3" /></label>
-          <fieldset class="full-width material-exam-picker"><legend>Provas desta apostila</legend><p id="materialExamHint">Escolha a disciplina para ver as provas.</p><div id="materialExamOptions"></div></fieldset>
-          <label><span>Especialidade</span><input id="specialtyInput" list="materialSpecialties" placeholder="Ex.: Hematologia, Neurologia, Dermatologia"><datalist id="materialSpecialties"></datalist></label>
-          <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea><small>Cole a query completa do Anki. Todos os participantes poderão copiar a seleção pelo ícone do AnKing. Só o administrador pode editá-la.</small></label>
-          <div class="full-width question-history-section">
+          <label hidden><span>Número/ordem da aula</span><input id="classOrderInput" type="number" min="0" step="1" placeholder="Ex.: 3" /></label>
+          <fieldset class="full-width material-exam-picker"><legend>Provas deste assunto</legend><p id="materialExamHint">Escolha a disciplina para ver as provas.</p><div id="materialExamOptions"></div></fieldset>
+          <label><span>Especialidade</span><select id="specialtyInput"></select><datalist id="materialSpecialties"></datalist></label>
+          <label class="full-width"><span>AnKing Notes</span><textarea id="sketchyTagsInput" rows="3" placeholder="Ex.: nid:1473385372338,1478833994885,..."></textarea></label>
+          <div class="full-width question-history-section" hidden>
             <div class="question-history-heading"><div><span>HISTÓRICO DE QUESTÕES</span><small>Os totais são calculados automaticamente a partir das entradas registradas.</small></div><button type="button" class="ghost-button" id="openQuestionManagerFromMaterial">Gerenciar entradas</button></div>
-            <div class="question-summary question-summary-editor" aria-label="Resumo de questões desta apostila">
+            <div class="question-summary question-summary-editor" aria-label="Resumo de questões deste assunto">
               <div class="question-summary-total"><span>QUESTÕES</span><b id="modalQuestionsTotal">0</b></div>
               <div class="question-summary-correct good"><span>ACERTOS</span><b id="modalCorrectTotal">0</b></div>
               <div class="question-summary-wrong bad"><span>ERROS</span><b id="modalWrongTotal">0</b></div>
             </div>
-            <small id="questionHistoryHint">Salve a apostila primeiro; depois use o botão +Q no cartão para registrar suas sessões.</small>
+            <small id="questionHistoryHint">Salve o assunto primeiro; depois use o botão +Q no cartão para registrar suas sessões.</small>
           </div>
-          <label class="checkbox-label made-checkbox"><input id="madeInput" type="checkbox" /><span>Apostila criada</span></label>
-          <label class="checkbox-label"><input id="readInput" type="checkbox" /><span>Já concluí o estudo</span></label>
+          <label class="checkbox-label made-checkbox" hidden><input id="madeInput" type="checkbox" /><span>Assunto criado</span></label>
+          <label class="checkbox-label" hidden><input id="readInput" type="checkbox" /><span>Já concluí o estudo</span></label>
           <label class="full-width"><span>Observações</span><textarea id="notesInput" rows="3" placeholder="Pontos para revisar, dificuldade, páginas importantes..."></textarea></label>
         </div>
         <div class="validation-message" id="validationMessage" role="alert"></div>
-        <div class="modal-actions"><button type="button" class="ghost-button" id="cancelModal">Cancelar</button><button type="submit" class="primary-button">Salvar apostila</button></div>
+        <div class="modal-actions"><button type="button" class="ghost-button" id="cancelModal">Cancelar</button><button type="submit" class="primary-button">Salvar assunto</button></div>
       </form>
     </div>
   </div>
@@ -329,18 +333,18 @@
 
   <div class="modal-backdrop" id="standaloneQuestionsModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="standaloneQuestionsTitle">
-      <div class="modal-header"><div><p class="eyebrow">QUESTÕES</p><h2 id="standaloneQuestionsTitle">Questões por disciplina</h2><p class="question-modal-subtitle">Registre uma sessão por disciplina ou especialidade, sem precisar vincular a uma apostila.</p></div><button type="button" class="icon-button" id="closeStandaloneQuestions" aria-label="Fechar">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">QUESTÕES</p><h2 id="standaloneQuestionsTitle">Questões por disciplina</h2></div><button type="button" class="icon-button" id="closeStandaloneQuestions" aria-label="Fechar">×</button></div>
       <form id="standaloneQuestionsForm">
         <input type="hidden" id="sessionId">
         <div class="form-grid">
-          <label><span>Disciplina *</span><input id="sessionSubject" list="sessionSubjects" required maxlength="120" placeholder="Ex.: Clínica Médica III"><datalist id="sessionSubjects"></datalist></label>
-          <label><span>Especialidade (opcional)</span><input id="sessionSpecialty" list="sessionSpecialties" maxlength="120" placeholder="Ex.: Hematologia"><datalist id="sessionSpecialties"></datalist></label>
+          <label><span>Disciplina *</span><select id="sessionSubject" required></select><datalist id="sessionSubjects"></datalist></label>
+          <label><span>Especialidade (opcional)</span><select id="sessionSpecialty"></select><datalist id="sessionSpecialties"></datalist></label>
           <label><span>Data *</span><input id="sessionDate" type="date" required></label>
           <label><span>Total de questões *</span><input id="sessionTotal" type="number" min="1" max="100000" step="1" required></label>
           <label><span>Acertos *</span><input id="sessionCorrect" type="number" min="0" max="100000" step="1" required></label>
           <label><span>Erros *</span><input id="sessionWrong" type="number" min="0" max="100000" step="1" required></label>
         </div>
-        <p class="question-modal-subtitle">Entra no ranking Apostilas, em Todas as provas. Como não há vínculo com uma prova, não entra no recorte PR1, PR2 etc. Registre apenas questões que ainda não lançou nas apostilas.</p>
+        <p class="question-modal-subtitle">Conta no ranking geral de Assuntos. Registre apenas questões que ainda não lançou na Biblioteca.</p>
         <div id="sessionMessage" class="validation-message" role="status"></div>
         <div class="modal-actions"><button type="button" id="cancelSessionEdit" class="ghost-button" hidden>Cancelar edição</button><button type="submit" id="saveSession" class="primary-button">Adicionar questões</button></div>
       </form>
@@ -350,7 +354,7 @@
 
   <div class="modal-backdrop" id="examFormModal" aria-hidden="true">
     <div class="modal exam-form-modal" role="dialog" aria-modal="true" aria-labelledby="examFormTitle">
-      <div class="modal-header"><div><p class="eyebrow">PROVA</p><h2 id="examFormTitle">Adicionar prova</h2><p class="question-modal-subtitle">Cadastre a avaliação e vincule o conteúdo diretamente às apostilas da biblioteca.</p></div><button class="icon-button" id="closeExamFormModal" aria-label="Fechar">×</button></div>
+      <div class="modal-header"><div><p class="eyebrow">PROVA</p><h2 id="examFormTitle">Adicionar prova</h2><p class="question-modal-subtitle">Cadastre a avaliação e vincule o conteúdo diretamente aos assuntos da biblioteca.</p></div><button class="icon-button" id="closeExamFormModal" aria-label="Fechar">×</button></div>
       <form id="examForm">
         <input type="hidden" id="examId" />
         <div class="form-grid">
@@ -358,7 +362,7 @@
           <label><span>Prova *</span><select id="examTypeInput" required><option value="">Selecione...</option><option value="PR1.1">PR1.1</option><option value="PR1.2">PR1.2</option><option value="PR2.1">PR2.1</option><option value="PR2.2">PR2.2</option><option value="PR1">PR1</option><option value="PR2">PR2</option><option value="Segunda chamada">Segunda chamada</option><option value="Prova final">Prova final</option><option value="Prova">Prova (sem subdivisão)</option></select></label>
           <label><span>Data da prova *</span><input id="examDateInput" type="date" required /></label>
           <div class="full-width exam-material-selector">
-            <div class="exam-material-selector-heading"><div><span>APOSTILAS DA PROVA *</span><small>Marque as apostilas desta disciplina que entram nesta avaliação.</small></div><small id="examMaterialSelectionCount">0 selecionadas</small></div>
+            <div class="exam-material-selector-heading"><div><span>ASSUNTOS DA PROVA *</span><small>Marque os assuntos desta disciplina que entram nesta avaliação.</small></div><small id="examMaterialSelectionCount">0 selecionadas</small></div>
             <div id="examMaterialOptions" class="exam-material-options"></div>
           </div>
           <div class="full-width exam-results-section">
@@ -464,6 +468,11 @@
     </div>
   </div>
 
+
+  <details id="profileMenu" class="profile-menu"><summary aria-label="Menu do perfil" title="Perfil"><span id="profileAvatar" class="profile-avatar">P</span></summary><div class="profile-options"><button id="profileSettings" type="button">Configurações</button><button id="profileLogout" type="button">Sair</button><button id="profileTutorial" type="button">Tutorial</button></div></details>
+  <div class="modal-backdrop" id="settingsModal" aria-hidden="true"><div class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="modal-header"><h2 id="settingsTitle">Configurações</h2><button class="icon-button" id="closeSettings" aria-label="Fechar">×</button></div><div class="form-grid"><label><span>Tema</span><select id="appearanceTheme"><option value="light">Claro</option><option value="dark">Escuro</option></select></label><label><span>Navegação</span><select id="appearanceLayout"><option value="top">Barra superior</option><option value="side">Barra lateral</option></select></label></div><div class="settings-data"><button class="ghost-button" id="settingsAccount">Meu perfil</button><button class="ghost-button" id="settingsExport">Exportar dados</button><button class="ghost-button" id="settingsImport">Importar dados</button></div><p id="settingsMessage" role="status"></p></div></div>
+  <div class="modal-backdrop" id="tutorialModal" aria-hidden="true"><div class="modal tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle"><div class="modal-header"><small id="tutorialCount"></small><button class="icon-button" id="closeTutorial" aria-label="Pular tutorial" title="Pular tutorial">×</button></div><h2 id="tutorialTitle"></h2><p id="tutorialText"></p><div class="modal-actions"><button class="ghost-button" id="tutorialBack">Voltar</button><button class="primary-button" id="tutorialNext">Próximo</button></div></div></div>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
@@ -472,9 +481,10 @@
   <script src="app.js"></script>
   <script src="cloud.js"></script>
   <script src="questions.js"></script>
+  <script src="appearance.js"></script>
   <script src="ui.js"></script>
   <script src="courses-data.js"></script>
-  <script src="courses.js"></script>
-  <script src="progress.js"></script>
+  <script src="english-data.js"></script><script src="english.js"></script><script src="courses.js"></script>
+  <script src="progress.js"></script><script src="focus.js"></script>
 </body>
 </html>

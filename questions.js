@@ -23,8 +23,7 @@
   function suggestions() {
     const materials=JSON.parse(store.getItem('medstudy_materials_v1') || '[]');
     const all=[...materials,...sessions()];
-    $('sessionSubjects').innerHTML=[...new Set(all.map(e=>e.subject).filter(Boolean))].sort().map(s=>`<option value="${escape(s)}"></option>`).join('');
-    $('sessionSpecialties').innerHTML=[...new Set(all.filter(e=>e.subject===fields.subject.value).map(e=>e.specialty).filter(Boolean))].sort().map(s=>`<option value="${escape(s)}"></option>`).join('');
+    globalThis.PELEJA_SUBJECTS(fields.subject,fields.specialty,all);
   }
   window.addEventListener('peleja:open-questions',()=>{
     if (!store.writable) return;
@@ -34,7 +33,7 @@
   $('closeStandaloneQuestions').addEventListener('click',close);
   modal.addEventListener('click',e=>{if(e.target===modal)close();});
   $('cancelSessionEdit').addEventListener('click',reset);
-  fields.subject.addEventListener('input',suggestions);
+  fields.subject.addEventListener('input',()=>{fields.specialty.value='';suggestions();});
   // Derive the remaining count while still allowing any field to be corrected.
   const completeCounts=()=>{const total=Number(fields.questions.value),correct=Number(fields.correct.value);if(fields.questions.value!=='' && fields.correct.value!=='' && Number.isInteger(total) && Number.isInteger(correct) && total>=correct) fields.wrong.value=total-correct;};
   fields.questions.addEventListener('input',completeCounts);fields.correct.addEventListener('input',completeCounts);
@@ -53,7 +52,7 @@
     const edit=e.target.closest('[data-edit-session]'),remove=e.target.closest('[data-delete-session]');
     if(!currentOwner())return;
     const id=edit?.dataset.editSession || remove?.dataset.deleteSession,entry=sessions().find(e=>e.id===id);if(!entry)return;
-    if(edit){reset();$('sessionId').value=id;for(const [name,el] of Object.entries(fields))el.value=entry[name] || (entry[name]===0 ? 0 : '');$('saveSession').textContent='Salvar alteração';$('cancelSessionEdit').hidden=false;fields.subject.focus();}
+    if(edit){reset();globalThis.PELEJA_SUBJECTS(fields.subject,fields.specialty,[...sessions(),...JSON.parse(store.getItem('medstudy_materials_v1')||'[]')],entry.subject,entry.specialty);$('sessionId').value=id;for(const [name,el] of Object.entries(fields))el.value=entry[name] || (entry[name]===0 ? 0 : '');$('saveSession').textContent='Salvar alteração';$('cancelSessionEdit').hidden=false;fields.subject.focus();}
     if(remove && confirm('Excluir esta sessão de questões?')) {persist(sessions().filter(e=>e.id!==id));reset();render();}
   });
 })();
