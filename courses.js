@@ -10,6 +10,7 @@
   const anchor = scheduled.findIndex(l => l.id === catalog.anchorLesson);
   const dates = new Map(scheduled.map((l, i) => [l.id, new Date(Date.parse(catalog.anchorDate + 'T12:00:00Z') + (i-anchor)*86400000).toISOString().slice(0,10)]));
   let courseOpen = false;
+  let courseOwner = store.scope;
   let pendingOnly = false;
   let expanded = null;
   const escape = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -28,17 +29,21 @@
     const pending = scheduled.filter(l => dates.get(l.id)<=day && !watched.has(l.id));
     const dueToday = pending.filter(l => dates.get(l.id)===day);
     const shown = [...dueToday,...pending.filter(l => dates.get(l.id)!==day)].slice(0,4);
-    document.getElementById('cardioQueueSummary').textContent = !store.writable ? 'Entre na sua conta para acompanhar suas aulas.' : pending.length ? `${pending.length} aula${pending.length===1?' pendente':'s pendentes'} até hoje. Fique em dia no seu ritmo.` : 'Você está em dia! Nenhuma aula pendente até hoje.';
+    document.getElementById('cardioQueueSummary').textContent = !store.writable ? 'Entre na sua conta para acompanhar suas aulas.' : pending.length ? `${pending.length} aula${pending.length===1?' pendente':'s pendentes'} até hoje.` : 'Você está em dia! Nenhuma aula pendente até hoje.';
     queue.innerHTML = store.writable ? shown.map(l => row(l, false, true)).join('') : '';
+    if(courseOpen==='english'&&globalThis.PELEJA_ENGLISH_UI?.allowed()){
+      globalThis.PELEJA_ENGLISH_UI.render();document.getElementById('backToCourses').onclick=()=>{courseOpen=false;render();};return;
+    }
     if (!courseOpen) {
-      root.innerHTML = `<div class="extra-course-grid"><button class="panel extra-course-card" id="enterCardio"><span class="course-symbol">${heart}</span><span class="eyebrow">UMA AULA POR DIA</span><h2>CardioPapers ECG</h2><p>Do primeiro traçado à prática clínica.</p><span>${lessons.filter(l=>watched.has(l.id)).length} de ${lessons.length} aulas vistas</span><strong class="course-link">Ver aulas →</strong></button><article class="panel extra-course-card course-soon"><span class="course-symbol" aria-hidden="true">Aa</span><span class="eyebrow">INGLÊS</span><h2>Mário Vergara</h2><p>Seu próximo espaço de estudos.</p><span class="course-tag">Em breve</span></article></div>`;
+      root.innerHTML = `<div class="extra-course-grid"><button class="panel extra-course-card" id="enterCardio"><span class="course-symbol">${heart}</span><div class="course-card-copy"><h2>CardioPapers ECG</h2><span>${lessons.filter(l=>watched.has(l.id)).length} de ${lessons.length} aulas vistas</span></div><span class="course-link" aria-hidden="true">→</span></button>${globalThis.PELEJA_ENGLISH_UI?.allowed()?`<button type="button" class="panel extra-course-card" id="enterEnglish"><span class="course-symbol" aria-hidden="true">Aa</span><div class="course-card-copy"><h2>Mairo Vergara</h2><span>${globalThis.PELEJA_ENGLISH_UI.count()} de ${globalThis.PELEJA_ENGLISH_UI.total} aulas vistas</span></div><span class="course-link" aria-hidden="true">→</span></button>`:''}</div>`;
       document.getElementById('enterCardio').addEventListener('click',openCourse);
+      document.getElementById('enterEnglish')?.addEventListener('click',()=>{courseOpen='english';render();});
       return;
     }
     const seen = lessons.filter(l=>watched.has(l.id)).length;
     const current = catalog.modules.find(m=>m.lessons.some(l=>dates.get(l.id)===day)) || catalog.modules.find(m=>m.lessons.some(l=>pending.includes(scheduled.find(x=>x.id===l.id)))) || catalog.modules[0];
     const open = expanded || new Set([current.id]);
-    root.innerHTML = `<button class="text-button course-back" id="backToCourses">← Cursos extras</button><article class="panel course-overview"><span class="eyebrow">UMA AULA POR DIA</span><h2>CardioPapers ECG</h2><p>Seu progresso individual, uma aula de cada vez.</p><div class="course-stats"><strong>${seen}<small>de ${lessons.length} vistas</small></strong><strong>${pending.length}<small>pendentes até hoje</small></strong></div><progress max="${lessons.length}" value="${seen}" aria-label="Progresso no CardioPapers"></progress><p class="course-schedule-note">Uma aula por dia, inclusive fins de semana. Aulas extras sem prazo.</p></article><div class="course-filter"><label><input type="checkbox" id="coursePendingOnly" ${pendingOnly?'checked':''}> Só pendentes até hoje</label>${scheduled.some(l=>dates.get(l.id)===day)?'<button class="text-button" id="jumpToToday">Aula de hoje ↓</button>':''}</div><div class="course-modules">${catalog.modules.map(m=>{
+    root.innerHTML = `<button class="text-button course-back" id="backToCourses">← Cursos extras</button><article class="panel course-overview"><span class="eyebrow">UMA AULA POR DIA</span><h2>CardioPapers ECG</h2><div class="course-stats"><strong>${seen}<small>de ${lessons.length} vistas</small></strong><strong>${pending.length}<small>pendentes até hoje</small></strong></div><progress max="${lessons.length}" value="${seen}" aria-label="Progresso no CardioPapers"></progress><p class="course-schedule-note">Uma aula por dia, inclusive fins de semana. Aulas extras sem prazo.</p></article><div class="course-filter"><label><input type="checkbox" id="coursePendingOnly" ${pendingOnly?'checked':''}> Só pendentes até hoje</label>${scheduled.some(l=>dates.get(l.id)===day)?'<button class="text-button" id="jumpToToday">Aula de hoje ↓</button>':''}</div><div class="course-modules">${catalog.modules.map(m=>{
       const visible=m.lessons.filter(l=>!pendingOnly || (dates.get(l.id)<=day && !watched.has(l.id)));
       if(!visible.length) return '';
       return `<details class="panel course-module" data-module="${m.id}" ${open.has(m.id)||pendingOnly?'open':''}><summary><span>${escape(m.title)}${m.scheduled?'':' · Extra'}</span><small>${m.lessons.filter(l=>watched.has(l.id)).length}/${m.lessons.length}</small></summary><div>${visible.map(l=>row(l,watched.has(l.id))).join('')}</div></details>`;
@@ -70,9 +75,11 @@
     }
   }
   root.addEventListener('change',change);
+  root.addEventListener('click',event=>{if(event.target.closest('#backToCourses')){courseOpen=false;render();}});
   queue.addEventListener('change',change);
   document.getElementById('openCardioCourse').onclick=()=>{document.querySelector('[data-view="courses"]').click();openCourse();};
-  window.addEventListener('peleja:storage-changed',()=>{expanded=null;render();});
+  window.addEventListener('peleja:storage-changed',()=>{if(courseOwner!==store.scope){courseOpen=false;courseOwner=store.scope;expanded=null;}render();});
+  window.addEventListener('peleja:access-changed',()=>{if(!globalThis.PELEJA_ENGLISH_UI?.allowed())courseOpen=false;render();});
   window.addEventListener('peleja:data-changed',render);
   window.addEventListener('peleja:view-changed',event=>{
     if(event.detail?.view==='courses') courseOpen=false;

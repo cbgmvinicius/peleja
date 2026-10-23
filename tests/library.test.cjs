@@ -40,12 +40,12 @@ const w=dom.window,d=w.document;
   assert(d.querySelector('.material-title-row .material-indicator'));assert(d.querySelector('.material-indicators .anki-copy'));
   const indicator=d.querySelector('[data-indicator-id="made-m1"]');indicator.click();assert(indicator.classList.contains('show-label'));indicator.click();assert(!indicator.classList.contains('show-label'));
   // The editor remains administrator-only; local owner permissions are restored in a new local page by storage.
-  w.PELEJA_ACCESS={isAdmin:true};a.openMaterialModal(a.state.materials[0]);d.getElementById('specialtyInput').value='Hematologia';a.handleMaterialSubmit({preventDefault(){}});assert.equal(a.state.materials[0].specialty,'Hematologia');
+  w.PELEJA_ACCESS={isAdmin:true};a.state.materials[0].specialty='Hematologia';a.state.materials[0].read=true;a.state.materials[0].classOrder=7;a.openMaterialModal(a.state.materials[0]);assert.equal(d.getElementById('subjectInput').tagName,'SELECT');assert.equal(d.getElementById('specialtyInput').value,'Hematologia');a.handleMaterialSubmit({preventDefault(){}});assert.equal(a.state.materials[0].specialty,'Hematologia');assert.equal(a.state.materials[0].read,true);assert.equal(a.state.materials[0].made,true);assert.equal(a.state.materials[0].classOrder,7);
   d.getElementById('primaryActionBtn').click();assert(!d.getElementById('newEventOptions').hidden);d.querySelector('[data-new-event="exam"]').click();assert(d.getElementById('examFormModal').classList.contains('open'));
   w.eval(read('questions.js'));w.confirm=()=>true;
   d.querySelector('[data-new-event="questions"]').click();
   assert(d.getElementById('standaloneQuestionsModal').classList.contains('open'));
-  const set=(id,value)=>{d.getElementById(id).value=value;};
+  const set=(id,value)=>{d.getElementById(id).value=value;d.getElementById(id).dispatchEvent(new w.Event('input'));};
   set('sessionSubject','Clínica Médica III');set('sessionSpecialty','Hematologia');set('sessionTotal','20');set('sessionCorrect','15');
   d.getElementById('sessionCorrect').dispatchEvent(new w.Event('input'));assert.equal(d.getElementById('sessionWrong').value,'5');
   const submit=()=>d.getElementById('standaloneQuestionsForm').dispatchEvent(new w.Event('submit',{cancelable:true}));submit();

@@ -476,7 +476,13 @@
       } finally { if (state.syncing === account) state.syncing = false; }
     },
   };
+  async function focusRPC(name,args={}) {
+    const account=accountContext();if(!db||!account)throw new Error('Entre na conta para usar Sessions.');
+    const result=await db.rpc(name,args);assertAccount(account);if(result.error)throw result.error;return result.data;
+  }
+  globalThis.PELEJA_FOCUS={load:()=>focusRPC('focus_state'),create:args=>focusRPC('focus_create',args),act:args=>focusRPC('focus_act',args)};
   globalThis.PELEJA_PROGRESS = {
+    sync: () => sync({quiet:true}),
     async load(day) {
       const account = accountContext();
       if (!db || !account) throw new Error('Entre na sua conta.');

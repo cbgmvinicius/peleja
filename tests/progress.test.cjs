@@ -40,9 +40,10 @@ console.log('PASS Shared progress: private aggregate only, active members, anony
 const dom=new JSDOM(read('index.html'),{url:'https://peleja.test',runScripts:'outside-only'});w=dom.window;
 w.PELEJA_ACCESS={signedIn:true,accessAllowed:true};w.PELEJA_STORAGE={snapshot:()=>({dirty:false})};
 w.PELEJA_PROGRESS={load:async()=>rows};w.eval(read('progress.js'));await new Promise(r=>setTimeout(r,0));
-const d=w.document;assert.equal(d.querySelectorAll('.study-progress-row').length,3);
-assert.match(d.getElementById('studyProgressList').textContent,/2 de 3 apostilas estudadas/);
-d.getElementById('studyProgressScope').click();assert.match(d.getElementById('studyProgressList').textContent,/1 de 2 apostilas estudadas/);
+const d=w.document;assert.equal(d.querySelectorAll('.study-progress-row').length,2);
+assert.equal(d.querySelector('.study-position').textContent,'1º');assert.equal(d.getElementById('studyProgressStatus').textContent,'');
+assert.match(d.getElementById('studyProgressList').textContent,/2 de 3 assuntos estudados/);
+d.getElementById('studyProgressScope').click();assert.match(d.getElementById('studyProgressList').textContent,/1 de 2 assuntos estudados/);
 d.querySelector('[data-progress-kind="courses"]').click();assert(d.getElementById('studyProgressScopeWrap').hidden);assert.match(d.getElementById('studyProgressList').textContent,/2 de 128 aulas vistas/);
 d.querySelector('[data-progress-kind="materials"]').click();assert(d.getElementById('studyProgressScope').checked);
 // Logout invalidates an in-flight response and clears every participant immediately.
