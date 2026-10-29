@@ -1,4 +1,4 @@
-/* Account-scoped appearance and a short, repeatable introduction. */
+/* Account-scoped appearance. Tutorial paused pending redesign. */
 (() => {
   const $=id=>document.getElementById(id), store=globalThis.PELEJA_STORAGE;
   const key='peleja_preferences_v1';
@@ -19,28 +19,14 @@
   $('settingsImport').onclick=()=>$('importInput').click();
   $('appearanceTheme').onchange=e=>{save({theme:e.target.value});apply();};
   $('appearanceLayout').onchange=e=>{save({layout:e.target.value});apply();};
-  for(const id of ['settingsModal','tutorialModal']){$(id).addEventListener('click',e=>{if(e.target===$(id))close(id);});}
+  for(const id of ['settingsModal']){$(id).addEventListener('click',e=>{if(e.target===$(id))close(id);});}
   $('closeSettings').onclick=()=>close('settingsModal');
-  let step=0,invitedScope=null;
-  const steps=[
-    ['Seu ritmo, num lugar só','No Painel, acompanhe o estudo da turma e o que falta para as próximas provas.','dashboard'],
-    ['Biblioteca','Filtre por disciplina e prova. Marque o que estudou; registre questões pelo ícone de alvo.','materials'],
-    ['Novo evento','Use + Novo evento para cadastrar assuntos, questões, provas da faculdade e simulados de residência. As opções dependem do seu perfil.','materials'],
-    ['Resultados','Em Provas e Simulados, registre seus resultados. No Ranking, compare o recorte que escolher.','ranking'],
-    ['Cursos e preferências','Marque suas aulas em Cursos extras. Pelo seu perfil, altere a aparência, guarde backups ou reveja este tutorial.','courses'],
-  ];
-  function renderStep(){$('tutorialTitle').textContent=steps[step][0];$('tutorialText').textContent=steps[step][1];$('tutorialCount').textContent=`${step+1} / ${steps.length}`;$('tutorialBack').hidden=step===0;$('tutorialNext').textContent=step===steps.length-1?'Concluir':'Próximo';}
-  function tutorial(){step=0;renderStep();open('tutorialModal');}
-  function finish(){save({tutorialSeen:true});close('tutorialModal');}
-  $('profileTutorial').onclick=()=>{$('profileMenu').open=false;tutorial();};
-  $('closeTutorial').onclick=finish;$('tutorialNext').onclick=()=>{if(step===steps.length-1){finish();return;}step++;renderStep();};$('tutorialBack').onclick=()=>{step=Math.max(0,step-1);renderStep();};
-  function invite(){apply();if(store.writable&&(store.isLocalOwner||globalThis.PELEJA_ACCESS?.accessAllowed)&&!preferences().tutorialSeen&&invitedScope!==store.scope){invitedScope=store.scope;tutorial();}}
-  window.addEventListener('peleja:storage-changed',()=>{close('settingsModal');close('tutorialModal');$('profileMenu').open=false;invite();});
-  window.addEventListener('peleja:access-changed',()=>{mirror();invite();});
+  window.addEventListener('peleja:storage-changed',()=>{close('settingsModal');$('profileMenu').open=false;apply();});
+  window.addEventListener('peleja:access-changed',()=>{mirror();apply();});
   const avatar=$('accountAvatar');
   const mirror=()=>{$('profileAvatar').replaceChildren(...(globalThis.PELEJA_ACCESS?.signedIn&&avatar?.childNodes.length?[...avatar.childNodes].map(n=>n.cloneNode(true)):[document.createTextNode('P')]));};
   if(avatar)new MutationObserver(mirror).observe(avatar,{childList:true,subtree:true});mirror();
   document.addEventListener('click',e=>{if(!$('profileMenu').contains(e.target))$('profileMenu').open=false;});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$('profileMenu').open=false;});
-  apply();if(!preview)invite();
+  apply();
 })();
