@@ -18,3 +18,5 @@
 @keyframes connected-sync-spin{to{transform:rotate(360deg)}}
 .connected-mode #refresh.is-syncing svg{animation:connected-sync-spin .85s linear infinite;transform-origin:center}
 @media(prefers-reduced-motion:reduce){.connected-mode #refresh.is-syncing svg{animation:none;opacity:.6}}
+
+.connection-notice:not(:has(button:not([hidden]))){display:none!important}

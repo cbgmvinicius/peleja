@@ -4,6 +4,7 @@
   const config = globalThis.PELEJA_ACCESS_CONFIG;
   let mode = 'login', busy = false, revision = 0, session = null, recovering = false;
   const redirect = new URL('../../', location.href).href;
+  const entry = active => { $('entrySplash').hidden=!active;document.body.classList.toggle('entry-busy',active); };
   const message = (text = '', error = false) => { $('message').textContent = text; $('message').dataset.error = String(error); };
   const failure = error => {
     const code = error?.code || '';
@@ -44,13 +45,13 @@
     globalThis.PELEJA_READER?.clear();
     $('summary').replaceChildren(); $('accountName').textContent = '';
     if (recovering) return;
-    if (!current) { if (mode === 'account' || mode === 'password') view('login'); return; }
-    view('account'); $('accountState').textContent = 'Conferindo seu acesso…';
+    if (!current) { entry(false); if (mode === 'account' || mode === 'password') view('login'); return; }
+    entry(true);view('account'); $('accountState').textContent = 'Conferindo seu acesso…';
     try {
       const access = await db.rpc('has_peleja_access');
       if (ticket !== revision) return;
       if (access.error) throw access.error;
-      if (access.data !== true) { $('accountState').textContent = 'Sua conta ainda precisa ser autorizada pelo administrador.'; return; }
+      if (access.data !== true) { entry(false); $('accountState').textContent = 'Sua conta ainda precisa ser autorizada pelo administrador.'; return; }
       const profile = await db.from('profiles').select('id,display_name,role').eq('id',current.user.id).maybeSingle();
       if (ticket !== revision) return;
       if (profile.error) throw profile.error;
@@ -65,7 +66,7 @@
         const dt = document.createElement('dt'), dd = document.createElement('dd');
         dt.textContent = label; dd.textContent = Array.isArray(payload[key]) ? payload[key].length : 0; $('summary').append(dt,dd);
       }
-    } catch(error) { if (ticket === revision) { $('accountState').textContent = 'Não foi possível conferir seu histórico.'; message(failure(error),true); } }
+    } catch(error) { if (ticket === revision) { entry(false);$('accountState').textContent = 'Não foi possível conferir seu histórico.'; message(failure(error),true); } }
   }
   document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click',() => { if (!busy) view(button.dataset.mode); }));
   $('theme').onclick = () => { document.documentElement.classList.toggle('dark'); try { localStorage.setItem('peleja-access-theme',document.documentElement.classList.contains('dark')?'dark':'light'); } catch {} };
@@ -76,7 +77,7 @@
     const action = mode, identity = $('identity').value.trim().toLowerCase(), password = $('password').value;
     if (['signup','password'].includes(action) && password !== $('confirm').value) return message('As senhas precisam ser iguais.',true);
     if (action === 'reset' && (!identity.includes('@') || identity.endsWith('@peleja.invalid'))) return message('Sua conta usa um usuário sem e-mail de recuperação. Peça ao administrador para redefinir a senha.');
-    lock(true); message();
+    lock(true); message();if(action==='login')entry(true);
     try {
       let result;
       if (action === 'login') {
@@ -94,7 +95,7 @@
       else if (action === 'signup' && !result.data.session) message('Confira seu e-mail para continuar o cadastro.');
       else if (action === 'password') { recovering = false; await inspect(session); message('Senha atualizada.'); }
       else if (result.data?.session) await inspect(result.data.session);
-    } catch(error) { message(failure(error),true); }
+    } catch(error) { entry(false);message(failure(error),true); }
     finally { lock(false); }
   };
   $('retry').onclick = () => inspect(session);

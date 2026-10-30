@@ -1,0 +1,12 @@
+/* Shared entry surface: both documents keep the same visual while authenticating. */
+.peleja-entry{position:fixed!important;inset:0!important;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;margin:0!important;padding:24px!important;max-width:none!important;border:0!important;border-radius:0!important;background:#f5f4ef!important;color:#2b332c;font:16px/1.5 Peleja,Arial,sans-serif;box-sizing:border-box}
+.peleja-entry[hidden]{display:none!important}
+.peleja-entry img{width:96px;height:96px;object-fit:contain;animation:cactus-breathe 1.5s cubic-bezier(.45,0,.3,1) infinite;will-change:transform}
+.peleja-entry:not(.entry-error)>p{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.peleja-entry.entry-error img{animation:none;width:64px;height:64px}
+.peleja-entry.entry-error p{text-align:center;max-width:360px;margin:0}
+.peleja-entry.entry-error a{color:inherit}
+.entry-busy>header,.entry-busy>main{visibility:hidden}
+html.dark .peleja-entry,body.review-dark .peleja-entry{background:#1b1b1a!important;color:#edeae3}
+@keyframes cactus-breathe{0%,100%{transform:translateY(3px) rotate(-2deg) scale(.98)}50%{transform:translateY(-5px) rotate(2deg) scale(1.025)}}
+@media(prefers-reduced-motion:reduce){.peleja-entry img{animation:none}}
