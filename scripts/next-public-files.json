@@ -47,5 +47,6 @@
   "directions/notebooklm-light.svg",
   "directions/questions.js",
   "directions/style.css",
-  "english-data.js"
+  "english-data.js",
+  "entry.css"
 ]

@@ -1,8 +1,7 @@
 (async () => {
  if(!globalThis.PELEJA_CONNECTED)return;
  document.title='Peleja · Sua conta';
- const gate=document.createElement('section');gate.id='connectionGate';gate.setAttribute('role','status');
- const status=document.createElement('p');status.textContent='Conectando à sua conta…';gate.append(status);document.body.prepend(gate);
+ const gate=$('connectionGate'),status=gate.querySelector('p');
  let client=null,version=0,currentSession=null,loading=false,writer=null,isAdmin=false,simulations=null,courses=null,dashboard=null,profileName="Conta",pendingConflict=null;
  const writeSelector='[data-edit-menu],[data-exam-menu],#new,[data-create],#facultyCreate,#facultyDemo,#settingsImport,#settingsExport';
  // Block mutations before any demo event handler, including keyboard activation.
@@ -10,11 +9,11 @@
  document.addEventListener('submit',event=>{if(loading){event.preventDefault();event.stopImmediatePropagation();return;}if(!['questionsForm','facultyForm','mockForm',...(isAdmin?['subjectForm','mockKeyForm']:[])].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();}},true);
  document.addEventListener('click',event=>{if((writer?.busy||loading)&&event.target.closest('[data-study],[data-round-edit],[data-round-delete],#questionsSave,#facultyForm [type=submit],#profileExit,#refresh,[data-extra-check],[data-create],[data-edit-menu],[data-exam-menu],[data-mock-menu],#settingsTheme,#settingsMotion')){event.preventDefault();event.stopImmediatePropagation();}},true);
  function lockContent(){
-  simulations?.reset();courses?.reset();dashboard?.reset();isAdmin=false;app.dataset.previewRole='participant';writer?.clear();document.documentElement.classList.add('connected-loading');gate.hidden=false;
+  simulations?.reset();courses?.reset();dashboard?.reset();isAdmin=false;app.dataset.previewRole='participant';writer?.clear();document.documentElement.classList.add('connected-loading');gate.hidden=false;gate.classList.remove('entry-error');
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   data=[];facultyRecords=[];resetStandaloneQuestions();$('library').replaceChildren();$('facultyList').replaceChildren();
  }
- function fail(text){lockContent();status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href='../access/';link.textContent='Ir para o acesso';gate.append(link);}
+ function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href='../access/';link.textContent='Ir para o acesso';gate.append(link);}
  function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
  function decorate(){
   document.querySelectorAll('[data-study],[data-questions],[data-exam-result]').forEach(b=>{b.disabled=!!writer?.blocked||(b.hasAttribute('data-study')&&!!writer?.busy);});
@@ -45,7 +44,7 @@
    saveChange({kind:'preferences',preferences:next},()=>{confirmedPrefs=next;},null,()=>{Object.assign(previewPrefs,confirmedPrefs);applyPreviewPrefs();});
   };
   app.querySelector('.brand').href='../access/';
-  const notice=document.createElement('div');notice.className='connection-notice';notice.innerHTML='<span>Conta real · sincronizada</span><a href="../access/">Minha conta</a>';app.querySelector('header').after(notice);
+  const notice=document.createElement('div');notice.className='connection-notice';notice.innerHTML='<span></span>';app.querySelector('header').after(notice);
   const originalRender=renderContent;renderContent=function(){originalRender();decorate();};
   const originalFaculty=renderFacultyPage;renderFacultyPage=function(){originalFaculty();decorate();};
   isFacultyPerformed=e=>PELEJA_READ_WORKSPACE.examDone({...e,total:e.q},localQuestionDate());
@@ -60,7 +59,7 @@
    try{await navigator.clipboard.writeText(item?.ankiQuery||'');toast('NIDs copiados','created');}catch{toast('Não foi possível copiar os NIDs','info');}
   },true);
   function setSaving(active){
-   notice.querySelector('span').textContent=active?'Salvando…':writer.blocked?'Atualize os dados antes de continuar':'Conta real · sincronizada';
+   notice.querySelector('span').textContent=active?'Salvando…':writer.blocked?'Atualize os dados antes de continuar':'';
    for(const id of ['questionsSave','mockSave','facultyDeleteResult','mockDeleteResult'])$(id).disabled=active;
    $('facultyForm').querySelector('[type=submit]').disabled=active;
    decorate();
@@ -179,7 +178,7 @@
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
     writer.load(remote.data,session.user.id);showLibraryPage();render();renderFacultyPage();syncFilterControls();
-    gate.hidden=true;document.documentElement.classList.remove('connected-loading');const results=await Promise.all([simulations.load(),dashboard.load()]);
+    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;const results=await Promise.all([simulations.load(),dashboard.load()]);
     if(ticket!==version)return;
     if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     return true;
