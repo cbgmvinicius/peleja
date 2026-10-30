@@ -1,0 +1,20 @@
+.connected-loading .viewport{visibility:hidden}.connected-mode .review-bar,.connected-mode .direction-note,.connected-mode .review-footer{display:none!important}
+.connected-mode body{background:#f5f4ef}.connected-mode body.review-dark{background:#1b1b1a}.connected-mode .viewport{max-width:1600px;padding:16px}.connected-mode .app{min-height:calc(100vh - 32px)}
+.connection-notice{padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--soft);color:var(--muted);font-size:12px}.connection-notice a{color:inherit}
+.connected-mode #facultyDemo{display:none!important}
+.connected-mode .app[data-preview-role=participant] [data-edit-menu],.connected-mode .app[data-preview-role=participant] [data-exam-menu],.connected-mode .app[data-preview-role=participant] #facultyCreate{display:none!important}
+.connected-mode [data-study]:disabled,.connected-mode [data-questions]:disabled,.connected-mode [data-exam-result]:disabled{opacity:.45;cursor:default;pointer-events:none}
+
+#connectionGate{max-width:520px;margin:10vh auto;padding:32px;border-radius:24px;background:#fffefa;color:#2b332c;font:16px/1.5 Peleja,Arial,sans-serif;border:1px solid #e0e3d8}#connectionGate a{color:#45603e}#connectionGate button{padding:12px 20px;margin-top:16px;border-radius:14px;background:#45603e;color:white}#connectionGate[hidden]{display:none}
+@media(max-width:650px){.connected-mode .viewport{padding:0}.connected-mode .app{border:0;border-radius:0}.connection-notice{padding:10px 16px}.connected-mode header nav{grid-template-columns:repeat(2,minmax(0,1fr))!important}#connectionGate{margin:30px 16px}}
+.connected-loading body > :not(#connectionGate){visibility:hidden!important}
+
+.connected-result-mode{display:flex;gap:6px;padding:5px;border-radius:16px;background:var(--soft);margin-bottom:20px}.connected-result-mode button{flex:1;padding:10px;border:0;border-radius:12px;background:transparent;color:var(--muted);cursor:pointer;transition:background .18s,color .18s}.connected-result-mode button[aria-pressed=true]{background:var(--surface,#fffefa);color:var(--ink)}.connected-result-mode ~ [hidden]{display:none!important}
+
+#facultyDeleteResult,#mockDeleteResult{margin-right:auto}.connected-mode .editor-footer{flex-wrap:wrap;gap:12px}
+
+.connected-ranking-kinds{max-width:440px;margin-bottom:24px}.connected-mode #rankingPeriods[hidden],.connected-mode #connectedRankingExams[hidden]{display:none!important}
+
+@keyframes connected-sync-spin{to{transform:rotate(360deg)}}
+.connected-mode #refresh.is-syncing svg{animation:connected-sync-spin .85s linear infinite;transform-origin:center}
+@media(prefers-reduced-motion:reduce){.connected-mode #refresh.is-syncing svg{animation:none;opacity:.6}}

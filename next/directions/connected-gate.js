@@ -1,0 +1,1 @@
+globalThis.PELEJA_CONNECTED=true;document.documentElement.classList.add('connected-loading','connected-mode');

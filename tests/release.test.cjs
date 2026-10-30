@@ -2,6 +2,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),asse
 const root=path.resolve(process.argv[2]||path.join(__dirname,'..'));
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'peleja-public-test-'));
 fs.mkdirSync(path.join(temp,'scripts'));fs.copyFileSync(path.join(root,'scripts/build-pages.mjs'),path.join(temp,'scripts/build-pages.mjs'));
+fs.copyFileSync(path.join(root,'scripts/next-public-files.json'),path.join(temp,'scripts/next-public-files.json'));fs.cpSync(path.join(root,'next'),path.join(temp,'next'),{recursive:true});
 const config=(key,url='https://fixture.supabase.co')=>fs.writeFileSync(path.join(temp,'supabase-config.js'),'globalThis.PELEJA_BACKEND='+JSON.stringify({supabaseUrl:url,supabasePublishableKey:key}));
 const run=()=>spawnSync(process.execPath,[path.join(temp,'scripts/build-pages.mjs')],{encoding:'utf8'});
 config('');assert.notEqual(run().status,0);config('sb_secret_test_not_real');assert.notEqual(run().status,0);
@@ -11,5 +12,5 @@ fs.cpSync(path.join(root,'assets'),path.join(temp,'assets'),{recursive:true});
 fs.writeFileSync(path.join(temp,'peleja-backup-personal.json'),'PRIVATE TEST FIXTURE');
 const built=run();assert.equal(built.status,0,built.stderr);
 const dest=path.join(temp,'dist/public');assert(!fs.existsSync(path.join(dest,'peleja-backup-personal.json')));assert(!fs.existsSync(path.join(dest,'scripts')));
-assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'release.json'))).version,'25.0.0');assert.notEqual(run().status,0);
+assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'release.json'))).version,'26.0.0');assert.notEqual(run().status,0);
 console.log('PASS Release rejects missing/administrative keys, excludes personal files and refuses stale output reuse');

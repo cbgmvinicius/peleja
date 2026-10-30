@@ -1,6 +1,8 @@
 name: Publicar Peleja
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: read
 concurrency:
