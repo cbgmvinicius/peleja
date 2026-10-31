@@ -28,7 +28,7 @@ for(const name of nextFiles){
  if(name.includes('..')||path.isAbsolute(name))throw new Error('Invalid public path');
  const target=path.join(dest,'next',name);await mkdir(path.dirname(target),{recursive:true});await copyFile(path.join(root,'next',name),target);
 }
-await writeFile(path.join(dest,'index.html'),`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Peleja</title></head><body><p>Abrindo Peleja…</p><script>location.replace(new URL('next/access/',location.href).href+location.search+location.hash);</script><noscript>Ative o JavaScript para abrir o Peleja.</noscript></body></html>`);
+await writeFile(path.join(dest,'index.html'),`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Peleja</title><link rel="icon" type="image/png" href="assets/peleja-icon-32.png"></head><body><p>Abrindo Peleja…</p><script>location.replace(new URL('next/access/',location.href).href+location.search+location.hash);</script><noscript>Ative o JavaScript para abrir o Peleja.</noscript></body></html>`);
 await writeFile(path.join(dest,'sw.js'),`self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('peleja-'))await caches.delete(key);await self.clients.claim();})()));`);
 await writeFile(path.join(dest,'.nojekyll'),'');
 await writeFile(path.join(dest,'release.json'),JSON.stringify({version:'26.0.0',commit:process.env.GITHUB_SHA||'local',builtAt:new Date().toISOString()},null,2));

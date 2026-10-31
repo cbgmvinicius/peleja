@@ -1,6 +1,6 @@
 (async () => {
  if(!globalThis.PELEJA_CONNECTED)return;
- document.title='Peleja · Sua conta';
+ document.title='Peleja';
  const gate=$('connectionGate'),status=gate.querySelector('p');
  let client=null,version=0,currentSession=null,loading=false,writer=null,isAdmin=false,simulations=null,courses=null,dashboard=null,profileName="Conta",pendingConflict=null;
  const writeSelector='[data-edit-menu],[data-exam-menu],#new,[data-create],#facultyCreate,#facultyDemo,#settingsImport,#settingsExport';
