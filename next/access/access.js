@@ -15,8 +15,11 @@
     if (/weak_password/.test(code)) return 'Escolha uma senha mais forte, com pelo menos 8 caracteres.';
     return 'Não foi possível concluir. Confira sua conexão e tente novamente.';
   };
+  let viewMotion=[];
   function view(next) {
-    mode = next; message();
+    const card=document.querySelector('.card'),oldHeight=card.getBoundingClientRect().height,animate=next!==mode&&next!=='account'&&mode!=='account'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+    viewMotion.forEach(a=>a.cancel());viewMotion=[];
+    mode = next; message();$('tabs').style.setProperty('--selected',next==='signup'?1:0);
     $('form').hidden = next === 'account'; $('account').hidden = next !== 'account';
     $('tabs').hidden = !['login','signup'].includes(next);
     $('forgot').hidden = next !== 'login'; $('back').hidden = !['reset','signup'].includes(next);
@@ -34,6 +37,7 @@
     $('hint').textContent = next === 'signup' ? 'O acesso à turma depende de autorização.' : 'Informe o e-mail cadastrado ou seu usuário.';
     $('submit').textContent = ({login:'Entrar',signup:'Criar conta',reset:'Enviar link',password:'Salvar senha'})[next] || 'Entrar';
     document.querySelectorAll('[data-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.mode === next)));
+    if(animate&&card.animate){viewMotion.push($('heading').animate([{opacity:.25},{opacity:1}],{duration:220}));const height=card.getBoundingClientRect().height;viewMotion.push(card.animate([{height:oldHeight+'px'},{height:height+'px'}],{duration:320,easing:'cubic-bezier(.22,.8,.25,1)'}));viewMotion.push($('form').animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:260,easing:'ease-out'}));}
   }
   function lock(value) { busy = value; $('form').setAttribute('aria-busy',String(value)); document.querySelectorAll('button:not(#theme),input').forEach(el => el.disabled = value); }
   const cfgValid = config?.key?.startsWith('sb_publishable_') && /^https:\/\//.test(config?.url);

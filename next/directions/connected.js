@@ -56,7 +56,7 @@
   $('library').addEventListener('click',async event=>{
    const copy=event.target.closest('[data-hint]');if(!copy)return;event.preventDefault();event.stopImmediatePropagation();
    const item=data.find(m=>m.code===copy.closest('[data-row]')?.dataset.row);
-   try{await navigator.clipboard.writeText(item?.ankiQuery||'');toast('NIDs copiados','created');}catch{toast('Não foi possível copiar os NIDs','info');}
+   try{await navigator.clipboard.writeText(item?.ankiQuery||'');toast(`${ankingNidCount(item?.ankiQuery)} NIDs copiados`,'anking');}catch{toast('Não foi possível copiar os NIDs','info');}
   },true);
   function setSaving(active){
    notice.querySelector('span').textContent=active?'Salvando…':writer.blocked?'Atualize os dados antes de continuar':'';
@@ -160,6 +160,7 @@
   courses=PELEJA_INSTALL_COURSES({writer,allowed:()=>isAdmin,saveChange});
   PELEJA_INSTALL_ADMIN({writer,allowed:()=>isAdmin,saveChange,hydrate});
   simulations=PELEJA_INSTALL_SIMULATIONS({client,writer,getUser:()=>currentSession?.user?.id,allowed:()=>isAdmin,saveChange,setSaving,refreshAccount:()=>refresh(currentSession)});
+  const accountProfile=PELEJA_INSTALL_PROFILE({client,getSession:()=>currentSession,getName:()=>profileName,onName:name=>{profileName=name;},onReload:()=>{simulations.load();dashboard.load();}});
   async function refresh(session,manual=false,silent=false){
    const view=['dashboardPage','extraPage','mockPage','performancePage','facultyPage'].find(id=>$(id)&&!$(id).hidden);
    const course=extraActive;
@@ -178,7 +179,7 @@
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
     writer.load(remote.data,session.user.id);showLibraryPage();render();renderFacultyPage();syncFilterControls();
-    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;const results=await Promise.all([simulations.load(),dashboard.load()]);
+    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;const results=await Promise.all([simulations.load(),dashboard.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
     if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     return true;
@@ -201,6 +202,6 @@
    ++version;lockContent();status.textContent='Saindo…';const result=await client.auth.signOut({scope:'local'});
    if(result.error){fail('Não foi possível sair. Tente novamente pela tela de acesso.');return;}location.href='../access/';
   },{description:'Seu histórico permanece salvo.',accept:'Sair'});};
-  client.auth.onAuthStateChange((event,session)=>{if(event==='TOKEN_REFRESHED')return;++version;lockContent();setTimeout(()=>refresh(session),0);});
+  client.auth.onAuthStateChange((event,session)=>{if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED'||(event==='SIGNED_IN'&&session?.user?.id===currentSession?.user?.id)){currentSession=session;return;}accountProfile.reset();++version;lockContent();setTimeout(()=>refresh(session),0);});
  }catch{fail('Não foi possível conectar. Confira sua conexão e tente novamente.');}
 })();

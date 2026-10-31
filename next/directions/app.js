@@ -44,10 +44,10 @@ const seed=[{code:'H04',date:'2026-10-19',title:'Talassemias',subject:'Clínica 
 let data=structuredClone(seed),toastTimer;const $=id=>document.getElementById(id),app=document.querySelector('.app');
 let toastAnimation=null,toastVersion=0;
 function toast(text,icon='info'){
-  if(!Object.hasOwn(icons,icon))icon='info';
+  if(icon!=='anking'&&!Object.hasOwn(icons,icon))icon='info';
   const el=$('toast'),version=++toastVersion;el.dataset.icon=icon;
   clearTimeout(toastTimer);toastAnimation?.cancel();el.replaceChildren();
-  const symbol=document.createElement('span');symbol.className='toast-symbol';symbol.setAttribute('aria-hidden','true');symbol.innerHTML=svg(icon);
+  const symbol=document.createElement('span');symbol.className='toast-symbol';symbol.setAttribute('aria-hidden','true');symbol.innerHTML=icon==='anking'?'<img src="../assets/anking.png" alt="">':svg(icon);
   const copy=document.createElement('span');copy.className='toast-copy';
   const parts=String(text).split(' · '),title=document.createElement('span');title.className='toast-title';title.textContent=parts.shift();copy.append(title);
   if(parts.length){const detail=document.createElement('span');detail.className='toast-detail';detail.textContent=parts.join(' · ');copy.append(detail);}
@@ -175,10 +175,20 @@ $('new').onclick=()=>toast('Assunto · Questões · Faculdade · Residência. O 
 // Shared FLIP transition: keep identifiable items visually anchored across list updates.
 function captureListMotion(host,selector,key){
  if(!host||reduceMotion())return new Map();
- return new Map([...host.querySelectorAll(selector)].filter(el=>el.getBoundingClientRect().height>0).map(el=>[el.getAttribute(key),{rect:el.getBoundingClientRect(),values:[...el.querySelectorAll('[data-motion-value]')].map(n=>Number(n.textContent.replace('%','').replace(',','.'))),bars:[...el.querySelectorAll('[data-motion-bar]')].map(n=>getComputedStyle(n).width)}]));
+ const saved=new Map([...host.querySelectorAll(selector)].filter(el=>!el.closest('[data-motion-ghost]')&&el.getBoundingClientRect().height>0).map(el=>[el.getAttribute(key),{rect:el.getBoundingClientRect(),values:[...el.querySelectorAll('[data-motion-value]')].map(n=>Number(n.textContent.replace('%','').replace(',','.'))),bars:[...el.querySelectorAll('[data-motion-bar]')].map(n=>getComputedStyle(n).width)}]));
+ saved.height=host.getBoundingClientRect().height;saved.snapshot=host.cloneNode(true);saved.snapshot.querySelectorAll('[data-motion-ghost]').forEach(n=>n.remove());return saved;
 }
 function playListMotion(host,selector,key,before){
- if(!host||reduceMotion()||!before.size)return;
+ if(!host||reduceMotion())return;
+ const hasRows=host.querySelector(selector);
+ if(before.snapshot&&!!before.size!==!!hasRows&&host.getBoundingClientRect().height){
+  host.getAnimations?.().forEach(a=>a.cancel());host.querySelectorAll('[data-motion-ghost]').forEach(n=>n.remove());
+  const height=host.getBoundingClientRect().height,ghost=before.snapshot;ghost.removeAttribute('id');ghost.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.dataset.motionGhost='';Object.assign(ghost.style,{position:'absolute',inset:'0',pointerEvents:'none'});host.style.position='relative';
+  [...host.children].forEach(n=>motion(n,[{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:260}));host.append(ghost);
+  const exit=motion(ghost,[{opacity:1},{opacity:0}],{duration:180});if(exit)exit.onfinish=()=>ghost.remove();else ghost.remove();
+  motion(host,[{height:before.height+'px'},{height:height+'px'}],{duration:320,easing:'cubic-bezier(.22,.8,.25,1)'});return;
+ }
+ if(!before.size)return;
  host.querySelectorAll(selector).forEach(el=>{
   const rect=el.getBoundingClientRect();if(!rect.height||rect.bottom<0||rect.top>innerHeight+200)return;
   const old=before.get(el.getAttribute(key)),options={duration:380,easing:'cubic-bezier(.22,.8,.25,1)'};
@@ -189,3 +199,13 @@ function playListMotion(host,selector,key,before){
   }else motion(el,[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],options);
  });
 }
+
+function revealRankingControl(el,show){
+ const previous=el._reveal,currentHeight=el.hidden?0:el.getBoundingClientRect().height,currentOpacity=el.hidden?0:Number(getComputedStyle(el).opacity);previous?.cancel();
+ if(reduceMotion()){el.hidden=!show;return;}
+ const from=currentHeight;el.hidden=false;
+ const target=show?el.scrollHeight:0;el.style.overflow='hidden';
+ const a=motion(el,[{height:from+'px',opacity:currentOpacity},{height:target+'px',opacity:show?1:0}],{duration:280,easing:'cubic-bezier(.22,.8,.25,1)'});el._reveal=a;
+ const finish=()=>{if(el._reveal!==a)return;el.hidden=!show;el.style.overflow='';el._reveal=null;};if(a)a.onfinish=finish;else finish();
+}
+function ankingNidCount(query){return new Set([...String(query).matchAll(/\bnid:([0-9]+(?:\s*,\s*[0-9]+)*)/gi)].flatMap(m=>m[1].split(/\s*,\s*/))).size;}
