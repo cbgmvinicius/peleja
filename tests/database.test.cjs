@@ -32,6 +32,13 @@ assert.equal((await db.query('select * from public.profile_photos')).rows[0].use
 await assert.rejects(()=>rpc('save_profile_photo',['https://external.test/photo'],['text']),/check constraint/);
 await assert.rejects(()=>rpc('save_profile_photo',['data:image/jpeg;base64,'+'A'.repeat(60000)],['text']),/check constraint/);
 console.log('PASS Private photos: own update/remove only, invalid and oversized images rejected');
+await db.exec('reset role');await db.exec(fs.readFileSync(path.join(root,'supabase-profile-edit.sql'),'utf8'));
+await user(B);await db.query("update public.profiles set display_name='Wilton novo' where id=$1",[B]);
+assert.equal((await db.query('select display_name from public.profiles where id=$1',[B])).rows[0].display_name,'Wilton novo');
+assert.equal((await db.query("update public.profiles set display_name='Outro' where id=$1 returning id",[A])).rows.length,0);
+await assert.rejects(()=>db.query("update public.profiles set role='admin' where id=$1",[B]),/permission denied/);
+console.log('PASS Profile name edits stay scoped to owner and cannot change roles');
+
 await user(A);let saved=await save(ws,0,0,true);assert.equal(saved.revision,1);assert.equal(saved.catalog_revision,1);
 console.log('PASS Admin publishes canonical catalog and own result atomically');
 let data=await rpc('get_workspace',[],[]);assert.equal(data.payload.materials[0].notes,'PRIVATE');assert(!JSON.stringify(data.catalog).includes('PRIVATE'));assert(!('total' in data.catalog.exams[0]));

@@ -10,3 +10,10 @@
 html.dark .peleja-entry,body.review-dark .peleja-entry{background:#1b1b1a!important;color:#edeae3}
 @keyframes cactus-breathe{0%,100%{transform:translateY(3px) rotate(-2deg) scale(.98)}50%{transform:translateY(-5px) rotate(2deg) scale(1.025)}}
 @media(prefers-reduced-motion:reduce){.peleja-entry img{animation:none}}
+
+.peleja-entry .entry-art{width:120px;height:120px;overflow:visible}
+.entry-sun{transform-origin:79px 39px;animation:entry-sunrise 2200ms cubic-bezier(.45,0,.25,1) infinite}
+.entry-cactus{transform-origin:61px 99px;animation:entry-sway 2200ms cubic-bezier(.45,0,.25,1) infinite}
+@keyframes entry-sunrise{0%,100%{transform:translate(-4px,5px) scale(.92);opacity:.8}50%{transform:translate(3px,-5px) scale(1.04);opacity:1}}
+@keyframes entry-sway{0%,100%{transform:rotate(-4deg) scaleY(.97)}45%{transform:rotate(4deg) scaleY(1.025)}70%{transform:rotate(1deg) scaleY(1)}}
+@media(prefers-reduced-motion:reduce){.entry-sun,.entry-cactus{animation:none}}

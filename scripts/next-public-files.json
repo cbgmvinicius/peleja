@@ -29,6 +29,7 @@
   "directions/connected-courses.js",
   "directions/connected-dashboard.js",
   "directions/connected-gate.js",
+  "directions/connected-profile.js",
   "directions/connected-simulations.js",
   "directions/connected.css",
   "directions/connected.js",

@@ -20,3 +20,9 @@
 @media(prefers-reduced-motion:reduce){.connected-mode #refresh.is-syncing svg{animation:none;opacity:.6}}
 
 .connection-notice:not(:has(button:not([hidden]))){display:none!important}
+
+/* One transparent AnKing asset, monochrome only on light surfaces. */
+body:not(.review-dark) img[src*="anking.png"]{filter:brightness(0)}
+.toast-symbol img{width:25px;height:25px;object-fit:contain}
+
+#accountDialog{max-height:85dvh;overflow:auto}#accountDialog form{display:grid;gap:16px}#accountDialog hr{border:0;border-top:1px solid var(--line);margin:26px 0}.account-photo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.account-photo-row .avatar{width:52px;height:52px}#accountFeedback{font-size:14px;color:var(--muted)}
