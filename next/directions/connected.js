@@ -29,7 +29,7 @@
   await loadScript('../access/config.js?v=connected-1');
   await loadScript('../access/catalog-writes.js?v=2');
   await loadScript('../access/simulations.js?v=1');
-  await loadScript('../access/personal-writes.js?v=6');
+  await loadScript('../access/personal-writes.js?v=catalog1-6');
   await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js');
   client=supabase.createClient(PELEJA_ACCESS_CONFIG.url,PELEJA_ACCESS_CONFIG.key,{auth:{storageKey:'peleja-next-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   writer=PELEJA_PERSONAL_WRITES.createPersonalWriter(client,()=>currentSession?.user?.id,()=>isAdmin);
@@ -157,7 +157,7 @@
     courses?.hydrate(remote);render();renderFacultyPage();syncFilterControls();
   }
   dashboard=PELEJA_INSTALL_DASHBOARD({client,getUser:()=>currentSession?.user?.id,getName:()=>profileName});
-  courses=PELEJA_INSTALL_COURSES({writer,allowed:()=>isAdmin,saveChange});
+  courses=PELEJA_INSTALL_COURSES({writer,allowed:()=>isAdmin,saveChange,client,getUser:()=>currentSession?.user?.id});
   PELEJA_INSTALL_ADMIN({writer,allowed:()=>isAdmin,saveChange,hydrate});
   simulations=PELEJA_INSTALL_SIMULATIONS({client,writer,getUser:()=>currentSession?.user?.id,allowed:()=>isAdmin,saveChange,setSaving,refreshAccount:()=>refresh(currentSession)});
   const accountProfile=PELEJA_INSTALL_PROFILE({client,getSession:()=>currentSession,getName:()=>profileName,onName:name=>{profileName=name;},onReload:()=>{simulations.load();dashboard.load();}});
@@ -179,7 +179,7 @@
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
     writer.load(remote.data,session.user.id);showLibraryPage();render();renderFacultyPage();syncFilterControls();
-    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;const results=await Promise.all([simulations.load(),dashboard.load()]);accountProfile.hydrate();
+    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
     if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     return true;
