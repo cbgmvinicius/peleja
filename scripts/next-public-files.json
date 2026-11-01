@@ -33,6 +33,7 @@
   "directions/connected-simulations.js",
   "directions/connected.css",
   "directions/connected.js",
+  "directions/course-catalog.js",
   "directions/dashboard.js",
   "directions/date-picker.js",
   "directions/drive.svg",
@@ -49,5 +50,6 @@
   "directions/questions.js",
   "directions/style.css",
   "english-data.js",
-  "entry.css"
+  "entry.css",
+  "yokubi-data.js"
 ]

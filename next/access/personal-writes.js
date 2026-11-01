@@ -10,6 +10,10 @@ function preparePersonalChange(remote,change,now=new Date().toISOString()){
   const prefs=change.preferences;if(typeof prefs?.dark!=='boolean'||typeof prefs?.motion!=='boolean')throw Error('Preferências inválidas');
   payload.preferences={...payload.preferences,pelejaNext:{dark:prefs.dark,motion:prefs.motion,navigation:'top'}};return payload;
  }
+ if(change.kind==='course-enrollment'){
+  if(!Array.isArray(change.ids)||change.ids.length>100||change.ids.some(id=>typeof id!=='string'||!id||id.length>100))throw Error('Cursos inválidos');
+  payload.preferences.extraCourseEnrollments=[...new Set(change.ids)];return payload;
+ }
  if(change.kind==='course'){
   if(typeof change.id!=='string'||!change.id.trim()||typeof change.watched!=='boolean')throw Error('Aula inválida');
   const index=payload.courses.findIndex(r=>r.id===change.id);
