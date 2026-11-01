@@ -26,7 +26,13 @@ const extraCatalog={
 };
 const extraWatched={cardio:new Set(),english:new Set()};let extraActive=null,extraQuery='',extraPending=false,extraExpanded=new Set();
 const scheduledExtra=PELEJA_COURSES.modules.filter(m=>m.scheduled).flatMap(m=>m.lessons),extraAnchor=scheduledExtra.findIndex(l=>l.id===PELEJA_COURSES.anchorLesson);
-const extraDates=new Map(scheduledExtra.map((lesson,i)=>[lesson.id,new Date(Date.parse(PELEJA_COURSES.anchorDate+'T12:00:00Z')+(i-extraAnchor)*86400000).toISOString().slice(0,10)]));
+// Approved retrospective pause: Oct 19–Nov 1. Stable lesson IDs preserve every watched mark.
+function cardioScheduledDate(index){
+ const original=new Date(Date.parse(PELEJA_COURSES.anchorDate+'T12:00:00Z')+(index-extraAnchor)*86400000);
+ if(original.toISOString().slice(0,10)>='2026-10-19')original.setUTCDate(original.getUTCDate()+14);
+ return original.toISOString().slice(0,10);
+}
+const extraDates=new Map(scheduledExtra.map((lesson,i)=>[lesson.id,cardioScheduledDate(i)]));
 const extraHeart='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6c-2.4-2.4-6.2-1.7-8.8 1.4-2.6-3.1-6.4-3.8-8.8-1.4C-1.4 9.2 5.4 16 12 21c6.6-5 13.4-11.8 8.8-16.4Z"/><path d="M3 12h5l2-4 3 8 2-4h6"/></svg>';
 app.querySelector('main').insertAdjacentHTML('beforeend','<section id="extraPage" aria-label="Cursos extras" hidden></section>');
 function extraAllowed(key){return key==='cardio'||canEditDemoStructure();}
