@@ -618,3 +618,7 @@ body.review-dark{background:#141413;color:#f1eee7}
 .dashboard-comparison-controls .switch-option[hidden]{display:flex!important;opacity:0;transform:translateY(4px);visibility:hidden;pointer-events:none}
 .app[data-switch-motion=on] .dashboard-comparison-controls .switch-option{transition:opacity 240ms ease,transform 280ms cubic-bezier(.22,.8,.25,1),visibility 0s!important}
 .app[data-switch-motion=on] .dashboard-comparison-controls .switch-option[hidden]{transition:opacity 200ms ease,transform 240ms ease,visibility 0s 200ms!important}
+
+/* The search field has one rounded focus indicator, on its enclosing surface. */
+.app .search input:focus,.app .search input:focus-visible{outline:none;box-shadow:none}
+.app .search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
