@@ -28,3 +28,28 @@ body:not(.review-dark) img[src*="anking.png"]{filter:brightness(0)}
 #accountDialog{max-height:85dvh;overflow:auto}#accountDialog form{display:grid;gap:16px}#accountDialog hr{border:0;border-top:1px solid var(--line);margin:26px 0}.account-photo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.account-photo-row .avatar{width:52px;height:52px}#accountFeedback{font-size:14px;color:var(--muted)}
 
 .course-catalog-toolbar{display:flex;justify-content:flex-end;margin-bottom:18px}.course-catalog-toolbar button{display:flex;align-items:center;gap:8px}.course-catalog-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0;border-bottom:1px solid var(--line)}.course-catalog-item small{display:block;color:var(--muted);margin-top:5px}.course-catalog-item [aria-pressed=true]{background:var(--soft);color:var(--accent)}.course-catalog-dialog{max-height:85dvh;overflow:auto}.course-proposal{padding:16px 0;border-bottom:1px solid var(--line)}.course-proposal small{color:var(--muted);margin-left:8px}.course-suggestion-row{display:grid;grid-template-columns:1fr 2fr auto;gap:8px;padding:16px 0;border-bottom:1px solid var(--line)}.course-suggestion-row .suggest-url{grid-column:1/3}.course-suggestion-row button{grid-column:3;grid-row:1/3}.extra-resource{color:var(--accent);flex-shrink:0}.extra-resource:hover{background:var(--soft)}#courseSuggest{margin:20px 0}.course-catalog-dialog input{min-width:0}@media(max-width:600px){.course-suggestion-row{grid-template-columns:1fr auto}.course-suggestion-row input{grid-column:1!important}.course-suggestion-row button{grid-column:2;grid-row:1/4}.course-catalog-item{gap:10px}}
+
+/* Course resources stay beside the completion control, never between columns. */
+.extra-lesson-copy{flex:1}.extra-resource{margin-left:auto;text-decoration:none}
+body.review-dark img[src*="anking.png"]{filter:brightness(0) invert(1)}
+body .toast-symbol:has(img[src*="anking.png"]){background:#f3f1e8}
+body .toast-symbol img[src*="anking.png"]{filter:none!important}
+#settingsDialog.settings-workspace{width:min(880px,calc(100vw - 24px));padding:24px;overflow:auto}
+.settings-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:28px;margin-top:24px;align-items:start}
+.settings-nav{display:flex;flex-direction:column;align-items:stretch;gap:6px;position:sticky;top:0}
+.settings-nav button{text-align:left;padding:12px;border-radius:12px;background:transparent;font-size:14px}
+.settings-nav button[aria-pressed=true]{background:var(--soft);color:var(--accent)}
+.settings-content{min-width:0}.settings-content [hidden]{display:none!important}
+#accountDialog{max-height:none;overflow:visible}#accountDialog .settings-heading{margin-bottom:24px}#accountDialog h2{font-size:20px}
+#accountDialog form{display:grid;gap:16px}#accountDialog hr{margin:28px 0}
+.account-photo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.account-photo-row .avatar{display:grid;place-items:center;width:64px;height:64px;flex:0 0 64px;overflow:hidden}
+.account-photo-row .avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+#accountDialog .primary{justify-self:start}#accountDialog .editor-cancel{justify-self:start}
+#preferencesPanel{padding-top:0}.settings-workspace input:autofill{box-shadow:inset 0 0 0 1000px var(--soft);-webkit-text-fill-color:var(--ink);caret-color:var(--ink)}
+.settings-workspace input:-webkit-autofill{box-shadow:inset 0 0 0 1000px var(--soft);-webkit-text-fill-color:var(--ink)}
+@media(max-width:600px){#settingsDialog.settings-workspace{padding:20px}.settings-layout{grid-template-columns:1fr;gap:22px}.settings-nav{position:static;flex-direction:row}.settings-nav button{flex:1;text-align:center}.settings-content .settings-row{gap:12px}}
+html[data-peleja-motion=on] #refresh.is-syncing svg{animation:connected-sync-spin .85s linear infinite!important}
+html[data-peleja-motion=off] #refresh.is-syncing svg{animation:none!important;opacity:.6}
+
+.account-disclosure{border-top:1px solid var(--line);margin-top:24px}.account-disclosure summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;padding:18px 0;font-size:14px}.account-disclosure summary::-webkit-details-marker{display:none}.account-disclosure summary span{font-size:20px;color:var(--muted);transition:transform 240ms}.account-disclosure[data-expanded=true] summary span{transform:rotate(45deg)}.account-disclosure form{padding:0 0 8px}

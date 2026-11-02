@@ -12,6 +12,7 @@ if(typeof mockAvatars!=='undefined'&&mockAvatars['Vinícius'])$('profile').inner
 const sidebarToggle=document.createElement('button');sidebarToggle.id='sidebarToggle';sidebarToggle.className='icon';sidebarToggle.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>';app.querySelector('header').prepend(sidebarToggle);
 function savePreviewPrefs(){try{localStorage.setItem(previewPrefsKey,JSON.stringify(previewPrefs));}catch{toast('Não foi possível salvar preferências neste navegador','settings');}}
 function applyPreviewPrefs(){
+ document.documentElement.dataset.pelejaMotion=previewPrefs.motion?"on":"off";try{localStorage.setItem("peleja-motion",previewPrefs.motion?"on":"off");}catch{}
  previewPrefs.navigation="top";previewPrefs.collapsed=false;
  app.classList.toggle('dark',!!previewPrefs.dark);document.body.classList.toggle('review-dark',!!previewPrefs.dark);app.dataset.navigation=previewPrefs.navigation==='side'?'side':'top';app.dataset.sidebarCollapsed=String(!!previewPrefs.collapsed);app.dataset.switchMotion=previewPrefs.motion?'on':'off';
  $('theme').textContent=previewPrefs.dark?'Claro':'Escuro';$('theme').setAttribute('aria-pressed',String(previewPrefs.dark));$('switchMotion').setAttribute('aria-pressed',String(previewPrefs.motion));$('settingsMotion').checked=!!previewPrefs.motion;
@@ -54,3 +55,8 @@ $('settingsFile').onchange=async()=>{const file=$('settingsFile').files[0];if(!f
 $('profileExit').onclick=()=>{closeProfileMenu();confirmPeleja('Sair da prévia?',()=>{$('previewExitDialog').showModal();},{description:'Os dados continuam disponíveis enquanto esta página estiver aberta. Nenhuma conta real será desconectada.',accept:'Sair'});};
 $('previewReturn').onclick=()=>$('previewExitDialog').close();$('previewExitDialog').addEventListener('cancel',e=>e.preventDefault());
 applyPreviewPrefs();
+
+// Backdrop uses the same cancel path as Escape, including unsaved-form guards.
+let backdropStart=null;
+document.addEventListener('pointerdown',e=>{const d=e.target;if(d instanceof HTMLDialogElement&&d.open){const r=d.getBoundingClientRect();backdropStart=(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)?d:null;}else backdropStart=null;});
+document.addEventListener('click',e=>{const d=backdropStart;backdropStart=null;if(!d||e.target!==d||!d.open)return;const r=d.getBoundingClientRect();if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom)return;const cancel=new Event('cancel',{cancelable:true});if(d.dispatchEvent(cancel))d.close();});

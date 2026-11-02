@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const config = globalThis.PELEJA_ACCESS_CONFIG;
+  document.documentElement.dataset.pelejaMotion=localStorage.getItem('peleja-motion')||'on';
   let mode = 'login', busy = false, revision = 0, session = null, recovering = false;
   const redirect = new URL('../../', location.href).href;
   const entry = active => { $('entrySplash').hidden=!active;document.body.classList.toggle('entry-busy',active); };
@@ -17,7 +18,9 @@
   };
   let viewMotion=[];
   function view(next) {
-    const card=document.querySelector('.card'),oldHeight=card.getBoundingClientRect().height,animate=next!==mode&&next!=='account'&&mode!=='account'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const card=document.querySelector('.card'),oldHeight=card.getBoundingClientRect().height,animate=next!==mode&&next!=='account'&&mode!=='account'&&document.documentElement.dataset.pelejaMotion!=='off';
+    document.querySelectorAll('.auth-outgoing').forEach(n=>n.remove());
+    let outgoing=null;if(animate){outgoing=$('form').cloneNode(true);outgoing.className='auth-outgoing';outgoing.setAttribute('aria-hidden','true');outgoing.inert=true;outgoing.style.cssText=`position:absolute;top:${$('form').offsetTop}px;left:${$('form').offsetLeft}px;width:${$('form').offsetWidth}px;margin:0;pointer-events:none`;outgoing.removeAttribute('id');outgoing.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));outgoing.querySelectorAll('input,button').forEach(n=>n.disabled=true);card.append(outgoing);}
     viewMotion.forEach(a=>a.cancel());viewMotion=[];
     mode = next; message();$('tabs').style.setProperty('--selected',next==='signup'?1:0);
     $('form').hidden = next === 'account'; $('account').hidden = next !== 'account';
@@ -37,7 +40,7 @@
     $('hint').textContent = next === 'signup' ? 'O acesso à turma depende de autorização.' : 'Informe o e-mail cadastrado ou seu usuário.';
     $('submit').textContent = ({login:'Entrar',signup:'Criar conta',reset:'Enviar link',password:'Salvar senha'})[next] || 'Entrar';
     document.querySelectorAll('[data-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.mode === next)));
-    if(animate&&card.animate){viewMotion.push($('heading').animate([{opacity:.25},{opacity:1}],{duration:220}));const height=card.getBoundingClientRect().height;viewMotion.push(card.animate([{height:oldHeight+'px'},{height:height+'px'}],{duration:320,easing:'cubic-bezier(.22,.8,.25,1)'}));viewMotion.push($('form').animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:260,easing:'ease-out'}));}
+    if(animate&&card.animate){if(outgoing){const fade=outgoing.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-4px)'}],{duration:160,fill:'forwards'});fade.onfinish=()=>outgoing.remove();viewMotion.push(fade);}viewMotion.push($('heading').animate([{opacity:.25},{opacity:1}],{duration:220}));const height=card.getBoundingClientRect().height;viewMotion.push(card.animate([{height:oldHeight+'px'},{height:height+'px'}],{duration:320,easing:'cubic-bezier(.22,.8,.25,1)'}));viewMotion.push($('form').animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'cubic-bezier(.22,.8,.25,1)'}));}
   }
   function lock(value) { busy = value; $('form').setAttribute('aria-busy',String(value)); document.querySelectorAll('button:not(#theme),input').forEach(el => el.disabled = value); }
   const cfgValid = config?.key?.startsWith('sb_publishable_') && /^https:\/\//.test(config?.url);
