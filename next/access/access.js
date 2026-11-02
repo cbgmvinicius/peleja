@@ -20,7 +20,7 @@
   function view(next) {
     const card=document.querySelector('.card'),oldHeight=card.getBoundingClientRect().height,animate=next!==mode&&next!=='account'&&mode!=='account'&&document.documentElement.dataset.pelejaMotion!=='off';
     document.querySelectorAll('.auth-outgoing').forEach(n=>n.remove());
-    let outgoing=null;if(animate){outgoing=$('form').cloneNode(true);outgoing.className='auth-outgoing';outgoing.setAttribute('aria-hidden','true');outgoing.inert=true;outgoing.style.cssText=`position:absolute;top:${$('form').offsetTop}px;left:${$('form').offsetLeft}px;width:${$('form').offsetWidth}px;margin:0;pointer-events:none`;outgoing.removeAttribute('id');outgoing.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));outgoing.querySelectorAll('input,button').forEach(n=>n.disabled=true);card.append(outgoing);}
+    let outgoing=null;if(animate){outgoing=$('form').cloneNode(true);outgoing.className='auth-outgoing';outgoing.setAttribute('aria-hidden','true');outgoing.inert=true;outgoing.style.cssText=`position:absolute;top:${$('form').offsetTop}px;left:${$('form').offsetLeft}px;width:${$('form').offsetWidth}px;margin:0;pointer-events:none`;outgoing.removeAttribute('id');outgoing.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));outgoing.querySelectorAll('label[for]').forEach(n=>n.removeAttribute('for'));outgoing.querySelectorAll('input,button').forEach(n=>n.disabled=true);card.append(outgoing);}
     viewMotion.forEach(a=>a.cancel());viewMotion=[];
     mode = next; message();$('tabs').style.setProperty('--selected',next==='signup'?1:0);
     $('form').hidden = next === 'account'; $('account').hidden = next !== 'account';
