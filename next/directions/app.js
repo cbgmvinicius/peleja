@@ -77,15 +77,16 @@ function render(){
 let libraryFilterEffects=[];
 function renderLibrarySwitch(){
  const library=$('library'),bounds=library.getBoundingClientRect();
- const previous=new Map([...library.querySelectorAll(':scope > .group > [data-row]')].map(row=>[row.dataset.row,{node:row.cloneNode(true),rect:row.getBoundingClientRect()}]));
+ const previous=new Map([...library.querySelectorAll(':scope > .group > [data-row]')].map(row=>({row,rect:row.getBoundingClientRect()})).filter(({rect})=>rect.height&&rect.bottom>=-120&&rect.top<=innerHeight+120).map(({row,rect})=>[row.dataset.row,{node:row.cloneNode(true),rect}]));
  libraryFilterEffects.forEach(effect=>effect());libraryFilterEffects=[];
  if(reduceMotion()||!library.animate){render();return;}
  renderContent();
  const duration=380,easing='cubic-bezier(.22,.8,.25,1)';
  const track=(node,frames,finish)=>{const animation=motion(node,frames,{duration,easing});const clean=()=>{animation?.cancel();finish?.();};libraryFilterEffects.push(clean);if(animation)animation.onfinish=clean;else clean();};
  const remaining=new Set();
- library.querySelectorAll(':scope > .group > [data-row]').forEach(row=>{
-  remaining.add(row.dataset.row);const old=previous.get(row.dataset.row),now=row.getBoundingClientRect();
+ const positions=[...library.querySelectorAll(':scope > .group > [data-row]')].map(row=>({row,now:row.getBoundingClientRect()}));
+ positions.forEach(({row,now})=>{
+  remaining.add(row.dataset.row);if(!now.height||now.bottom< -120||now.top>innerHeight+120)return;const old=previous.get(row.dataset.row);
   if(old){const x=old.rect.left-now.left,y=old.rect.top-now.top;if(x||y)track(row,[{transform:`translate(${x}px,${y}px)`},{transform:'translate(0,0)'}]);}
   else track(row,[{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}]);
  });
@@ -101,7 +102,7 @@ function renderLibrarySwitch(){
  track(layer,[{opacity:1},{opacity:0}],()=>layer.remove());
  library.querySelectorAll('.group-heading').forEach(heading=>track(heading,[{opacity:0},{opacity:1}]));
  const finalHeight=library.getBoundingClientRect().height;
- if(!library.hidden&&Math.abs(bounds.height-finalHeight)>1){library.style.overflow='clip';track(library,[{height:bounds.height+'px'},{height:finalHeight+'px'}],()=>library.style.overflow='');}
+ if(!library.hidden&&Math.max(bounds.height,finalHeight)<innerHeight*2&&Math.abs(bounds.height-finalHeight)>1){library.style.overflow='clip';track(library,[{height:bounds.height+'px'},{height:finalHeight+'px'}],()=>library.style.overflow='');}
  if(!$('empty').hidden)track($('empty'),[{opacity:0},{opacity:1}]);
 }
 const studyEffects=new WeakMap();
@@ -176,7 +177,7 @@ $('new').onclick=()=>toast('Assunto · Questões · Faculdade · Residência. O 
 function captureListMotion(host,selector,key){
  if(!host||reduceMotion())return new Map();
  const saved=new Map([...host.querySelectorAll(selector)].filter(el=>!el.closest('[data-motion-ghost]')&&el.getBoundingClientRect().height>0).map(el=>[el.getAttribute(key),{rect:el.getBoundingClientRect(),values:[...el.querySelectorAll('[data-motion-value]')].map(n=>Number(n.textContent.replace('%','').replace(',','.'))),bars:[...el.querySelectorAll('[data-motion-bar]')].map(n=>getComputedStyle(n).width)}]));
- saved.height=host.getBoundingClientRect().height;saved.snapshot=host.cloneNode(true);saved.snapshot.querySelectorAll('[data-motion-ghost]').forEach(n=>n.remove());return saved;
+ saved.height=host.getBoundingClientRect().height;if(host.querySelectorAll(selector).length<=12){saved.snapshot=host.cloneNode(true);saved.snapshot.querySelectorAll('[data-motion-ghost]').forEach(n=>n.remove());}return saved;
 }
 function playListMotion(host,selector,key,before){
  if(!host||reduceMotion())return;
@@ -193,7 +194,7 @@ function playListMotion(host,selector,key,before){
   const rect=el.getBoundingClientRect();if(!rect.height||rect.bottom<0||rect.top>innerHeight+200)return;
   const old=before.get(el.getAttribute(key)),options={duration:380,easing:'cubic-bezier(.22,.8,.25,1)'};
   if(old){const x=old.rect.left-rect.left,y=old.rect.top-rect.top;if(x||y)motion(el,[{transform:`translate(${x}px,${y}px)`},{transform:'translate(0,0)'}],options);
-   el.querySelectorAll('[data-motion-bar]').forEach((bar,i)=>{if(old.bars[i])motion(bar,[{width:old.bars[i]},{width:getComputedStyle(bar).width}],options);});
+   el.querySelectorAll('[data-motion-bar]').forEach((bar,i)=>{const from=parseFloat(old.bars[i]),to=parseFloat(getComputedStyle(bar).width);if(Number.isFinite(from)&&to>0&&Math.abs(from-to)>.5)motion(bar,[{transform:`scaleX(${from/to})`,transformOrigin:'left center'},{transform:'scaleX(1)',transformOrigin:'left center'}],options);});
    const values=[...el.querySelectorAll('[data-motion-value]')].map((node,i)=>({node,from:old.values[i],to:Number(node.dataset.motionValue),percent:node.dataset.motionFormat==='percent'})).filter(v=>Number.isFinite(v.from));
    if(values.length){const start=performance.now();const tick=now=>{if(!el.isConnected)return;const t=Math.min(1,(now-start)/380),ease=1-Math.pow(1-t,3);values.forEach(v=>{v.node.textContent=(v.from+(v.to-v.from)*ease).toLocaleString('pt-BR',{maximumFractionDigits:v.percent?1:0})+(v.percent?'%':'');});if(t<1)requestAnimationFrame(tick);};requestAnimationFrame(tick);}
   }else motion(el,[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],options);
