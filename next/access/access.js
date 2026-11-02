@@ -67,7 +67,7 @@
       if (ticket !== revision) return;
       if (workspace.error) throw workspace.error;
       const payload = workspace.data?.payload;
-      location.replace(new URL('../directions/',location.href).href);return;
+      const next=new URLSearchParams(location.search).get('next')||'#painel';const destination=new URL('../directions/',location.href);destination.hash=/^#(painel|biblioteca|provas|simulados|ranking|cursos)(\/.*)?$/.test(next)?next:'#painel';location.replace(destination.href);return;
       $('accountState').textContent = payload ? 'Seu histórico está pronto.' : 'Acesso autorizado. Ainda não há histórico pessoal salvo na nuvem.';
       if (payload) for (const [key,label] of [['materials','Assuntos'],['exams','Provas'],['simulations','Simulados']]) {
         const dt = document.createElement('dt'), dd = document.createElement('dd');

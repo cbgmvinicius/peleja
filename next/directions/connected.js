@@ -13,7 +13,7 @@
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   data=[];facultyRecords=[];resetStandaloneQuestions();$('library').replaceChildren();$('facultyList').replaceChildren();
  }
- function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href='../access/';link.textContent='Ir para o acesso';gate.append(link);}
+ function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href='../access/'+(location.hash?'?next='+encodeURIComponent(location.hash):'');link.textContent='Ir para o acesso';gate.append(link);}
  function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
  function decorate(){
   document.querySelectorAll('[data-study],[data-questions],[data-exam-result]').forEach(b=>{b.disabled=!!writer?.blocked||(b.hasAttribute('data-study')&&!!writer?.busy);});
@@ -161,7 +161,20 @@
   PELEJA_INSTALL_ADMIN({writer,allowed:()=>isAdmin,saveChange,hydrate});
   simulations=PELEJA_INSTALL_SIMULATIONS({client,writer,getUser:()=>currentSession?.user?.id,allowed:()=>isAdmin,saveChange,setSaving,refreshAccount:()=>refresh(currentSession)});
   const accountProfile=PELEJA_INSTALL_PROFILE({client,getSession:()=>currentSession,getName:()=>profileName,onName:name=>{profileName=name;},onReload:()=>{simulations.load();dashboard.load();}});
+  const pageRoutes={painel:['dashboardPage',showDashboard],biblioteca:['libraryPage',showLibraryPage],provas:['facultyPage',showFacultyPage],simulados:['mockPage',showMocks],ranking:['performancePage',showGeneralRanking],cursos:['extraPage',showExtraCourses]};
+  function restoreRoute(hash){
+   let parts;try{parts=hash.replace(/^#/,'').split('/').map(decodeURIComponent);}catch{parts=[];}
+   const route=pageRoutes[parts[0]]?parts[0]:'painel';pageRoutes[route][1]();
+   if(route==='cursos'&&parts[1]&&extraAllowed(parts[1]))openExtraCourse(parts[1]);
+   if(route==='biblioteca'&&parts[1]){const subject=data.find(m=>m.sourceId===parts[1]);if(subject)revealFacultyTopic(subject.code);}
+  }
+  function rememberRoute(){if(loading||!currentSession||document.documentElement.classList.contains('connected-loading'))return;const route=Object.keys(pageRoutes).find(k=>!$(pageRoutes[k][0]).hidden);if(!route)return;const hash='#'+route+(route==='cursos'&&extraActive?'/'+encodeURIComponent(extraActive):'');if(location.hash!==hash)history.replaceState(null,'',location.pathname+location.search+hash);}
+  const routeObserver=new MutationObserver(rememberRoute);
+  for(const [id] of Object.values(pageRoutes))routeObserver.observe($(id),{attributes:true,attributeFilter:['hidden']});
+  routeObserver.observe($('extraPage'),{childList:true});
+  addEventListener('hashchange',()=>{if(!loading&&currentSession){restoreRoute(location.hash);rememberRoute();}});
   async function refresh(session,manual=false,silent=false){
+   const requestedRoute=location.hash;
    const view=['dashboardPage','extraPage','mockPage','performancePage','facultyPage'].find(id=>$(id)&&!$(id).hidden);
    const course=extraActive;
    const button=$('refresh');if(manual){button.classList.add('is-syncing');button.disabled=true;button.setAttribute('aria-busy','true');}
@@ -179,12 +192,14 @@
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
     writer.load(remote.data,session.user.id);showLibraryPage();render();renderFacultyPage();syncFilterControls();
-    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
+    const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
+    if(!manual)restoreRoute(requestedRoute);
+    document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;
     if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     return true;
    }catch(error){if(manual){if(ticket===version)toast('Não foi possível sincronizar. Tente novamente.','info');}else if(ticket===version)fail(error.message==='Sua conta ainda não está autorizada.'?error.message:'Não foi possível carregar os dados. Volte ao acesso e tente novamente.');}
-   finally{if(ticket===version)loading=false;if(manual){button.classList.remove('is-syncing');button.disabled=false;button.removeAttribute('aria-busy');}}
+   finally{if(ticket===version){loading=false;rememberRoute();}if(manual){button.classList.remove('is-syncing');button.disabled=false;button.removeAttribute('aria-busy');}}
   }
   app.insertAdjacentHTML('beforeend',`<dialog id="syncConflictDialog" class="settings-dialog" aria-labelledby="syncConflictTitle"><div class="settings-heading"><h2 id="syncConflictTitle">Alterações em outro aparelho</h2><button type="button" class="icon" id="syncConflictClose" aria-label="Fechar">${svg('close')}</button></div><p>Escolha usar os dados atuais da nuvem ou reaplicar sua última alteração sobre eles. O restante do histórico será preservado.</p><div class="confirm-actions"><button type="button" class="editor-cancel" id="syncUseCloud">Usar a nuvem</button><button type="button" class="primary" id="syncRetry">Reaplicar alteração</button></div></dialog>`);
   $('syncConflictClose').onclick=()=>$('syncConflictDialog').close();
