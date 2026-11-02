@@ -164,7 +164,7 @@
   const pageRoutes={painel:['dashboardPage',showDashboard],biblioteca:['libraryPage',showLibraryPage],provas:['facultyPage',showFacultyPage],simulados:['mockPage',showMocks],ranking:['performancePage',showGeneralRanking],cursos:['extraPage',showExtraCourses]};
   function restoreRoute(hash){
    let parts;try{parts=hash.replace(/^#/,'').split('/').map(decodeURIComponent);}catch{parts=[];}
-   const route=pageRoutes[parts[0]]?parts[0]:'painel';pageRoutes[route][1]();
+   const route=Object.hasOwn(pageRoutes,parts[0])?parts[0]:'painel';pageRoutes[route][1]();
    if(route==='cursos'&&parts[1]&&extraAllowed(parts[1]))openExtraCourse(parts[1]);
    if(route==='biblioteca'&&parts[1]){const subject=data.find(m=>m.sourceId===parts[1]);if(subject)revealFacultyTopic(subject.code);}
   }
