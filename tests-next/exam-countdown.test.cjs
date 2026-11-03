@@ -1,0 +1,14 @@
+const {JSDOM}=require('jsdom'),fs=require('fs'),assert=require('node:assert/strict');
+const base=require('path').join(__dirname,'../next/directions/');
+const dom=new JSDOM('<div id="dashboardRanking"></div>',{runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+w.$=id=>w.document.getElementById(id);w.localQuestionDate=()=> '2026-11-03';
+const faculty=fs.readFileSync(base+'faculty-page.js','utf8');w.eval(faculty.slice(faculty.indexOf('function examCountdown('),faculty.indexOf('function orderedFaculty')));
+assert.equal(w.examCountdown('2026-11-12'),'Faltam 9 dias');assert.equal(w.examCountdown('2026-11-04'),'Amanhã');assert.equal(w.examCountdown('2026-11-03'),'Hoje');assert.equal(w.examCountdown('2026-11-02'),'');assert.equal(w.examCountdown(''),'');assert.equal(w.examCountdown('2027-01-01','2026-12-31'),'Amanhã');assert.equal(w.examCountdown('2028-03-01','2028-02-28'),'Faltam 2 dias');assert.equal(w.examCountdownBadge({date:'2026-11-12',grade:8}),'');
+let reduced=false,effects=[];w.reduceMotion=()=>reduced;w.motion=(node,frames)=>{if(!reduced)effects.push({node,frames});};
+const dashboard=fs.readFileSync(base+'dashboard.js','utf8');w.eval(dashboard.slice(dashboard.indexOf('let dashboardRankingFrame'),dashboard.indexOf('function updateDashboardComparison')));
+const markup=p=>`<ol class="dashboard-ranking"><li data-person="a"><span class="dashboard-place">1</span><b data-count="${p}">${p}</b><span class="dashboard-track" aria-label="${p}%"><i style="transform:scaleX(${p/100})"></i></span></li></ol>`;
+w.$('dashboardRanking').innerHTML=markup(50);const row=w.document.querySelector('li');
+w.transitionDashboardRanking(markup(0));assert.equal(w.document.querySelector('li'),row);assert.equal(effects.at(-1).frames[0].transform,'scaleX(0.5)');assert.equal(effects.at(-1).frames[1].transform,'scaleX(0)');
+w.transitionDashboardRanking(markup(100));assert.equal(effects.at(-1).frames[0].transform,'scaleX(0)');assert.equal(effects.at(-1).frames[1].transform,'scaleX(1)');
+reduced=true;effects=[];w.transitionDashboardRanking(markup(25));assert.equal(effects.length,0);assert.equal(row.querySelector('i').style.transform,'scaleX(0.25)');assert.equal(row.querySelector('b').textContent,'25');
+dom.window.close();console.log('PASS countdown calendar boundaries and progress transitions to/from zero with reduced motion');

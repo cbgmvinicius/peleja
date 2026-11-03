@@ -622,3 +622,7 @@ body.review-dark{background:#141413;color:#f1eee7}
 /* The search field has one rounded focus indicator, on its enclosing surface. */
 .app .search input:focus,.app .search input:focus-visible{outline:none;box-shadow:none}
 .app .search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
+
+.exam-countdown{display:inline-block;margin-left:10px;font-size:12px;font-weight:500;color:var(--accent)}
+.dashboard-exam-heading{flex-wrap:wrap}.dashboard-exam-heading .exam-countdown{margin-left:0}
+.app .dashboard-ranking .dashboard-track i{width:100%;transform-origin:left center;transition:none!important}
