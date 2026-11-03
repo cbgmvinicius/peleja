@@ -17,7 +17,7 @@ globalThis.PELEJA_INSTALL_DASHBOARD=({client,getUser,getName})=>{
   return `<ol class="dashboard-ranking">${list.map(r=>{
    const me=r.user_id===getUser(),rank=list.findIndex(x=>x.ratio===r.ratio&&x.done===r.done)+1,pct=Math.round(r.ratio*100);
    const person={name:r.name,userId:r.user_id,me,photo:mockExams.flatMap(e=>e.participants||[]).find(p=>p.userId===r.user_id)?.photo};
-   return `<li data-person="${escapeHtml(r.user_id)}" class="${me?'is-me':''}"><span class="dashboard-place">${rank}º</span><span class="ranking-person">${mockPersonAvatar(person)}<span>${escapeHtml(r.name)}${me?'<small>Você</small>':''}</span></span><span class="dashboard-completion"><strong><b data-count="${r.done}">${r.done}</b><span> / <b data-count="${r.total}">${r.total}</b></span></strong><span class="dashboard-track" role="img" aria-label="${pct}% concluído"><i style="width:${pct}%"></i></span></span></li>`;
+   return `<li data-person="${escapeHtml(r.user_id)}" class="${me?'is-me':''}"><span class="dashboard-place">${rank}º</span><span class="ranking-person">${mockPersonAvatar(person)}<span>${escapeHtml(r.name)}${me?'<small>Você</small>':''}</span></span><span class="dashboard-completion"><strong><b data-count="${r.done}">${r.done}</b><span> / <b data-count="${r.total}">${r.total}</b></span></strong><span class="dashboard-track" role="img" aria-label="${pct}% concluído"><i style="transform:scaleX(${pct/100})"></i></span></span></li>`;
   }).join('')}</ol>`;
  };
  const originalRender=renderDashboard;

@@ -1,6 +1,15 @@
 // Dates determine order; a recorded question result determines completion.
 let facultyMenuId=null,facultyExpanded=new Set(),facultyDayTimer;
 function isFacultyPerformed(exam){return exam.q!=null;}
+function examCountdown(date,today=localQuestionDate()){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return '';
+ const days=Math.round((Date.parse(date+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000);
+ return !Number.isFinite(days)||days<0?'':days===0?'Hoje':days===1?'Amanhã':`Faltam ${days} dias`;
+}
+function examCountdownBadge(exam){
+ const label=exam.q==null&&exam.grade==null?examCountdown(exam.date):'';
+ return label?`<span class="exam-countdown">${label}</span>`:'';
+}
 function orderedFaculty(exams,today=localQuestionDate()){
   return [...exams].sort((a,b)=>{
     const pastA=a.date<today||a.sortCompleted===true,pastB=b.date<today||b.sortCompleted===true;
@@ -20,7 +29,7 @@ function renderFacultyPage(){
     const topics=exam.materialCodes.map(code=>data.find(m=>m.code===code)).filter(Boolean);
 
     const doneLabel=performed?'Editar meu resultado':'Adicionar meu resultado';
-    return `<article class="faculty-card" data-exam="${exam.id}"><div><span class="faculty-tag">${escapeHtml(exam.type)}</span><h3>${escapeHtml(exam.subject)}</h3><span class="faculty-date">${escapeHtml(new Date(exam.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short',year:'numeric'}))}</span><div class="faculty-topics" id="topics-${exam.id}">${topics.map(m=>`<button class="faculty-topic" data-topic="${escapeHtml(m.code)}" title="${escapeHtml(m.fullTitle||m.code+' '+m.title)}">${escapeHtml((m.fullTitle||m.code+' '+m.title).toLocaleUpperCase('pt-BR'))}</button>`).join('')}</div><button class="faculty-more" data-exam-expand="${exam.id}" aria-controls="topics-${exam.id}" aria-expanded="${expanded}" hidden>${topics.length} assuntos</button></div>${exam.q!=null?`<div class="faculty-result"><div class="stats"><span>Questões<b>${exam.q}</b></span><span class="correct">Acertos<b>${exam.c}</b></span><span class="wrong">Erros<b>${exam.w}</b></span></div><span class="faculty-accuracy">${Math.round(exam.c/exam.q*100)}% de acertos</span></div>`:'<div class="faculty-no-result">Sem resultado</div>'}<div class="faculty-actions"><button class="icon" data-exam-menu="${exam.id}" aria-label="Ações de ${escapeHtml(exam.type+' · '+exam.subject)}" title="Mais ações" aria-haspopup="true" aria-expanded="false">${svg('more')}</button><button class="icon exam-result-action${performed?' has-result':''}" data-exam-result="${exam.id}" aria-label="${doneLabel}" title="${doneLabel}">${svg('target')}</button></div></article>`;
+    return `<article class="faculty-card" data-exam="${exam.id}"><div><span class="faculty-tag">${escapeHtml(exam.type)}</span><h3>${escapeHtml(exam.subject)}</h3><span class="faculty-date">${escapeHtml(new Date(exam.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short',year:'numeric'}))}</span>${examCountdownBadge(exam)}<div class="faculty-topics" id="topics-${exam.id}">${topics.map(m=>`<button class="faculty-topic" data-topic="${escapeHtml(m.code)}" title="${escapeHtml(m.fullTitle||m.code+' '+m.title)}">${escapeHtml((m.fullTitle||m.code+' '+m.title).toLocaleUpperCase('pt-BR'))}</button>`).join('')}</div><button class="faculty-more" data-exam-expand="${exam.id}" aria-controls="topics-${exam.id}" aria-expanded="${expanded}" hidden>${topics.length} assuntos</button></div>${exam.q!=null?`<div class="faculty-result"><div class="stats"><span>Questões<b>${exam.q}</b></span><span class="correct">Acertos<b>${exam.c}</b></span><span class="wrong">Erros<b>${exam.w}</b></span></div><span class="faculty-accuracy">${Math.round(exam.c/exam.q*100)}% de acertos</span></div>`:'<div class="faculty-no-result">Sem resultado</div>'}<div class="faculty-actions"><button class="icon" data-exam-menu="${exam.id}" aria-label="Ações de ${escapeHtml(exam.type+' · '+exam.subject)}" title="Mais ações" aria-haspopup="true" aria-expanded="false">${svg('more')}</button><button class="icon exam-result-action${performed?' has-result':''}" data-exam-result="${exam.id}" aria-label="${doneLabel}" title="${doneLabel}">${svg('target')}</button></div></article>`;
   }).join('');
   applyDemoPermissions();measureFacultyTopics();
   $('facultyEmpty').hidden=!!exams.length;$('facultyEmpty').querySelector('p').textContent='Nenhuma prova cadastrada.';
@@ -62,9 +71,9 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('faculty
 function scheduleFacultyDay(){
   clearTimeout(facultyDayTimer);const now=new Date(),next=new Date(now);next.setHours(24,0,0,100);
   facultyDayTimer=setTimeout(()=>{if(!$('facultyPage').hidden)
-renderFacultyPage();scheduleFacultyDay();},next-now);
+renderFacultyPage();if($('dashboardPage')&&!$('dashboardPage').hidden)renderDashboard();scheduleFacultyDay();},next-now);
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('facultyPage').hidden)renderFacultyPage();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(!$('facultyPage').hidden)renderFacultyPage();if($('dashboardPage')&&!$('dashboardPage').hidden)renderDashboard();}});
 const topicAnimations=new WeakMap();
 function measureFacultyTopics(){
   document.querySelectorAll('.faculty-topics').forEach(panel=>{
@@ -112,4 +121,4 @@ if(typeof ResizeObserver!=='undefined'){
   let previousWidth=-1;new ResizeObserver(entries=>{const width=entries[0].contentRect.width;if(width!==previousWidth){previousWidth=width;measureFacultyTopics();}}).observe($('facultyList'));
 }else window.addEventListener('resize',measureFacultyTopics);
 document.fonts?.ready.then(measureFacultyTopics);
-renderFacultyPage();scheduleFacultyDay();
+renderFacultyPage();if($('dashboardPage')&&!$('dashboardPage').hidden)renderDashboard();scheduleFacultyDay();
