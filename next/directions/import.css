@@ -1,0 +1,78 @@
+/* "Importar questões" menu: same shell as the subject / questions / faculty dialogs, wider for the review. */
+#importDialog{top:clamp(20px,5dvh,48px);bottom:auto;margin:0 auto;width:min(720px,calc(100% - 32px));max-height:calc(100dvh - clamp(20px,5dvh,48px) - 20px);padding:0;border:1px solid var(--line);border-radius:26px;background:var(--surface);color:var(--ink);box-shadow:0 24px 100px #0004;overflow:auto}
+#importDialog::backdrop{background:#1319137a}
+.import-body{padding:30px}
+#importDialog .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+.import-drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:34px 20px;border:1.5px dashed var(--line);border-radius:18px;cursor:pointer;transition:border-color .18s,background .18s}
+.import-drop:hover,.import-drop.over{border-color:var(--accent);background:var(--soft)}
+.import-drop strong{font-size:15px;font-weight:500}
+.import-drop span{font-size:13px;color:var(--muted)}
+.import-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.import-drop:focus-within{outline:2px solid var(--accent);outline-offset:3px}
+.import-paste{margin-top:12px}
+.import-paste summary{cursor:pointer;color:var(--muted);font-size:13px;width:max-content;border-radius:8px}
+.import-paste-body{display:grid;gap:10px;margin-top:10px}
+.import-paste textarea{min-height:120px;resize:vertical;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--canvas);color:var(--ink);font:12px/1.5 ui-monospace,Consolas,monospace}
+.import-paste-body .editor-cancel{justify-self:start}
+
+.import-status{margin:16px 0 0;font-size:13px;color:var(--muted)}
+.import-status:empty{display:none}
+.import-status[data-tone=ok]{color:var(--accent)}
+.import-status[data-tone=error]{color:var(--negative)}
+.import-status[data-tone=busy]::before{content:'';display:inline-block;width:9px;height:9px;margin-right:8px;border-radius:50%;background:#d9864a;vertical-align:1px;animation:import-pulse 1s ease-in-out infinite}
+@keyframes import-pulse{50%{opacity:.35;transform:scale(.8)}}
+
+#importReview{margin-top:18px}
+.import-scope{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.import-scope .editor-field{margin-bottom:14px}
+
+.import-sets{margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--soft)}
+.import-sets-title{margin:0 0 6px;font-size:12px;color:var(--muted)}
+.import-set{display:grid;grid-template-columns:minmax(0,1fr) auto 36px;align-items:center;gap:10px;font-size:13px}
+.import-set span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.import-set small{color:var(--muted)}
+.import-set .icon{width:36px;height:36px;color:var(--muted)}
+.import-set .icon:hover{color:var(--negative)}
+.import-set svg{width:17px;height:17px}
+
+.import-summary{margin:6px 0 12px;font-size:13px;color:var(--muted);line-height:1.6}
+.import-summary strong{font-size:15px;font-weight:500;color:var(--ink)}
+.import-topics{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.import-topics button{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12px;transition:background .18s,color .18s,border-color .18s}
+.import-topics button small{font-size:11px;opacity:.8}
+.import-topics button[aria-pressed=true]{background:var(--button);border-color:var(--button);color:var(--onbutton)}
+
+.import-questions{border-top:1px solid var(--line)}
+.import-q{border-bottom:1px solid var(--line)}
+.import-q summary{display:grid;grid-template-columns:28px minmax(0,1fr) 18px;gap:12px;align-items:start;padding:14px 2px;cursor:pointer;list-style:none;border-radius:10px}
+.import-q summary::-webkit-details-marker{display:none}
+.import-num{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--soft);color:var(--accent);font-size:11px;font-weight:600}
+.import-q-text{display:grid;gap:6px;font-size:14px;line-height:1.5}
+.import-tag{justify-self:start;padding:2px 9px;border-radius:12px;background:var(--soft);color:var(--muted);font-size:11px}
+.import-chevron{width:9px;height:9px;margin:7px 0 0 4px;border:solid var(--muted);border-width:0 1.8px 1.8px 0;transform:rotate(45deg);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.import-q[open]:not([data-closing]) .import-chevron{transform:rotate(-135deg) translate(-3px,-3px)}
+.import-q-body{padding:0 2px 16px 40px}
+.import-options{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.import-option{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:11px 12px;border-radius:14px;border:1px solid var(--line)}
+.import-option[data-correct]{background:color-mix(in srgb,var(--accent) 14%,var(--surface));border-color:transparent}
+.import-option p{margin:0;font-size:14px}
+.import-letter{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;border:1px solid var(--line);font-size:11px;font-weight:600;color:var(--muted)}
+.import-option[data-correct] .import-letter{background:var(--button);border-color:var(--button);color:var(--onbutton)}
+.import-answer{margin-left:8px;padding:1px 8px;border-radius:10px;background:var(--button);color:var(--onbutton);font-size:10px;vertical-align:1px}
+.import-why{margin-top:5px!important;font-size:12.5px!important;color:var(--muted)}
+.import-hint{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+
+#importDialog .editor-footer{position:sticky;bottom:-30px;margin:18px -30px -30px;padding:16px 30px 22px;background:var(--surface);border-top:1px solid var(--line)}
+
+@media(max-width:640px){
+ .import-body{padding:22px}
+ .import-scope{grid-template-columns:1fr;gap:0}
+ .import-q-body{padding-left:2px}
+ #importDialog .editor-footer{bottom:-22px;margin:18px -22px -22px;padding:14px 22px 18px}
+}
+@media(prefers-reduced-motion:reduce){html:not([data-peleja-motion=on]) .import-chevron{transition:none}}
+html[data-peleja-motion=off] .import-chevron{transition:none}
+.import-q summary{padding-inline:10px}
+.import-q summary:is(:hover,:focus-visible) .import-num{background:var(--surface)}
+.import-q-body{padding-right:10px}

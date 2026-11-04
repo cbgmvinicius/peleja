@@ -40,7 +40,7 @@ function closeEditor(force=false){
 }
 $('new').setAttribute('aria-haspopup','true');$('new').setAttribute('aria-expanded','false');
 $('new').onclick=()=>{const open=$('eventMenu').hidden;closeMenus();if(open){$('eventMenu').hidden=false;positionMenu($('eventMenu'),$('new'));$('new').setAttribute('aria-expanded','true');$('eventMenu').querySelector('button').focus();}};
-$('eventMenu').onclick=e=>{const b=e.target.closest('[data-create]');if(!b)return;closeMenus();if(b.dataset.create==='subject')openEditor(null,$('new'));else if(b.dataset.create==='questions')openQuestions();else if(b.dataset.create==='college')openFaculty();else if(b.dataset.create==='residency')openMock();else toast('Nesta etapa estamos refinando o formulário de assunto.');};
+$('eventMenu').onclick=e=>{const b=e.target.closest('[data-create]');if(!b)return;closeMenus();if(b.dataset.create==='subject')openEditor(null,$('new'));else if(b.dataset.create==='questions')openQuestions();else if(b.dataset.create==='college')openFaculty();else if(b.dataset.create==='residency')openMock();else if(b.dataset.create==='import')globalThis.PELEJA_OPEN_IMPORT?.();else toast('Nesta etapa estamos refinando o formulário de assunto.');};
 $('library').addEventListener('click',e=>{const b=e.target.closest('[data-edit-menu]');if(!b)return;const open=$('rowMenu').hidden||rowMenuCode!==b.dataset.editMenu;closeMenus();rowMenuCode=b.dataset.editMenu;editorOpener=b;if(open){$('rowMenu').hidden=false;positionMenu($('rowMenu'),b);b.setAttribute('aria-expanded','true');$('editSubject').focus();}});
 $('editSubject').onclick=()=>openEditor(rowMenuCode,editorOpener);
 $('deleteSubject').onclick=()=>{

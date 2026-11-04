@@ -67,7 +67,7 @@
       if (ticket !== revision) return;
       if (workspace.error) throw workspace.error;
       const payload = workspace.data?.payload;
-      const next=new URLSearchParams(location.search).get('next')||'#painel';const questions=/^#questoes(?:\/import=([\w-]{1,80}))?$/.exec(next);const destination=new URL(questions?'../questions/':'../directions/',location.href);destination.hash=questions?(questions[1]?'#import='+questions[1]:''):/^#(painel|biblioteca|provas|simulados|ranking|cursos)(\/.*)?$/.test(next)?next:'#painel';location.replace(destination.href);return;
+      const next=new URLSearchParams(location.search).get('next')||'#painel';const questions=/^#questoes(?:\/import=([\w-]{1,80}))?$/.exec(next);const destination=new URL('../directions/',location.href);if(questions?.[1])destination.search='?import='+questions[1];destination.hash=questions?'#painel':/^#(painel|biblioteca|provas|simulados|ranking|cursos)(\/.*)?$/.test(next)?next:'#painel';location.replace(destination.href);return;
       $('accountState').textContent = payload ? 'Seu histórico está pronto.' : 'Acesso autorizado. Ainda não há histórico pessoal salvo na nuvem.';
       if (payload) for (const [key,label] of [['materials','Assuntos'],['exams','Provas'],['simulations','Simulados']]) {
         const dt = document.createElement('dt'), dd = document.createElement('dd');
