@@ -10,11 +10,6 @@
 .import-drop span{font-size:13px;color:var(--muted)}
 .import-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .import-drop:focus-within{outline:2px solid var(--accent);outline-offset:3px}
-.import-paste{margin-top:12px}
-.import-paste summary{cursor:pointer;color:var(--muted);font-size:13px;width:max-content;border-radius:8px}
-.import-paste-body{display:grid;gap:10px;margin-top:10px}
-.import-paste textarea{min-height:120px;resize:vertical;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--canvas);color:var(--ink);font:12px/1.5 ui-monospace,Consolas,monospace}
-.import-paste-body .editor-cancel{justify-self:start}
 
 .import-status{margin:16px 0 0;font-size:13px;color:var(--muted)}
 .import-status:empty{display:none}

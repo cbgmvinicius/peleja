@@ -74,13 +74,15 @@ async function app({role='admin',search='',delivery=null}={}){
  // From the + menu with the exported file content: duplicate recognized, sets listed with delete.
  w.document.querySelector('[data-create=import]').click();await tick(60);
  assert.equal($('importDialog').open,true);assert.equal($('importEntry').hidden,false);assert.equal($('importExam').disabled,true);
- $('importPaste').value=JSON.stringify(quiz);$('importRead').click();await tick(60);
+ assert.equal(w.document.querySelector('#importDialog textarea'),null,'no paste box');
+ const dropFile=value=>{const e=new w.Event('drop',{bubbles:true,cancelable:true});e.dataTransfer={files:[new w.File([JSON.stringify(value)],'peleja-questoes.json',{type:'application/json'})]};$('importDrop').dispatchEvent(e);};
+ dropFile(quiz);await tick(80);
  assert.equal($('importSave').disabled,true);assert.match($('importStatus').textContent,/já estão no Peleja/);
  assert.equal(w.document.querySelectorAll('#importSets .import-set').length,1);
  // Broken content is explained.
  $('importClose').click();await tick(20);if(w.document.getElementById('confirmAccept'))w.document.getElementById('confirmAccept').click();await tick(20);
  w.document.querySelector('[data-create=import]').click();await tick(60);
- $('importPaste').value=JSON.stringify({...quiz,questions:[{...quiz.questions[0],answerOptions:[opt('A',true),opt('B',true)]}]});$('importRead').click();await tick(40);
+ dropFile({...quiz,questions:[{...quiz.questions[0],answerOptions:[opt('A',true),opt('B',true)]}]});await tick(80);
  assert.match($('importStatus').textContent,/gabarito ambíguo/);assert.equal($('importReview').hidden,true);
  w.close();
 

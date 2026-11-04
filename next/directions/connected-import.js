@@ -123,7 +123,7 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
  }
  function resetView(){
   quiz=null;fingerprint='';received='';saving=false;clearTimeout(handoffTimer);
-  $('importEntry').hidden=false;$('importReview').hidden=true;$('importQuestions').replaceChildren();$('importPaste').value='';$('importSets').hidden=true;status('');refreshSave();
+  $('importEntry').hidden=false;$('importReview').hidden=true;$('importQuestions').replaceChildren();$('importSets').hidden=true;status('');refreshSave();
  }
 
  // ---------- open / close ----------
@@ -154,7 +154,7 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
   finally{saving=false;$('importSave').removeAttribute('aria-busy');refreshSave();}
  };
 
- // ---------- file / paste ----------
+ // ---------- exported file ----------
  async function readFile(file){
   if(!file)return;if(file.size>PelejaQuiz.MAX){status('Arquivo grande demais. O limite é 8 MB.','error');return;}
   try{await review(JSON.parse(await file.text()));}catch{status('Este arquivo não é um JSON válido. Exporte de novo pela extensão.','error');}
@@ -164,7 +164,6 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
  for(const type of ['dragenter','dragover'])drop.addEventListener(type,e=>{e.preventDefault();drop.classList.add('over');});
  for(const type of ['dragleave','drop'])drop.addEventListener(type,()=>drop.classList.remove('over'));
  drop.addEventListener('drop',e=>{e.preventDefault();readFile(e.dataTransfer?.files?.[0]);});
- $('importRead').onclick=()=>{try{review(JSON.parse($('importPaste').value));}catch{status('O conteúdo colado não é um JSON válido.','error');}};
 
  // ---------- extension hand-off (same string-event protocol as the extension's bridge.js) ----------
  document.addEventListener('peleja-import-delivery',event=>{
