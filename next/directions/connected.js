@@ -13,7 +13,10 @@
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   data=[];facultyRecords=[];resetStandaloneQuestions();$('library').replaceChildren();$('facultyList').replaceChildren();
  }
- function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href='../access/'+(location.hash?'?next='+encodeURIComponent(location.hash):'');link.textContent='Ir para o acesso';gate.append(link);}
+ const accessUrl=()=>'../access/'+(location.hash?'?next='+encodeURIComponent(location.hash):'');
+ // No saved session is not an error: keep the splash and hand over to the access page, which returns to this route after sign-in.
+ function toAccess(){status.textContent='Abrindo o acesso…';(globalThis.PELEJA_LEAVE||(url=>location.replace(url)))(accessUrl());}
+ function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href=accessUrl();link.textContent='Ir para o acesso';gate.append(link);}
  function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
  function decorate(){
   document.querySelectorAll('[data-study],[data-questions],[data-exam-result]').forEach(b=>{b.disabled=!!writer?.blocked||(b.hasAttribute('data-study')&&!!writer?.busy);});
@@ -179,7 +182,7 @@
    const course=extraActive;
    const button=$('refresh');if(manual){button.classList.add('is-syncing');button.disabled=true;button.setAttribute('aria-busy','true');}
    const ticket=++version;if(recoveryDraft&&recoveryDraft.owner!==session?.user?.id)clearDraft();currentSession=session;if(pendingConflict?.owner!==session?.user?.id)pendingConflict=null;if(!manual)lockContent();loading=true;
-   if(!session){loading=false;fail('Entre na sua conta para abrir a Biblioteca e as Provas.');return;}
+   if(!session){loading=false;toAccess();return;}
    status.textContent='Carregando sua Biblioteca e suas Provas…';
    try{
     const access=await client.rpc('has_peleja_access');if(ticket!==version)return;
