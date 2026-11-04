@@ -11,10 +11,12 @@ async function app({role='admin',search='',delivery=null}={}){
  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;Object.defineProperty(w,'crypto',{value:require('crypto').webcrypto});
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
  const remote={revision:1,catalog_revision:1,catalog:{materials:[
-  {id:'derm:1',title:'D09 Micoses',subject:'Dermatologia',classDate:'2026-10-10',notebookUrl:'https://notebooklm.google.com/notebook/abc'},
+  {id:'derm:1',title:'D09 Micoses',subject:'Dermatologia',specialty:'Pele',classDate:'2026-10-10',notebookUrl:'https://notebooklm.google.com/notebook/abc'},
   {id:'derm:2',title:'D10 Acne',subject:'Dermatologia',classDate:'2026-10-11'},
+  {id:'derm:3',title:'N12 Neurodivergências',subject:'Dermatologia',specialty:'Neurologia',classDate:'2026-10-16'},
+  {id:'derm:4',title:'D11 Manifestações',subject:'Dermatologia',specialty:'Pele',classDate:'2026-10-28'},
   {id:'ped:1',title:'P03 Asma',subject:'Pediatria',classDate:'2026-10-12'}],simulations:[],exams:[
-  {id:'e1',subject:'Dermatologia',type:'PR2.1',date:'2099-12-31',materialIds:['derm:1']},
+  {id:'e1',subject:'Dermatologia',type:'PR2.1',date:'2099-12-31',materialIds:['derm:4','derm:3','derm:1']},
   {id:'e2',subject:'Dermatologia',type:'PR1.1',date:'2098-01-10',materialIds:['derm:2']},
   {id:'e3',subject:'Pediatria',type:'PR1.1',date:'2098-01-10',materialIds:['ped:1']}]},
   payload:{materials:[],exams:[],simulations:[],courses:[],questionSessions:[]}};
@@ -59,7 +61,10 @@ async function app({role='admin',search='',delivery=null}={}){
  $('importExam').value='next';$('importExam').dispatchEvent(new w.Event('change'));
  assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D10 Acne'],'next exam is PR1.1 (2098)');
  $('importExam').value='PR2.1';$('importExam').dispatchEvent(new w.Event('change'));
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses']);assert.equal($('importSave').disabled,true);
+ // Same sequence as the Library: by class date, or kept together by specialty when the Library is grouped.
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','N12 Neurodivergências','D11 Manifestações']);assert.equal($('importSave').disabled,true);
+ $('groupSpecialty').checked=true;$('importExam').dispatchEvent(new w.Event('change'));
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','D11 Manifestações','N12 Neurodivergências']);
  $('importMaterial').value=$('importMaterial').options[1].value;$('importMaterial').dispatchEvent(new w.Event('change'));assert.equal($('importSave').disabled,false);
  // Topic filter.
  const chips=[...w.document.querySelectorAll('#importTopics button')];assert.equal(chips.length,3);chips[2].click();

@@ -17,7 +17,10 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
  function materialsFor(subject,exam){
   if(!subject||!exam)return [];
   const codes=examLabel[exam]?new Set(globalThis.libraryExamCodes?.(exam,subject)||[]):null;
-  return data.filter(m=>m.subject===subject&&(codes?codes.has(m.code):(m.examTypes||[]).includes(exam))).sort(compareLibrarySubjects);
+  const list=data.filter(m=>m.subject===subject&&(codes?codes.has(m.code):(m.examTypes||[]).includes(exam))).sort(compareLibrarySubjects);
+  // Same sequence as the Library: when it is grouped by specialty, keep each specialty together,
+  // in the order the Library shows the groups (first class date), dates inside each group.
+  return $('groupSpecialty')?.checked?[...Map.groupBy(list,m=>m.specialty||'').values()].flat():list;
  }
  function fill(select,options,placeholder){select.replaceChildren(new Option(placeholder,''),...options.map(([value,text])=>new Option(text,value)));select.value='';}
  function fillSubjects(){fill($('importSubject'),[...new Set(data.map(m=>m.subject))].sort((a,b)=>a.localeCompare(b,'pt-BR')).map(s=>[s,s]),'Selecione a disciplina');}
