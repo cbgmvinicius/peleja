@@ -1,7 +1,13 @@
 /* "Importar questões" menu: same shell as the subject / questions / faculty dialogs, wider for the review. */
-#importDialog{top:clamp(20px,5dvh,48px);bottom:auto;margin:0 auto;width:min(720px,calc(100% - 32px));max-height:calc(100dvh - clamp(20px,5dvh,48px) - 20px);padding:0;border:1px solid var(--line);border-radius:26px;background:var(--surface);color:var(--ink);box-shadow:0 24px 100px #0004;overflow:auto}
+#importDialog{top:clamp(20px,5dvh,48px);bottom:auto;margin:0 auto;width:min(720px,calc(100% - 32px));max-height:calc(100dvh - clamp(20px,5dvh,48px) - 20px);padding:0;border:1px solid var(--line);border-radius:26px;background:var(--surface);color:var(--ink);box-shadow:0 24px 100px #0004;overflow:hidden}
 #importDialog::backdrop{background:#1319137a}
-.import-body{padding:30px}
+/* The window keeps its rounded shape: only the middle scrolls, the footer stays in view. */
+#importDialog[open]{display:flex;flex-direction:column}
+.import-body{display:flex;flex-direction:column;min-height:0;flex:1}
+.import-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:30px 30px 8px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.import-scroll::-webkit-scrollbar{width:10px}
+.import-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;border:3px solid var(--surface)}
+.import-scroll::-webkit-scrollbar-track{background:transparent;margin:22px 0}
 #importDialog .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 .import-drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:34px 20px;border:1.5px dashed var(--line);border-radius:18px;cursor:pointer;transition:border-color .18s,background .18s}
@@ -58,13 +64,13 @@
 .import-why{margin-top:5px!important;font-size:12.5px!important;color:var(--muted)}
 .import-hint{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
 
-#importDialog .editor-footer{position:sticky;bottom:-30px;margin:18px -30px -30px;padding:16px 30px 22px;background:var(--surface);border-top:1px solid var(--line)}
+#importDialog .editor-footer{flex-shrink:0;margin:0;padding:14px 30px 20px;background:var(--surface);border-top:1px solid var(--line)}
 
 @media(max-width:640px){
- .import-body{padding:22px}
+ .import-scroll{padding:22px 22px 6px}
  .import-scope{grid-template-columns:1fr;gap:0}
  .import-q-body{padding-left:2px}
- #importDialog .editor-footer{bottom:-22px;margin:18px -22px -22px;padding:14px 22px 18px}
+ #importDialog .editor-footer{padding:12px 22px 16px}
 }
 @media(prefers-reduced-motion:reduce){html:not([data-peleja-motion=on]) .import-chevron{transition:none}}
 html[data-peleja-motion=off] .import-chevron{transition:none}
