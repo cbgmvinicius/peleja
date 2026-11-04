@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Criar questões · Peleja</title>
+<link rel="icon" type="image/png" href="../assets/peleja-icon-32.png">
+<link rel="stylesheet" href="questions.css?v=1">
+<link rel="stylesheet" href="../entry.css?v=logo-min1">
+</head>
+<body class="entry-busy">
+<section id="gate" class="peleja-entry" role="status"><svg class="entry-art" viewBox="0 0 120 120" aria-hidden="true"><rect class="entry-tile" x="5" y="5" width="110" height="110" rx="35" fill="#f3dfc1"/><g class="entry-sun"><circle cx="79" cy="39" r="23" fill="#d9864a"/></g><g class="entry-cactus" fill="none" stroke="#506747" stroke-linecap="round" stroke-linejoin="round"><path class="entry-trunk" d="M61 97V43" stroke-width="17" pathLength="1"/><path class="entry-arm" d="M58 77H44Q34 77 34 65V54" stroke-width="12" pathLength="1"/><path class="entry-arm entry-arm-right" d="M65 85H76Q88 85 88 73V64" stroke-width="12" pathLength="1"/></g></svg><p>Entrando no Peleja…</p></section>
+<div class="app" id="app">
+<header>
+ <a class="brand" href="../directions/#painel"><img src="../assets/peleja-logo.svg" alt=""><strong>peleja</strong></a>
+ <nav aria-label="Seções">
+  <a href="../directions/#painel">Painel</a><a href="../directions/#biblioteca">Biblioteca</a><a href="../directions/#provas">Provas</a><a href="../directions/#simulados">Simulados</a><a href="../directions/#ranking">Ranking</a><a href="../directions/#cursos">Cursos extras</a><a href="./" class="selected" aria-current="page">Questões</a>
+ </nav>
+ <span class="avatar" id="avatar" aria-hidden="true"></span>
+</header>
+<main>
+ <div class="page-head">
+  <div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Criar questões</h1><p class="lead">Confira as questões que vieram do NotebookLM, escolha a apostila e salve no Peleja.</p></div>
+ </div>
+
+ <section id="denied" class="panel notice" hidden><h2>Só o administrador cria questões</h2><p>Sua conta pode estudar normalmente, mas não pode adicionar conjuntos de questões.</p><a class="primary" href="../directions/#painel">Voltar ao Painel</a></section>
+
+ <div id="workspace" hidden>
+  <section id="entry" class="panel entry" aria-label="Escolher questões">
+   <label class="drop" id="drop">
+    <img src="../assets/peleja-logo.svg" alt="" class="drop-art">
+    <strong>Clique em “Adicionar ao Peleja” na extensão</strong>
+    <span>ou solte aqui o arquivo exportado (.json), ou clique para escolher</span>
+    <input id="file" type="file" accept=".json,application/json">
+   </label>
+   <details class="paste"><summary>Colar o conteúdo do arquivo</summary><div class="paste-body"><textarea id="paste" aria-label="Conteúdo JSON das questões" spellcheck="false"></textarea><button type="button" id="read" class="ghost">Conferir conteúdo</button></div></details>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+
+  <section id="review" class="panel review" hidden aria-labelledby="reviewTitle">
+   <h2 id="reviewTitle" class="sr-only">Revisão das questões</h2>
+   <div class="fields">
+    <label>Título<input id="title" maxlength="200" autocomplete="off" required></label>
+    <label>Apostila<select id="material" required><option value="">Escolha a apostila</option></select><small id="materialHint"></small></label>
+   </div>
+   <p id="summary" class="summary"></p>
+   <div class="chips" id="topics" role="group" aria-label="Filtrar por tema" hidden></div>
+   <div id="questions" class="questions"></div>
+   <div class="actionbar">
+    <button type="button" id="discard" class="ghost">Descartar</button>
+    <button type="button" id="save" class="primary">Salvar no Peleja</button>
+   </div>
+  </section>
+
+  <section class="panel sets" aria-labelledby="setsTitle">
+   <div class="sets-head"><h2 id="setsTitle">Conjuntos no Peleja</h2><small id="setsCount"></small></div>
+   <div id="sets"></div>
+  </section>
+ </div>
+</main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<dialog id="confirm" aria-labelledby="confirmTitle"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="confirm-actions"><button type="button" class="ghost" id="confirmNo">Cancelar</button><button type="button" class="danger" id="confirmYes">Apagar</button></div></dialog>
+<script src="../access/config.js?v=connected-1"></script>
+<script src="quiz-format.js?v=1"></script>
+<script src="questions.js?v=1"></script>
+</body>
+</html>

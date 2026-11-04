@@ -9,7 +9,7 @@
  document.addEventListener('submit',event=>{if(loading){event.preventDefault();event.stopImmediatePropagation();return;}if(!['questionsForm','facultyForm','mockForm',...(isAdmin?['subjectForm','mockKeyForm']:[])].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();}},true);
  document.addEventListener('click',event=>{if((writer?.busy||loading)&&event.target.closest('[data-study],[data-round-edit],[data-round-delete],#questionsSave,#facultyForm [type=submit],#profileExit,#refresh,[data-extra-check],[data-create],[data-edit-menu],[data-exam-menu],[data-mock-menu],#settingsTheme,#settingsMotion')){event.preventDefault();event.stopImmediatePropagation();}},true);
  function lockContent(){
-  simulations?.reset();courses?.reset();dashboard?.reset();isAdmin=false;app.dataset.previewRole='participant';writer?.clear();document.documentElement.classList.add('connected-loading');gate.hidden=false;gate.classList.remove('entry-error');
+  simulations?.reset();courses?.reset();dashboard?.reset();isAdmin=false;$('navQuestions').hidden=true;app.dataset.previewRole='participant';writer?.clear();document.documentElement.classList.add('connected-loading');gate.hidden=false;gate.classList.remove('entry-error');
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   data=[];facultyRecords=[];resetStandaloneQuestions();$('library').replaceChildren();$('facultyList').replaceChildren();
  }
@@ -191,7 +191,7 @@
     const remote=await client.rpc('get_workspace');if(ticket!==version)return;if(remote.error)throw remote.error;
     confirmedPrefs={dark:false,motion:true,...remote.data.payload?.preferences?.pelejaNext};Object.assign(previewPrefs,confirmedPrefs);applyPreviewPrefs();
     hydrate(remote.data);
-    profileName=profile.data?.display_name||'Conta';isAdmin=profile.data?.role==='admin';app.dataset.previewRole=isAdmin?'admin':'participant';
+    profileName=profile.data?.display_name||'Conta';isAdmin=profile.data?.role==='admin';$('navQuestions').hidden=!isAdmin;app.dataset.previewRole=isAdmin?'admin':'participant';
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
     writer.load(remote.data,session.user.id);showLibraryPage();render();renderFacultyPage();syncFilterControls();

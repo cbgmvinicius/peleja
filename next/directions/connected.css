@@ -53,3 +53,6 @@ html[data-peleja-motion=on] #refresh.is-syncing svg{animation:connected-sync-spi
 html[data-peleja-motion=off] #refresh.is-syncing svg{animation:none!important;opacity:.6}
 
 .account-disclosure{border-top:1px solid var(--line);margin-top:24px}.account-disclosure summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;padding:18px 0;font-size:14px}.account-disclosure summary::-webkit-details-marker{display:none}.account-disclosure summary span{font-size:20px;color:var(--muted);transition:transform 240ms}.account-disclosure[data-expanded=true] summary span{transform:rotate(45deg)}.account-disclosure form{padding:0 0 8px}
+/* Admin-only link to the question creation page; mirrors the nav buttons. */
+nav .nav-link{font:inherit;padding:8px 12px;border-radius:30px;color:var(--muted);text-decoration:none;white-space:nowrap}
+nav .nav-link:hover{color:var(--ink)}
