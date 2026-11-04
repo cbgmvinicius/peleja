@@ -20,7 +20,7 @@ const files=['index.html','styles.css','courses-data.js','courses.js','english.j
 await mkdir(path.join(dest,'assets'));
 await mkdir(path.join(dest,'assets/fonts'));
 for (const name of ['GoogleSans-latin.woff2','OFL.txt','SOURCE.md']) files.push('assets/fonts/'+name);
-for (const name of ['peleja-icon-16.png','peleja-icon-32.png','peleja-icon-192.png','peleja-icon-512.png','anking.png']) files.push('assets/'+name);
+for (const name of ['peleja-icon-16.png','peleja-icon-32.png','peleja-icon-192.png','peleja-icon-512.png','peleja-icon-maskable-192.png','peleja-icon-maskable-512.png','apple-touch-icon.png','peleja-logo.svg','anking.png']) files.push('assets/'+name);
 for (const name of files) await copyFile(path.join(root,name),path.join(dest,name));
 // Connected release. Explicit manifest keeps development snapshots out of Pages.
 const nextFiles=JSON.parse(await readFile(path.join(root,'scripts/next-public-files.json'),'utf8'));
