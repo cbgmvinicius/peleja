@@ -77,3 +77,4 @@ html[data-peleja-motion=off] .import-chevron{transition:none}
 .import-q summary{padding-inline:10px}
 .import-q summary:is(:hover,:focus-visible) .import-num{background:var(--surface)}
 .import-q-body{padding-right:10px}
+#importSave:disabled{opacity:.45;filter:saturate(.6)}
