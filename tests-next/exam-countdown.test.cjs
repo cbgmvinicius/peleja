@@ -4,6 +4,10 @@ const dom=new JSDOM('<div id="dashboardRanking"></div>',{runScripts:'outside-onl
 w.$=id=>w.document.getElementById(id);w.localQuestionDate=()=> '2026-11-03';
 const faculty=fs.readFileSync(base+'faculty-page.js','utf8');w.eval(faculty.slice(faculty.indexOf('function examCountdown('),faculty.indexOf('function orderedFaculty')));
 assert.equal(w.examCountdown('2026-11-12'),'Faltam 9 dias');assert.equal(w.examCountdown('2026-11-04'),'Amanhã');assert.equal(w.examCountdown('2026-11-03'),'Hoje');assert.equal(w.examCountdown('2026-11-02'),'');assert.equal(w.examCountdown(''),'');assert.equal(w.examCountdown('2027-01-01','2026-12-31'),'Amanhã');assert.equal(w.examCountdown('2028-03-01','2028-02-28'),'Faltam 2 dias');assert.equal(w.examCountdownBadge({date:'2026-11-12',grade:8}),'');
+const urgency=date=>{const d=w.document.createElement('div');d.innerHTML=w.examCountdownBadge({date});return [d.firstChild?.dataset.urgency,d.textContent];};
+assert.deepEqual(urgency('2026-11-03'),['urgent','Hoje']);assert.deepEqual(urgency('2026-11-04'),['urgent','Amanhã']);assert.deepEqual(urgency('2026-11-05'),['urgent','Faltam 2 dias']);
+assert.deepEqual(urgency('2026-11-10'),['near','Faltam 7 dias']);assert.deepEqual(urgency('2026-11-11'),['soon','Faltam 8 dias']);assert.deepEqual(urgency('2026-11-17'),['soon','Faltam 14 dias']);assert.deepEqual(urgency('2026-11-18'),['calm','Faltam 15 dias']);
+assert.ok(w.examCountdownBadge({date:'2026-11-12'}).includes('<b>9</b>'));
 let reduced=false,effects=[];w.reduceMotion=()=>reduced;w.motion=(node,frames)=>{if(!reduced)effects.push({node,frames});};
 const dashboard=fs.readFileSync(base+'dashboard.js','utf8');w.eval(dashboard.slice(dashboard.indexOf('let dashboardRankingFrame'),dashboard.indexOf('function updateDashboardComparison')));
 const markup=p=>`<ol class="dashboard-ranking"><li data-person="a"><span class="dashboard-place">1</span><b data-count="${p}">${p}</b><span class="dashboard-track" aria-label="${p}%"><i style="transform:scaleX(${p/100})"></i></span></li></ol>`;
