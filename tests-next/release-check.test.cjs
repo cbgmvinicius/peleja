@@ -16,6 +16,14 @@ async function page({page='aaa',server='bbb',body='',status=200}={}){
  let p=await page();
  assert.equal(p.fetches.length,1);assert.match(p.fetches[0][0],/^https:\/\/cbgmvinicius\.github\.io\/peleja\/release\.json\?t=\d+$/);assert.equal(p.fetches[0][1].cache,'no-store');
  assert.match(p.banner().textContent,/Atualizando o Peleja/);await tick(800);assert.equal(p.reloads.length,1);p.w.close();
+ // Opening animation on screen: goes straight to the new release, no waiting.
+ p=await page({body:'<section class="peleja-entry" role="status"><p>Entrando no Peleja…</p></section>'});assert.equal(p.reloads.length,1,'reload during the opening animation');
+ // A browser that keeps serving the cached page cannot loop: then a fresh address, then only the button.
+ {const moved=[];p.w.PELEJA_RELOAD_TO=href=>moved.push(href);p.w.PELEJA_CHECK_RELEASE();await tick(30);assert.equal(p.reloads.length,1);assert.deepEqual(moved,['https://cbgmvinicius.github.io/peleja/next/directions/?r=bbb#painel']);
+  p.w.PELEJA_CHECK_RELEASE();await tick(30);assert.equal(moved.length,1);assert.equal(p.reloads.length,1);assert.match(p.banner().textContent,/versão nova/);}
+ p.w.close();
+ // The opening error screen is not the opening animation.
+ p=await page({body:'<section class="peleja-entry entry-error"><p>Erro</p></section>'});assert.equal(p.reloads.length,0);await tick(800);assert.equal(p.reloads.length,1);p.w.close();
  // Same release: nothing happens.
  p=await page({server:'aaa'});await tick(800);assert.equal(p.reloads.length,0);assert.equal(p.banner(),null);p.w.close();
  // Development copy (no stamp or "local"): never checks.
