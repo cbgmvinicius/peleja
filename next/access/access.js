@@ -69,7 +69,7 @@
       const payload = workspace.data?.payload;
       const next=new URLSearchParams(location.search).get('next')||'#painel';const questions=/^#questoes(?:\/import=([\w-]{1,80}))?$/.exec(next);const destination=new URL('../directions/',location.href);if(questions?.[1])destination.search='?import='+questions[1];destination.hash=questions?'#painel':/^#(painel|biblioteca|provas|simulados|ranking|cursos)(\/.*)?$/.test(next)?next:'#painel';location.replace(destination.href);return;
       $('accountState').textContent = payload ? 'Seu histórico está pronto.' : 'Acesso autorizado. Ainda não há histórico pessoal salvo na nuvem.';
-      if (payload) for (const [key,label] of [['materials','Assuntos'],['exams','Provas'],['simulations','Simulados']]) {
+      if (payload) for (const [key,label] of [['materials','Apostilas'],['exams','Provas'],['simulations','Simulados']]) {
         const dt = document.createElement('dt'), dd = document.createElement('dd');
         dt.textContent = label; dd.textContent = Array.isArray(payload[key]) ? payload[key].length : 0; $('summary').append(dt,dd);
       }

@@ -2,14 +2,14 @@
  if(!globalThis.PELEJA_CONNECTED)return;
  document.title='Peleja';
  const gate=$('connectionGate'),status=gate.querySelector('p');
- let client=null,version=0,currentSession=null,loading=false,writer=null,isAdmin=false,simulations=null,courses=null,dashboard=null,importer=null,profileName="Conta",pendingConflict=null;
- const writeSelector='[data-edit-menu],[data-exam-menu],#new,[data-create],#facultyCreate,#facultyDemo,#settingsImport,#settingsExport';
+ let client=null,version=0,currentSession=null,loading=false,writer=null,isAdmin=false,simulations=null,courses=null,dashboard=null,importer=null,solver=null,profileName="Conta",pendingConflict=null;
+ const writeSelector='[data-exam-menu],#new,[data-create],#facultyCreate,#facultyDemo,#settingsImport,#settingsExport';
  // Block mutations before any demo event handler, including keyboard activation.
  document.addEventListener('click',event=>{if(event.target.closest(writeSelector)&&((!isAdmin&&!event.target.closest('#new,[data-create=questions]'))||event.target.closest('#facultyDemo,#settingsImport,#settingsExport'))){event.preventDefault();event.stopImmediatePropagation();}},true);
  document.addEventListener('submit',event=>{if(loading){event.preventDefault();event.stopImmediatePropagation();return;}if(!['questionsForm','facultyForm','mockForm',...(isAdmin?['subjectForm','mockKeyForm']:[])].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();}},true);
  document.addEventListener('click',event=>{if((writer?.busy||loading)&&event.target.closest('[data-study],[data-round-edit],[data-round-delete],#questionsSave,#facultyForm [type=submit],#profileExit,#refresh,[data-extra-check],[data-create],[data-edit-menu],[data-exam-menu],[data-mock-menu],#settingsTheme,#settingsMotion')){event.preventDefault();event.stopImmediatePropagation();}},true);
  function lockContent(){
-  simulations?.reset();courses?.reset();dashboard?.reset();importer?.reset();isAdmin=false;app.dataset.previewRole='participant';writer?.clear();document.documentElement.classList.add('connected-loading');gate.hidden=false;gate.classList.remove('entry-error');
+  simulations?.reset();courses?.reset();dashboard?.reset();importer?.reset();solver?.reset();isAdmin=false;app.dataset.previewRole='participant';writer?.clear();document.documentElement.classList.add('connected-loading');gate.hidden=false;gate.classList.remove('entry-error');
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   data=[];facultyRecords=[];resetStandaloneQuestions();$('library').replaceChildren();$('facultyList').replaceChildren();
  }
@@ -165,6 +165,7 @@
   simulations=PELEJA_INSTALL_SIMULATIONS({client,writer,getUser:()=>currentSession?.user?.id,allowed:()=>isAdmin,saveChange,setSaving,refreshAccount:()=>refresh(currentSession)});
   const accountProfile=PELEJA_INSTALL_PROFILE({client,getSession:()=>currentSession,getName:()=>profileName,onName:name=>{profileName=name;},onReload:()=>{simulations.load();dashboard.load();}});
   importer=PELEJA_INSTALL_IMPORT({client,allowed:()=>isAdmin});
+  solver=PELEJA_INSTALL_SOLVER({client,saveChange});globalThis.PELEJA_REFRESH_SOLVER=()=>solver.ready();
   const pageRoutes={painel:['dashboardPage',showDashboard],biblioteca:['libraryPage',showLibraryPage],provas:['facultyPage',showFacultyPage],simulados:['mockPage',showMocks],ranking:['performancePage',showGeneralRanking],cursos:['extraPage',showExtraCourses]};
   function restoreRoute(hash){
    let parts;try{parts=hash.replace(/^#/,'').split('/').map(decodeURIComponent);}catch{parts=[];}
@@ -199,7 +200,7 @@
     const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
     if(!manual)restoreRoute(requestedRoute);
-    importer.ready();
+    importer.ready();solver.ready();
     document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;
     if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     return true;
