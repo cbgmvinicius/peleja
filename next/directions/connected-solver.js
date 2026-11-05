@@ -44,18 +44,18 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    solve.dataset.solve=m.code;solve.setAttribute('aria-label',`Resolver questões de ${m.fullTitle||m.title}`);solve.innerHTML=ICON.solve;
    button.replaceWith(solve);
   }
-  // Exam cards: the same button before the other actions, for whole-exam sets.
+  // Exam cards: the button is always there; dimmed until the exam has a whole-exam set.
   for(const card of document.querySelectorAll('#facultyList .faculty-card[data-exam]')){
-   const actions=card.querySelector('.faculty-actions'),e=facultyRecords.find(x=>x.id===card.dataset.exam);
-   if(!actions||actions.querySelector('[data-solve-exam]')||!setsFor(asExam(e)).length)continue;
-   const solve=el('button',{type:'button',className:'icon solve-action',title:'Resolver questões da prova'});
-   solve.dataset.solveExam=e.id;solve.setAttribute('aria-label',`Resolver questões de ${e.type} · ${e.subject}`);solve.innerHTML=ICON.solve;
-   actions.prepend(solve);
+   const actions=card.querySelector('.faculty-actions'),e=facultyRecords.find(x=>x.id===card.dataset.exam);if(!actions||!e)continue;
+   let solve=actions.querySelector('[data-solve-exam]');
+   if(!solve){solve=el('button',{type:'button',className:'icon solve-action'});solve.dataset.solveExam=e.id;solve.innerHTML=ICON.solve;actions.prepend(solve);}
+   const ready=setsFor(asExam(e)).length>0,label=ready?`Resolver questões de ${e.type} · ${e.subject}`:'Ainda não há questões desta prova';
+   if(solve.getAttribute('aria-label')!==label){solve.setAttribute('aria-label',label);solve.title=ready?'Resolver questões da prova':label;solve.setAttribute('aria-disabled',String(!ready));solve.classList.toggle('is-empty',!ready);}
   }
  }
  new MutationObserver(decorate).observe($('library'),{childList:true,subtree:true});
  new MutationObserver(decorate).observe($('facultyList'),{childList:true,subtree:true});
- $('facultyList').addEventListener('click',event=>{const b=event.target.closest('[data-solve-exam]');if(!b)return;event.preventDefault();event.stopPropagation();open(asExam(facultyRecords.find(e=>e.id===b.dataset.solveExam)),b);});
+ $('facultyList').addEventListener('click',event=>{const b=event.target.closest('[data-solve-exam]');if(!b)return;event.preventDefault();event.stopPropagation();if(b.getAttribute('aria-disabled')==='true'){toast('Ainda não há questões desta prova.','info');return;}open(asExam(facultyRecords.find(e=>e.id===b.dataset.solveExam)),b);});
  $('library').addEventListener('click',event=>{const b=event.target.closest('[data-solve]');if(!b)return;event.preventDefault();event.stopPropagation();open(asMaterial(data.find(m=>m.code===b.dataset.solve)),b);});
  async function loadSets(){const r=await client.rpc('question_sets_list');if(r.error)throw r.error;sets=Array.isArray(r.data)?r.data:[];render();}
 

@@ -8,11 +8,11 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
  const dialog=$('importDialog'),token=()=>{const t=new URLSearchParams(location.search).get('import')||'';return /^[\w-]{1,80}$/.test(t)?t:'';};
  const message=error=>String(error?.message||error||'').replace(/^Error:\s*/,'')||'Não foi possível concluir. Tente novamente.';
  const plain=url=>{try{const u=new URL(url);u.search='';u.hash='';return u.href.replace(/\/$/,'');}catch{return '';}};
- // The chosen target: one material, or a whole exam ("tudo em um") when the value is exam:<id>.
+ // "Importar para": one material (discipline > exam > material) or a whole exam (discipline > exam).
+ let mode='material';
  const target=()=>{
-  const v=$('importMaterial').value;
-  if(v.startsWith('exam:')){const e=facultyRecords.find(x=>x.id===v.slice(5));return e&&{kind:'exam',sourceId:e.sourceId,name:`Prova inteira · ${e.type} · ${e.subject}`};}
-  const m=data.find(x=>x.code===v);return m&&{kind:'material',sourceId:m.sourceId,name:m.fullTitle||m.title};
+  if(mode==='exam'){const e=facultyRecords.find(x=>x.id===$('importExamPick').value);return e&&{kind:'exam',sourceId:e.sourceId,name:`Prova inteira · ${e.type} · ${e.subject}`};}
+  const m=data.find(x=>x.code===$('importMaterial').value);return m&&{kind:'material',sourceId:m.sourceId,name:m.fullTitle||m.title};
  };
  const setsOf=t=>t?sets.filter(s=>t.kind==='exam'?s.examId===t.sourceId:s.materialId===t.sourceId):[];
  const nameOfSet=s=>{if(s.examId){const e=facultyRecords.find(x=>x.sourceId===s.examId);return e?`Prova inteira · ${e.type} · ${e.subject}`:'';}const m=data.find(x=>x.sourceId===s.materialId);return m?m.fullTitle||m.title:'';};
@@ -42,38 +42,45 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
   fill($('importSpecialty'),names.map(s=>[s,s]),exam?'Todas as especialidades':'Escolha a prova primeiro');
   $('importSpecialty').disabled=!exam||names.length<2;
  }
- // The exam the scope points to, when it is exactly one (a type, or the next exam of the discipline).
- function examFor(subject,scope){
-  if(!subject||!scope)return null;
-  let list=facultyRecords.filter(e=>e.subject===subject);
-  if(scope==='next'||scope==='pending'){
-   list=list.filter(e=>!isFacultyPerformed(e));
-   if(scope==='next'){const first=list.filter(e=>e.date).sort((a,b)=>a.date.localeCompare(b.date))[0];list=first?list.filter(e=>e.date===first.date):[];}
-  }else list=list.filter(e=>e.type===scope);
-  return list.length===1?list[0]:null;
- }
  function fillMaterials(){
   const subject=$('importSubject').value,exam=$('importExam').value,specialty=$('importSpecialty').value;
-  const list=materialsFor(subject,exam).filter(m=>!specialty||m.specialty===specialty),whole=!specialty&&examFor(subject,exam);
-  const options=list.map(m=>[m.code,m.fullTitle||m.title]);
-  if(whole)options.unshift(['exam:'+whole.id,`Prova inteira · ${whole.type} (${plural(whole.materialCodes.length,'apostila','apostilas')})`]);
+  const options=materialsFor(subject,exam).filter(m=>!specialty||m.specialty===specialty).map(m=>[m.code,m.fullTitle||m.title]);
   fill($('importMaterial'),options,!exam?'Escolha a prova primeiro':options.length?'Selecione a apostila':'Nenhuma apostila nesta prova');
   $('importMaterial').disabled=!exam||!options.length;
  }
  const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
+ // Whole exam: the discipline's exams, upcoming first (by date), then the ones already taken.
+ function fillExamPick(){
+  const subject=$('importSubject').value,list=facultyRecords.filter(e=>e.subject===subject);
+  const upcoming=list.filter(e=>!isFacultyPerformed(e)).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')),done=list.filter(e=>isFacultyPerformed(e)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const when=e=>e.date?' · '+new Date(e.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short'}):'';
+  fill($('importExamPick'),[...upcoming,...done].map(e=>[e.id,`${e.type}${when(e)} · ${plural(e.materialCodes.length,'apostila','apostilas')}`]),!subject?'Escolha a disciplina primeiro':list.length?'Selecione a prova':'Nenhuma prova nesta disciplina');
+  $('importExamPick').disabled=!subject||!list.length;
+ }
+ function setMode(next,animate=true){
+  mode=next;const tabs=$('importTarget');tabs.style.setProperty('--tab-index',next==='exam'?1:0);
+  for(const b of tabs.querySelectorAll('button'))b.setAttribute('aria-pressed',String(b.dataset.target===next));
+  for(const id of ['importExam','importSpecialty','importMaterial'])$(id).closest('.editor-field').hidden=next==='exam';
+  $('importExamPickField').hidden=next!=='exam';
+  fillExamPick();onScopeChange();
+  if(animate)motion($('importReview').querySelector('.import-scope'),[{opacity:.4,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:EASE});
+ }
+ $('importTarget').onclick=event=>{const b=event.target.closest('[data-target]');if(b&&b.dataset.target!==mode){status('');setMode(b.dataset.target);}};
+ $('importExamPick').onchange=()=>{status('');onScopeChange();};
  function onScopeChange(){renderSets();refreshSave();syncFilterControls();}
  // A manual choice replaces the "suggested by the NotebookLM link" note.
- $('importSubject').onchange=()=>{status('');fillExams();fillSpecialties();fillMaterials();onScopeChange();};
+ $('importSubject').onchange=()=>{status('');fillExams();fillSpecialties();fillMaterials();fillExamPick();onScopeChange();};
  $('importExam').onchange=()=>{status('');fillSpecialties();fillMaterials();onScopeChange();};
  $('importSpecialty').onchange=()=>{status('');fillMaterials();onScopeChange();};
  $('importMaterial').onchange=()=>{status('');onScopeChange();};
  function suggest(source){
-  fillSubjects();fillExams();fillSpecialties();fillMaterials();
+  fillSubjects();fillExams();fillSpecialties();fillMaterials();fillExamPick();
   const key=plain(source),m=key&&data.find(x=>plain(x.notebookUrl||'')===key);
   if(m){
    $('importSubject').value=m.subject;fillExams();
    const exam=['next','pending',...(m.examTypes||[])].find(e=>materialsFor(m.subject,e).includes(m));
    if(exam){$('importExam').value=exam;fillSpecialties();fillMaterials();$('importMaterial').value=m.code;}
+   setMode('material',false);
   }
   onScopeChange();
   return m;
@@ -159,7 +166,7 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
 
  // ---------- open / close ----------
  function open(){
-  if(!allowed())return;closeMenus?.();resetView();fillSubjects();fillExams();fillSpecialties();fillMaterials();syncFilterControls();
+  if(!allowed())return;closeMenus?.();resetView();fillSubjects();fillExams();fillSpecialties();fillMaterials();setMode('material',false);syncFilterControls();
   if(!dialog.open)dialog.showModal();$('importClose').focus();
   motion(dialog.querySelector('.import-body'),[{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:220,easing:'cubic-bezier(.25,.1,.25,1)'});
   loadSets().catch(error=>status(message(error),'error'));
