@@ -57,5 +57,6 @@
   "directions/style.css",
   "english-data.js",
   "entry.css",
+  "release-check.js",
   "yokubi-data.js"
 ]
