@@ -151,7 +151,7 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  const emptyButton=examButtons.find(b=>b.getAttribute('aria-disabled')==='true');assert.ok(emptyButton);assert.equal(emptyButton.title,'Ainda não há questões desta prova');assert.ok(emptyButton.classList.contains('is-empty'));
  emptyButton.click();await tick();assert.equal($('solverDialog').open,false,'empty exam does not open');
  const examSolve=examButtons.find(b=>b.getAttribute('aria-disabled')==='false');assert.ok(examSolve,'exam with a set is ready');
- assert.equal(examSolve.parentElement.className,'faculty-actions');
+ assert.equal(examSolve.parentElement.className,'faculty-actions');assert.ok(examSolve.previousElementSibling.matches('[data-exam-menu]'),'below Mais ações');assert.ok(examSolve.nextElementSibling.matches('[data-exam-result]'),'above the result target');
  examSolve.click();await tick(120);assert.equal($('solverTitle').textContent,'Prova inteira · PR2.1 · Dermatologia');
  const before=state.sessions.length;$('solverStart').click();await tick(80);
  assert.equal(calls.filter(([n])=>n==='quiz_session_start').at(-1)[1].p_set,'set-exam');

@@ -48,7 +48,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   for(const card of document.querySelectorAll('#facultyList .faculty-card[data-exam]')){
    const actions=card.querySelector('.faculty-actions'),e=facultyRecords.find(x=>x.id===card.dataset.exam);if(!actions||!e)continue;
    let solve=actions.querySelector('[data-solve-exam]');
-   if(!solve){solve=el('button',{type:'button',className:'icon solve-action'});solve.dataset.solveExam=e.id;solve.innerHTML=ICON.solve;actions.prepend(solve);}
+   if(!solve){solve=el('button',{type:'button',className:'icon solve-action'});solve.dataset.solveExam=e.id;solve.innerHTML=ICON.solve;const more=actions.querySelector('[data-exam-menu]');more?more.after(solve):actions.prepend(solve);}
    const ready=setsFor(asExam(e)).length>0,label=ready?`Resolver questões de ${e.type} · ${e.subject}`:'Ainda não há questões desta prova';
    if(solve.getAttribute('aria-label')!==label){solve.setAttribute('aria-label',label);solve.title=ready?'Resolver questões da prova':label;solve.setAttribute('aria-disabled',String(!ready));solve.classList.toggle('is-empty',!ready);}
   }
