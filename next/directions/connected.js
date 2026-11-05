@@ -178,6 +178,7 @@
   for(const [id] of Object.values(pageRoutes))routeObserver.observe($(id),{attributes:true,attributeFilter:['hidden']});
   routeObserver.observe($('extraPage'),{childList:true});
   addEventListener('hashchange',()=>{if(!loading&&currentSession){restoreRoute(location.hash);rememberRoute();}});
+  let lastSynced=0;
   async function refresh(session,manual=false,silent=false){
    const requestedRoute=location.hash;
    const view=['dashboardPage','extraPage','mockPage','performancePage','facultyPage'].find(id=>$(id)&&!$(id).hidden);
@@ -203,8 +204,9 @@
     importer.ready();solver.ready();
     document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;
     if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
+    lastSynced=Date.now();
     return true;
-   }catch(error){if(manual){if(ticket===version)toast('Não foi possível sincronizar. Tente novamente.','info');}else if(ticket===version)fail(error.message==='Sua conta ainda não está autorizada.'?error.message:'Não foi possível carregar os dados. Volte ao acesso e tente novamente.');}
+   }catch(error){if(manual){if(ticket===version&&!silent)toast('Não foi possível sincronizar. Tente novamente.','info');}else if(ticket===version)fail(error.message==='Sua conta ainda não está autorizada.'?error.message:'Não foi possível carregar os dados. Volte ao acesso e tente novamente.');}
    finally{if(ticket===version){loading=false;rememberRoute();}if(manual){button.classList.remove('is-syncing');button.disabled=false;button.removeAttribute('aria-busy');}}
   }
   app.insertAdjacentHTML('beforeend',`<dialog id="syncConflictDialog" class="settings-dialog" aria-labelledby="syncConflictTitle"><div class="settings-heading"><h2 id="syncConflictTitle">Alterações em outro aparelho</h2><button type="button" class="icon" id="syncConflictClose" aria-label="Fechar">${svg('close')}</button></div><p>Escolha usar os dados atuais da nuvem ou reaplicar sua última alteração sobre eles. O restante do histórico será preservado.</p><div class="confirm-actions"><button type="button" class="editor-cancel" id="syncUseCloud">Usar a nuvem</button><button type="button" class="primary" id="syncRetry">Reaplicar alteração</button></div></dialog>`);
@@ -219,6 +221,20 @@
   }
   $('syncUseCloud').onclick=()=>resolveConflict(false);$('syncRetry').onclick=()=>resolveConflict(true);
   $('refresh').onclick=()=>{if(!loading&&!writer.busy){const run=()=>{if(pendingConflict?.owner===currentSession?.user?.id){$('syncConflictDialog').showModal();return;}refresh(currentSession,true);};if($('questionsDialog').open||$('facultyDialog').open||$('subjectDialog').open||$('mockDialog').open)confirmPeleja('Recarregar dados?',run,{description:'O formulário aberto será descartado.',accept:'Recarregar'});else run();}};
+  // Tablets and phones keep the tab alive or restore it from memory, so the opening load does not run again:
+  // fetch the latest data when the app comes back to the screen and every 5 minutes while it is open.
+  // Quiet (no toast), and never over an open form, a save in progress or a pending conflict.
+  function autoSync(force=false){
+   if(!currentSession||loading||writer.busy||writer.blocked||document.hidden||pendingConflict)return;
+   if(document.querySelector('dialog[open]'))return;
+   if(!force&&Date.now()-lastSynced<60000)return;
+   lastSynced=Date.now();refresh(currentSession,true,true);
+  }
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoSync();});
+  addEventListener('pageshow',event=>{if(event.persisted)autoSync(true);});
+  addEventListener('focus',()=>autoSync());
+  setInterval(()=>autoSync(),5*60*1000);
+  globalThis.PELEJA_AUTO_SYNC=autoSync;
   $('profileExit').onclick=()=>{closeProfileMenu();confirmPeleja('Sair da conta?',async()=>{
    ++version;lockContent();status.textContent='Saindo…';const result=await client.auth.signOut({scope:'local'});
    if(result.error){fail('Não foi possível sair. Tente novamente pela tela de acesso.');return;}location.href='../access/';
