@@ -29,7 +29,9 @@ for(const name of nextFiles){
  const target=path.join(dest,'next',name);await mkdir(path.dirname(target),{recursive:true});await copyFile(path.join(root,'next',name),target);
 }
 await writeFile(path.join(dest,'index.html'),`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Peleja</title><link rel="icon" type="image/png" href="assets/peleja-icon-32.png"></head><body><p>Abrindo Peleja…</p><script>location.replace(new URL('next/access/',location.href).href+location.search+location.hash);</script><noscript>Ative o JavaScript para abrir o Peleja.</noscript></body></html>`);
-await writeFile(path.join(dest,'sw.js'),`self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('peleja-'))await caches.delete(key);await self.clients.claim();})()));`);
+// Retires the old app's service worker: clears its caches, unregisters itself and reloads the tabs it
+// controlled, so browsers stuck on a cached old Peleja (e.g. Samsung Internet) land on the current one.
+await writeFile(path.join(dest,'sw.js'),`self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('peleja-'))await caches.delete(key);await self.clients.claim();const tabs=await self.clients.matchAll({type:'window'});await self.registration.unregister();for(const tab of tabs)tab.navigate(tab.url).catch(()=>{});})()));`);
 await writeFile(path.join(dest,'.nojekyll'),'');
 // Cache-proof release: GitHub Pages lets browsers keep files for 10 minutes, so every local script and
 // stylesheet reference gets a content hash (?v=…) and every page carries the release it belongs to;

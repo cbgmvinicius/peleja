@@ -26,5 +26,6 @@ for(const page of ['next/directions/index.html','next/access/index.html']){
 const connected=fs.readFileSync(path.join(dest,'next/directions/connected.js'),'utf8');
 const loads=[...connected.matchAll(/'(\.\.\/access\/[^'?]+\.js)\?v=([^']+)'/g)];assert.ok(loads.length>=5);
 for(const [,file,v] of loads)assert.equal(v,sha(path.join(dest,'next/directions',file)),'script loaded by connected.js: '+file);
+const sw=fs.readFileSync(path.join(dest,'sw.js'),'utf8');new (require('node:vm').Script)(sw);for(const part of ['caches.delete(','self.registration.unregister()','.navigate(tab.url)'])assert.ok(sw.includes(part),'sw.js: '+part);
 console.log('PASS Release stamps content hashes on every page and dynamically loaded script, and the commit on each page');
 console.log('PASS Release rejects missing/administrative keys, excludes personal files and refuses stale output reuse');

@@ -7,6 +7,16 @@
  const url=new URL('../../release.json',location.href);
  let offered=false,checking=false;
  const reload=()=>(globalThis.PELEJA_RELOAD||(()=>location.reload()))();
+ // Automatic attempts per release, so a browser that keeps serving the cached page cannot loop:
+ // 1st a plain reload, 2nd a fresh address (?r=<release>) that skips the cache, then only the button.
+ let target='';
+ function goToRelease(){
+  const key='peleja-release-tries';let tries={};try{tries=JSON.parse(sessionStorage.getItem(key)||'{}');}catch{}
+  const n=(tries[target]||0)+1;try{sessionStorage.setItem(key,JSON.stringify({[target]:n}));}catch{}
+  if(n===1){reload();return true;}
+  if(n===2){const next=new URL(location.href);next.searchParams.set('r',target.slice(0,8));(globalThis.PELEJA_RELOAD_TO||(href=>location.replace(href)))(next.href);return true;}
+  return false;
+ }
  // Work in progress: an open dialog, a filled field or a page-specific guard.
  const busy=()=>!!document.querySelector('dialog[open]')||[...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]),textarea')].some(f=>f.value&&f.closest('form,dialog')&&!f.closest('[hidden]'))||!!globalThis.PELEJA_UPDATE_BLOCKED?.();
  function banner(text,action){
@@ -18,7 +28,9 @@
   document.body.append(box);
  }
  function update(){
-  if(!busy()){banner('Atualizando o Peleja…');setTimeout(reload,700);return;}
+  // During the opening animation nothing is on screen yet: go straight to the new release.
+  if(document.querySelector('.peleja-entry:not([hidden])')&&!document.querySelector('.peleja-entry.entry-error')){if(goToRelease())return;}
+  else if(!busy()){banner('Atualizando o Peleja…');setTimeout(()=>{if(!goToRelease())banner('Há uma versão nova do Peleja.',reload);},700);return;}
   if(offered)return;offered=true;
   banner('Há uma versão nova do Peleja.',reload);
  }
@@ -28,10 +40,10 @@
    const response=await fetch(url+'?t='+Date.now(),{cache:'no-store'});
    if(!response.ok)return;
    const {commit}=await response.json();
-   if(commit&&commit!=='local'&&commit!==current)update();
+   if(commit&&commit!=='local'&&commit!==current){target=commit;update();}
   }catch{}finally{checking=false;}
  }
- setTimeout(check,4000);
+ check(); // right away, while the opening animation loads the data
  setInterval(check,10*60*1000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});
  globalThis.PELEJA_CHECK_RELEASE=check;
