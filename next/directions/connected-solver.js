@@ -25,7 +25,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  const shuffle=list=>{const a=[...list];for(let i=a.length-1;i>0;i--){const j=random(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
  const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
  const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
- const setsFor=m=>m?sets.filter(s=>s.materialId===m.sourceId):[];
+ // A target is one material or one whole exam ("tudo em um"); its sets, title and where the result counts.
+ const asMaterial=m=>m&&{kind:'material',sourceId:m.sourceId,title:m.fullTitle||m.title,key:m.code};
+ const asExam=e=>e&&{kind:'exam',sourceId:e.sourceId,title:`${e.type} · ${e.subject}`,subject:e.subject,key:e.id};
+ const setsFor=t=>t?sets.filter(s=>t.kind==='exam'?s.examId===t.sourceId:s.materialId===t.sourceId):[];
  const answerOf=q=>session.answers[q]||{o:null,x:[]};
  const isCorrect=(q,o)=>o!=null&&!!questions[q]?.answerOptions[o]?.isCorrect;
  const order=()=>session.layout.questions;
@@ -36,14 +39,24 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  // registering external questions moves to the row's "more" menu for everyone.
  function decorate(){
   for(const button of document.querySelectorAll('#library [data-questions]')){
-   const m=data.find(x=>x.code===button.dataset.questions);if(!setsFor(m).length)continue;
+   const m=data.find(x=>x.code===button.dataset.questions);if(!setsFor(asMaterial(m)).length)continue;
    const solve=el('button',{type:'button',className:'icon solve-action',title:'Resolver questões'});
    solve.dataset.solve=m.code;solve.setAttribute('aria-label',`Resolver questões de ${m.fullTitle||m.title}`);solve.innerHTML=ICON.solve;
    button.replaceWith(solve);
   }
+  // Exam cards: the same button before the other actions, for whole-exam sets.
+  for(const card of document.querySelectorAll('#facultyList .faculty-card[data-exam]')){
+   const actions=card.querySelector('.faculty-actions'),e=facultyRecords.find(x=>x.id===card.dataset.exam);
+   if(!actions||actions.querySelector('[data-solve-exam]')||!setsFor(asExam(e)).length)continue;
+   const solve=el('button',{type:'button',className:'icon solve-action',title:'Resolver questões da prova'});
+   solve.dataset.solveExam=e.id;solve.setAttribute('aria-label',`Resolver questões de ${e.type} · ${e.subject}`);solve.innerHTML=ICON.solve;
+   actions.prepend(solve);
+  }
  }
  new MutationObserver(decorate).observe($('library'),{childList:true,subtree:true});
- $('library').addEventListener('click',event=>{const b=event.target.closest('[data-solve]');if(!b)return;event.preventDefault();event.stopPropagation();open(data.find(m=>m.code===b.dataset.solve),b);});
+ new MutationObserver(decorate).observe($('facultyList'),{childList:true,subtree:true});
+ $('facultyList').addEventListener('click',event=>{const b=event.target.closest('[data-solve-exam]');if(!b)return;event.preventDefault();event.stopPropagation();open(asExam(facultyRecords.find(e=>e.id===b.dataset.solveExam)),b);});
+ $('library').addEventListener('click',event=>{const b=event.target.closest('[data-solve]');if(!b)return;event.preventDefault();event.stopPropagation();open(asMaterial(data.find(m=>m.code===b.dataset.solve)),b);});
  async function loadSets(){const r=await client.rpc('question_sets_list');if(r.error)throw r.error;sets=Array.isArray(r.data)?r.data:[];render();}
 
  // ---------- clock ----------
@@ -72,7 +85,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  }
  async function renderSetup(){
   screen='setup';session=null;stopClock();clockBase=0;
-  $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.fullTitle||material.title;$s('solverProgress').hidden=true;tick();
+  $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.kind==='exam'?`Prova inteira · ${material.title}`:material.title;$s('solverProgress').hidden=true;tick();
   const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
   if(list.length>1){
    const group=el('fieldset',{className:'solver-group'},el('legend',{textContent:'Conjunto'}));
@@ -106,7 +119,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    for(const s of finished){
     const when=new Date(s.finishedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
     const remove=el('button',{type:'button',className:'icon solver-past-delete',title:'Apagar tentativa',innerHTML:ICON.trash});remove.setAttribute('aria-label',`Apagar tentativa de ${when}`);
-    remove.onclick=()=>confirmPeleja('Apagar esta tentativa?',async()=>{if(await removeSession(s))refreshSetupDetails();},{description:`${when} · ${s.mode==='prova'?'Prova':'Treino'} · ${s.correct}/${s.layout.questions.length}.${s.counted?' Ela sai também das estatísticas da apostila.':''}`,accept:'Apagar',destructive:true});
+    remove.onclick=()=>confirmPeleja('Apagar esta tentativa?',async()=>{if(await removeSession(s))refreshSetupDetails();},{description:`${when} · ${s.mode==='prova'?'Prova':'Treino'} · ${s.correct}/${s.layout.questions.length}.${s.counted?` Ela sai também das estatísticas ${material.kind==='exam'?'da disciplina':'da apostila'}.`:''}`,accept:'Apagar',destructive:true});
     past.append(el('div',{className:'solver-past'},el('span',{textContent:when+' · '+(s.mode==='prova'?'Prova':'Treino')+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`}),remove));
    }
   }
@@ -119,13 +132,15 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    toast(s.status==='active'?'Progresso descartado':'Tentativa apagada','trash');return true;
   }catch(error){toast(message(error),'info');return false;}
  }
+ // Where a target's result counts: the material's rounds, or (whole exam) the discipline's rounds.
+ function roundsHost(){return material.kind==='exam'?(typeof standaloneQuestions==='object'?standaloneQuestions:null):data.find(x=>x.sourceId===material.sourceId);}
  function removeRound(sessionId){
-  const m=data.find(x=>x.sourceId===material.sourceId),roundId='quiz-'+sessionId;
+  const m=roundsHost(),roundId='quiz-'+sessionId;
   if(!m||!saveChange||!(m.questionRounds||[]).some(r=>r.id===roundId))return;
   const before=structuredClone({q:m.q,c:m.c,w:m.w,questionRounds:m.questionRounds});
   m.questionRounds=m.questionRounds.filter(r=>r.id!==roundId);
   Object.assign(m,m.questionRounds.reduce((a,r)=>({q:a.q+r.q,c:a.c+r.c,w:a.w+r.w}),{q:0,c:0,w:0}));render();
-  saveChange({kind:'delete-round',id:m.sourceId,roundId},()=>{},null,()=>{Object.assign(m,before);render();toast('A tentativa saiu, mas as estatísticas não foram atualizadas. Sincronize e tente de novo.','info');});
+  saveChange(material.kind==='exam'?{kind:'delete-session',roundId}:{kind:'delete-round',id:m.sourceId,roundId},()=>{},null,()=>{Object.assign(m,before);render();toast('A tentativa saiu, mas as estatísticas não foram atualizadas. Sincronize e tente de novo.','info');});
  }
  async function loadQuestions(){const r=await client.rpc('question_set',{p_id:setInfo.id});if(r.error||!r.data)throw r.error||Error('Conjunto não encontrado');questions=r.data.questions;}
  function layoutFor(mode,subset){
@@ -244,12 +259,12 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  }
  // The first finished session of a set becomes one round of the material (idempotent by id).
  function recordRound({answered,correct}){
-  const m=data.find(x=>x.sourceId===material.sourceId);if(!m||!saveChange)return;
-  const round={id:'quiz-'+session.id,date:today(),q:answered,c:correct,w:answered-correct};
+  const m=roundsHost();if(!m||!saveChange)return;
+  const round={id:'quiz-'+session.id,date:today(),q:answered,c:correct,w:answered-correct,...(material.kind==='exam'?{subject:material.subject,specialty:''}:{})};
   const before=structuredClone({q:m.q,c:m.c,w:m.w,questionRounds:m.questionRounds});
   m.questionRounds=[...(m.questionRounds||[]).filter(r=>r.id!==round.id),round];
   Object.assign(m,m.questionRounds.reduce((a,r)=>({q:a.q+r.q,c:a.c+r.c,w:a.w+r.w}),{q:0,c:0,w:0}));render();
-  saveChange({kind:'round',id:m.sourceId,round},()=>{},null,()=>{Object.assign(m,before);render();toast('O resultado não entrou nas estatísticas. Sincronize e tente de novo.','info');});
+  saveChange(material.kind==='exam'?{kind:'session',round}:{kind:'round',id:m.sourceId,round},()=>{},null,()=>{Object.assign(m,before);render();toast('O resultado não entrou nas estatísticas. Sincronize e tente de novo.','info');});
  }
 
  // ---------- result ----------
@@ -260,7 +275,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   const total=all.length,pct=Math.round(counts.right/total*100);
   $s('solverKicker').textContent=session.mode==='prova'?'RESULTADO DA PROVA':'RESULTADO DO TREINO';$s('solverProgress').hidden=true;
   const clockNote=session.clock==='timer'&&elapsed()>session.timerSeconds*1000?` · passou ${fmt(elapsed()-session.timerSeconds*1000)} do tempo`:'';
-  const head=el('div',{className:'solver-score'},el('div',{},el('span',{className:'solver-score-label',textContent:'Sua nota'}),el('strong',{},`${counts.right}/${total}`,el('small',{textContent:` (${pct}%)`}))),el('span',{className:'solver-note',textContent:`Tempo ${fmt(elapsed())}${clockNote}${session.counted?' · contou nas estatísticas da apostila':''}`}));
+  const head=el('div',{className:'solver-score'},el('div',{},el('span',{className:'solver-score-label',textContent:'Sua nota'}),el('strong',{},`${counts.right}/${total}`,el('small',{textContent:` (${pct}%)`}))),el('span',{className:'solver-note',textContent:`Tempo ${fmt(elapsed())}${clockNote}${session.counted?` · contou nas estatísticas ${material.kind==='exam'?'da disciplina':'da apostila'}`:''}`}));
   const bar=el('div',{className:'solver-bar'});for(const k of ['right','wrong','skipped'])if(counts[k])bar.append(el('span',{className:k,style:`flex:${counts[k]}`}));
   const filters=el('div',{className:'solver-filters',role:'group'});filters.setAttribute('aria-label','Filtrar questões');
   const labels={all:'Todas',right:'Acertou',wrong:'Errou',skipped:'Pulou'};
@@ -276,8 +291,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  }
 
  // ---------- open / close ----------
- async function open(m,opener){
-  material=m;const list=setsFor(m);if(!list.length)return;setInfo=list[0];resultFilter='all';dialog.dataset.opener=opener?.dataset.solve||'';
+ async function open(t,opener){
+  material=t;const list=setsFor(t);if(!list.length)return;setInfo=list[0];resultFilter='all';dialog.dataset.opener=t.key;dialog.dataset.openerKind=t.kind;
   if(!dialog.open)dialog.showModal();motion(dialog.querySelector('.solver-shell'),[{opacity:0,transform:'translateY(10px) scale(.99)'},{opacity:1,transform:'none'}],{duration:260,easing:EASE});
   await renderSetup();$s('solverClose').focus();
  }
@@ -285,7 +300,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  const leave=document.createElement('dialog');leave.id='solverLeave';leave.className='solver-leave';leave.setAttribute('aria-labelledby','solverLeaveTitle');
  leave.innerHTML='<h2 id="solverLeaveTitle">Sair antes de terminar?</h2><p id="solverLeaveText"></p><div class="solver-leave-actions"><button type="button" class="primary" id="solverKeep">Guardar progresso</button><button type="button" class="editor-cancel solver-danger" id="solverDiscard">Descartar e recomeçar depois</button><button type="button" class="editor-cancel" id="solverStay">Continuar respondendo</button></div>';
  dialog.append(leave);
- function finishClose(){leave.open&&leave.close();dialog.close();session=null;questions=[];pending=new Map();document.querySelector(`#library [data-solve="${dialog.dataset.opener}"]`)?.focus();}
+ function finishClose(){leave.open&&leave.close();dialog.close();session=null;questions=[];pending=new Map();document.querySelector(dialog.dataset.openerKind==='exam'?`#facultyList [data-solve-exam="${dialog.dataset.opener}"]`:`#library [data-solve="${dialog.dataset.opener}"]`)?.focus();}
  async function close(){
   if(leave.open)return;
   const answered=session?.status==='active'?Object.values(session.answers).filter(a=>a.o!=null).length:0;

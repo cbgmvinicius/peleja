@@ -19,11 +19,11 @@ async function app(){
  const score=answers=>{let answered=0,correct=0;for(const [k,a] of Object.entries(answers))if(a.o!=null){answered++;if(questions[k].answerOptions[a.o].isCorrect)correct++;}return {answered,correct};};
  const client={auth:{onAuthStateChange:fn=>fn('INITIAL_SESSION',{user:{id:'student'}}),signOut:async()=>({})},rpc:async(name,args)=>{calls.push([name,structuredClone(args)]);
   if(name==='get_workspace')return {data:remote};if(name==='extra_course_catalog')return {data:[]};if(name==='material_exam_results')return {data:{types:[],rows:[]}};if(name==='simulation_results_next')return {data:[]};if(name==='simulation_bases')return {data:{}};
-  if(name==='question_sets_list')return {data:[{id:'set-1',materialId:'derm:1',title:'Micoses',count:3,fingerprint:'f',createdAt:'2026-11-01T00:00:00Z'}]};
+  if(name==='question_sets_list')return {data:[{id:'set-1',materialId:'derm:1',title:'Micoses',count:3,fingerprint:'f',createdAt:'2026-11-01T00:00:00Z'},{id:'set-exam',examId:'e1',title:'PR2.1 tudo em um',count:3,fingerprint:'g',createdAt:'2026-11-02T00:00:00Z'}]};
   if(name==='question_set')return {data:{id:'set-1',questions}};
   if(name==='quiz_sessions_mine')return {data:structuredClone(state.sessions)};
-  if(name==='quiz_session_start'){state.sessions=state.sessions.filter(s=>s.status!=='active');const s={id:'s'+(state.sessions.length+1),mode:args.p_mode,clock:args.p_clock,timerSeconds:args.p_timer,layout:args.p_layout,answers:{},elapsedMs:0,status:'active',createdAt:new Date().toISOString()};state.sessions.unshift(s);return {data:s.id};}
-  if(name==='quiz_session_save'){const s=state.sessions.find(x=>x.id===args.p_id);s.answers=args.p_answers;s.elapsedMs=args.p_elapsed;const r=score(args.p_answers);if(args.p_finish){const first=!state.sessions.some(x=>x.status==='done'&&x.counted);Object.assign(s,{status:'done',...r,counted:first&&r.answered>0,finishedAt:new Date().toISOString()});return {data:{...r,counted:s.counted}};}return {data:{...r,counted:false}};}
+  if(name==='quiz_session_start'){state.sessions=state.sessions.filter(s=>s.status!=='active');const s={id:'s'+(state.sessions.length+1)+'-'+Date.now(),setId:args.p_set,mode:args.p_mode,clock:args.p_clock,timerSeconds:args.p_timer,layout:args.p_layout,answers:{},elapsedMs:0,status:'active',createdAt:new Date().toISOString()};state.sessions.unshift(s);return {data:s.id};}
+  if(name==='quiz_session_save'){const s=state.sessions.find(x=>x.id===args.p_id);s.answers=args.p_answers;s.elapsedMs=args.p_elapsed;const r=score(args.p_answers);if(args.p_finish){const first=!state.sessions.some(x=>x.status==='done'&&x.counted&&x.setId===s.setId);Object.assign(s,{status:'done',...r,counted:first&&r.answered>0,finishedAt:new Date().toISOString()});return {data:{...r,counted:s.counted}};}return {data:{...r,counted:false}};}
   if(name==='quiz_session_delete'){const s=state.sessions.find(x=>x.id===args.p_id);if(!s)return {error:{message:'Sessão não encontrada'}};state.sessions=state.sessions.filter(x=>x!==s);return {data:{status:s.status,counted:!!s.counted}};}
   if(name==='save_workspace'){remote.payload=structuredClone(args.p_payload);remote.revision++;return {data:{revision:remote.revision,catalog_revision:1}};}
   return {data:true};},
@@ -144,6 +144,19 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  assert.equal(examSave.p_answers[first].o,exam.p_layout.options[first][1]);
  // The counted attempt was deleted above, so this exam becomes the one that counts: still a single round.
  assert.equal(remote.payload.materials.find(m=>m.id==='derm:1').questionEntries.filter(e=>e.id.startsWith('quiz-')).length,1,'one solver round per material set');
+ // ---- Whole exam on the Provas page: same button, result counts for the discipline ----
+ $('solverClose').click();await tick(80);if($('solverLeave').open){$('solverDiscard').click();await tick(80);}
+ w.location.hash='#provas';await tick(120);
+ const examSolve=q('#facultyList .faculty-card [data-solve-exam]');assert.ok(examSolve,'exam card shows Resolver questões');
+ assert.equal(examSolve.parentElement.className,'faculty-actions');
+ examSolve.click();await tick(120);assert.equal($('solverTitle').textContent,'Prova inteira · PR2.1 · Dermatologia');
+ const before=state.sessions.length;$('solverStart').click();await tick(80);
+ assert.equal(calls.filter(([n])=>n==='quiz_session_start').at(-1)[1].p_set,'set-exam');
+ qa('.solver-option').find(li=>optionText(li)==='Malassezia').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
+ qa('#solverFoot button').find(b=>b.textContent==='Finalizar').click();await tick();$('confirmAccept').click();await tick(150);
+ const sessionRound=(remote.payload.questionSessions||[]).find(r=>r.id.startsWith('quiz-'));
+ assert.ok(sessionRound,'recorded as a round of the discipline');assert.equal(sessionRound.subject,'Dermatologia');assert.equal(sessionRound.questions,1);assert.equal(sessionRound.correct,1);
+ assert.match(q('.solver-score .solver-note').textContent,/estatísticas da disciplina/);
  console.log('PASS solver: solve button and menu, training reveal/lock/scissors/hint, result + stats round once, review, redo missed, resume, exam shuffle/change/timer');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));

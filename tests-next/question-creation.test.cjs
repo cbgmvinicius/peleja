@@ -25,6 +25,7 @@ async function app({role='admin',search='',delivery=null}={}){
   if(name==='get_workspace')return {data:remote};if(name==='extra_course_catalog')return {data:[]};if(name==='material_exam_results')return {data:{types:[],rows:[]}};if(name==='simulation_results_next')return {data:[]};if(name==='simulation_bases')return {data:{}};
   if(name==='question_sets_list')return {data:state.sets};
   if(name==='save_question_set'){if(state.sets.some(s=>s.fingerprint===args.p_fingerprint))return {error:{message:'Este conjunto já está no Peleja'}};state.sets.unshift({id:'set-'+state.sets.length,materialId:args.p_material_id,title:args.p_title,count:args.p_questions.length,fingerprint:args.p_fingerprint,createdAt:'2026-11-04T12:00:00Z'});return {data:'id'};}
+  if(name==='save_exam_question_set'){if(state.sets.some(s=>s.fingerprint===args.p_fingerprint))return {error:{message:'Este conjunto já está no Peleja'}};state.sets.unshift({id:'set-'+state.sets.length,examId:args.p_exam_id,title:args.p_title,count:args.p_questions.length,fingerprint:args.p_fingerprint,createdAt:'2026-11-04T12:00:00Z'});return {data:'id'};}
   if(name==='delete_question_set'){state.sets=state.sets.filter(s=>s.id!==args.p_id);return {data:null};}
   return {data:true};},
   from:()=>{const b={select:()=>b,eq:()=>b,order:()=>b,range:async()=>({data:[]}),maybeSingle:async()=>({data:{display_name:'Tester',role}})};return b;}};
@@ -59,19 +60,19 @@ async function app({role='admin',search='',delivery=null}={}){
  $('importSubject').value='';$('importSubject').dispatchEvent(new w.Event('change'));assert.equal($('importExam').disabled,true);
  $('importSubject').value='Dermatologia';$('importSubject').dispatchEvent(new w.Event('change'));
  $('importExam').value='next';$('importExam').dispatchEvent(new w.Event('change'));
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D10 Acne'],'next exam is PR1.1 (2098)');
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','Prova inteira · PR1.1 (1 apostila)','D10 Acne'],'next exam is PR1.1 (2098)');
  $('importExam').value='PR2.1';$('importExam').dispatchEvent(new w.Event('change'));
  // Same sequence as the Library: by class date, or kept together by specialty when the Library is grouped.
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','N12 Neurodivergências','D11 Manifestações']);assert.equal($('importSave').disabled,true);
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','Prova inteira · PR2.1 (3 apostilas)','D09 Micoses','N12 Neurodivergências','D11 Manifestações']);assert.equal($('importSave').disabled,true);
  $('groupSpecialty').checked=true;$('importExam').dispatchEvent(new w.Event('change'));
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','D11 Manifestações','N12 Neurodivergências']);
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','Prova inteira · PR2.1 (3 apostilas)','D09 Micoses','D11 Manifestações','N12 Neurodivergências']);
  // Optional specialty filter between exam and material.
  assert.deepEqual(opts('importSpecialty'),['Todas as especialidades','Pele','Neurologia']);assert.equal($('importSpecialty').disabled,false);
  $('importSpecialty').value='Neurologia';$('importSpecialty').dispatchEvent(new w.Event('change'));
  assert.deepEqual(opts('importMaterial'),['Selecione a apostila','N12 Neurodivergências']);
  $('importSpecialty').value='';$('importSpecialty').dispatchEvent(new w.Event('change'));
- assert.equal(w.document.getElementById('importMaterial').options.length,4);
- $('importMaterial').value=$('importMaterial').options[1].value;$('importMaterial').dispatchEvent(new w.Event('change'));assert.equal($('importSave').disabled,false);
+ assert.equal(w.document.getElementById('importMaterial').options.length,5);
+ $('importMaterial').value=[...$('importMaterial').options].find(o=>o.textContent==='D09 Micoses').value;$('importMaterial').dispatchEvent(new w.Event('change'));assert.equal($('importSave').disabled,false);
  // Topic filter.
  const chips=[...w.document.querySelectorAll('#importTopics button')];assert.equal(chips.length,3);chips[2].click();
  assert.deepEqual([...w.document.querySelectorAll('#importQuestions details')].map(d=>d.hidden),[true,false]);
@@ -97,6 +98,18 @@ async function app({role='admin',search='',delivery=null}={}){
  assert.match($('importStatus').textContent,/gabarito ambíguo/);assert.equal($('importReview').hidden,true);
  w.close();
 
+ // Whole exam ("tudo em um"): imported to the exam, not to a material.
+ p=await app();{const {w,$,calls}=p;
+ w.document.querySelector('[data-create=import]').click();await tick(60);
+ const e=new w.Event('drop',{bubbles:true,cancelable:true});e.dataTransfer={files:[new w.File([JSON.stringify({...quiz,title:'PR2.1 tudo em um',source:''})],'q.json',{type:'application/json'})]};$('importDrop').dispatchEvent(e);await tick(80);
+ $('importSubject').value='Dermatologia';$('importSubject').dispatchEvent(new w.Event('change'));
+ $('importExam').value='pending';$('importExam').dispatchEvent(new w.Event('change'));
+ assert.ok(![...$('importMaterial').options].some(o=>o.value.startsWith('exam:')),'two pending exams: no single whole exam');
+ $('importExam').value='PR2.1';$('importExam').dispatchEvent(new w.Event('change'));
+ $('importMaterial').value=$('importMaterial').options[1].value;$('importMaterial').dispatchEvent(new w.Event('change'));
+ assert.equal($('importSave').disabled,false);$('importSave').click();await tick(60);
+ const saved=calls.find(([n])=>n==='save_exam_question_set')[1];assert.equal(saved.p_exam_id,'e1');assert.equal(saved.p_title,'PR2.1 tudo em um');
+ assert.equal(calls.some(([n])=>n==='save_question_set'),false);assert.equal($('importDialog').open,false);w.close();}
  // Expired hand-off.
  p=await app({search:'?import=tok-2',delivery:()=>null});await tick(80);
  assert.match(p.$('importStatus').textContent,/expirou/);p.w.close();
