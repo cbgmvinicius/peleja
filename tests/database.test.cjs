@@ -203,6 +203,16 @@ mine=await rpc('quiz_sessions_mine',[qbId],['uuid']);assert.equal(mine.length,3)
 await user(A);assert.equal((await rpc('quiz_sessions_mine',[qbId],['uuid'])).length,0);
 await assert.rejects(()=>rpc('quiz_session_save',[redo,'{}',1,false],['uuid','jsonb','bigint','boolean']),/Sessão não encontrada/);
 await user(B);await assert.rejects(()=>rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify(layout)],qsCasts),/Acesso negado/);
+// Deleting: only the owner; an unfinished session (discard) or a finished attempt.
+await user(A);await assert.rejects(()=>rpc('quiz_session_delete',[qz],['uuid']),/Sessão não encontrada/);
+await user(C);
+const openNow=(await rpc('quiz_sessions_mine',[qbId],['uuid'])).find(s=>s.status==='active');
+assert.deepEqual(await rpc('quiz_session_delete',[openNow.id],['uuid']),{status:'active',counted:false});
+assert.deepEqual(await rpc('quiz_session_delete',[qz],['uuid']),{status:'done',counted:true},'tells the app to remove the stats round');
+assert.equal((await rpc('quiz_sessions_mine',[qbId],['uuid'])).length,1);
+// With the counted attempt gone, the next finished session counts again.
+const again=await rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify(layout)],qsCasts);
+assert.equal((await rpc('quiz_session_save',[again,JSON.stringify({'0':{o:0}}),100,true],['uuid','jsonb','bigint','boolean'])).counted,true);
 await user(A);await rpc('delete_question_set',[qbId],['uuid']);assert.equal((await rpc('question_sets_list',[],[])).length,0);
 await db.exec('reset role');assert.equal(Number((await db.query('select count(*) n from public.quiz_sessions')).rows[0].n),0,'deleting a set removes its sessions');
 console.log('PASS Question sets: admin-only create/delete, catalog material, validation, duplicates, member read, inactive denial');

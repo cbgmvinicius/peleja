@@ -7,10 +7,11 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  const LETTERS='ABCDEFGHIJKLMNOPQRST',EASE='cubic-bezier(.22,1,.36,1)';
  const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;};
  const ICON={
-  solve:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6.5" r="2.1"/><path d="M11 6.5h8"/><circle cx="6" cy="12" r="2.1" fill="currentColor"/><path d="M11 12h8"/><circle cx="6" cy="17.5" r="2.1"/><path d="M11 17.5h8"/></svg>',
+  solve:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 4.5h13A2.5 2.5 0 0 1 21 7v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.6 3.4c-.4.3-.9 0-.9-.5v-2.9h0A2.5 2.5 0 0 1 3 15V7a2.5 2.5 0 0 1 2.5-2.5Z"/><path d="M9.9 9.2a2.2 2.2 0 1 1 3.1 2c-.6.3-1 .8-1 1.4v.3"/><circle cx="12" cy="15.2" r="1" fill="currentColor" stroke="none"/></svg>',
   cut:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.6" cy="7.4" r="2.6"/><circle cx="18.6" cy="16.6" r="2.6"/><path d="M16.4 15.1 12.6 12 3.4 8.1"/><path d="M16.4 8.9 12.6 12 3.4 15.9"/><path d="M1 12h9.4" stroke-dasharray="0.1 3.1" stroke-width="2.4"/></svg>',
   hint:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></svg>',
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M7 7l1 12h8l1-12M9 7V4h6v3"/></svg>',
   wrong:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>'
  };
  let pending=new Map(),hintOpen=new Set(),sets=[],material=null,setInfo=null,questions=[],session=null,history=[],position=0,screen='setup',reviewing=false;
@@ -96,13 +97,35 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   const open=history.find(s=>s.status==='active');
   if(open){
    const done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length;
-   resume.append(el('div',{className:'solver-resume'},el('div',{},el('strong',{textContent:'Continuar de onde parei'}),el('small',{textContent:`${open.mode==='prova'?'Prova':'Treino'} · ${done} de ${open.layout.questions.length} respondidas · ${fmt(open.elapsedMs)}`})),el('button',{type:'button',className:'primary',textContent:'Continuar',onclick:()=>resumeSession(open)})));
+   const discard=el('button',{type:'button',className:'editor-cancel',textContent:'Descartar',onclick:()=>confirmPeleja('Descartar o progresso?',async()=>{if(await removeSession(open))refreshSetupDetails();},{description:`As ${plural(done,'resposta','respostas')} desta sessão serão apagadas e a próxima começa do zero.`,accept:'Descartar',destructive:true})});
+   resume.append(el('div',{className:'solver-resume'},el('div',{},el('strong',{textContent:'Continuar de onde parei'}),el('small',{textContent:`${open.mode==='prova'?'Prova':'Treino'} · ${done} de ${open.layout.questions.length} respondidas · ${fmt(open.elapsedMs)}`})),el('div',{className:'solver-resume-actions'},discard,el('button',{type:'button',className:'primary',textContent:'Continuar',onclick:()=>resumeSession(open)}))));
   }
-  const finished=history.filter(s=>s.status==='done').slice(0,5);
+  const finished=history.filter(s=>s.status==='done').slice(0,8);
   if(finished.length){
    past.append(el('p',{className:'solver-section-title',textContent:'Tentativas anteriores'}));
-   for(const s of finished)past.append(el('div',{className:'solver-past'},el('span',{textContent:new Date(s.finishedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+' · '+(s.mode==='prova'?'Prova':'Treino')+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`})));
+   for(const s of finished){
+    const when=new Date(s.finishedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+    const remove=el('button',{type:'button',className:'icon solver-past-delete',title:'Apagar tentativa',innerHTML:ICON.trash});remove.setAttribute('aria-label',`Apagar tentativa de ${when}`);
+    remove.onclick=()=>confirmPeleja('Apagar esta tentativa?',async()=>{if(await removeSession(s))refreshSetupDetails();},{description:`${when} · ${s.mode==='prova'?'Prova':'Treino'} · ${s.correct}/${s.layout.questions.length}.${s.counted?' Ela sai também das estatísticas da apostila.':''}`,accept:'Apagar',destructive:true});
+    past.append(el('div',{className:'solver-past'},el('span',{textContent:when+' · '+(s.mode==='prova'?'Prova':'Treino')+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`}),remove));
+   }
   }
+ }
+ // Deletes one of the member's sessions; a counted attempt also leaves the material's statistics.
+ async function removeSession(s){
+  try{
+   const r=await client.rpc('quiz_session_delete',{p_id:s.id});if(r.error)throw r.error;
+   if(r.data?.counted)removeRound(s.id);
+   toast(s.status==='active'?'Progresso descartado':'Tentativa apagada','trash');return true;
+  }catch(error){toast(message(error),'info');return false;}
+ }
+ function removeRound(sessionId){
+  const m=data.find(x=>x.sourceId===material.sourceId),roundId='quiz-'+sessionId;
+  if(!m||!saveChange||!(m.questionRounds||[]).some(r=>r.id===roundId))return;
+  const before=structuredClone({q:m.q,c:m.c,w:m.w,questionRounds:m.questionRounds});
+  m.questionRounds=m.questionRounds.filter(r=>r.id!==roundId);
+  Object.assign(m,m.questionRounds.reduce((a,r)=>({q:a.q+r.q,c:a.c+r.c,w:a.w+r.w}),{q:0,c:0,w:0}));render();
+  saveChange({kind:'delete-round',id:m.sourceId,roundId},()=>{},null,()=>{Object.assign(m,before);render();toast('A tentativa saiu, mas as estatísticas não foram atualizadas. Sincronize e tente de novo.','info');});
  }
  async function loadQuestions(){const r=await client.rpc('question_set',{p_id:setInfo.id});if(r.error||!r.data)throw r.error||Error('Conjunto não encontrado');questions=r.data.questions;}
  function layoutFor(mode,subset){
@@ -258,13 +281,29 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   if(!dialog.open)dialog.showModal();motion(dialog.querySelector('.solver-shell'),[{opacity:0,transform:'translateY(10px) scale(.99)'},{opacity:1,transform:'none'}],{duration:260,easing:EASE});
   await renderSetup();$s('solverClose').focus();
  }
+ // Leaving an unfinished session asks: keep the progress for later, or discard it and start over next time.
+ const leave=document.createElement('dialog');leave.id='solverLeave';leave.className='solver-leave';leave.setAttribute('aria-labelledby','solverLeaveTitle');
+ leave.innerHTML='<h2 id="solverLeaveTitle">Sair antes de terminar?</h2><p id="solverLeaveText"></p><div class="solver-leave-actions"><button type="button" class="primary" id="solverKeep">Guardar progresso</button><button type="button" class="editor-cancel solver-danger" id="solverDiscard">Descartar e recomeçar depois</button><button type="button" class="editor-cancel" id="solverStay">Continuar respondendo</button></div>';
+ dialog.append(leave);
+ function finishClose(){leave.open&&leave.close();dialog.close();session=null;questions=[];pending=new Map();document.querySelector(`#library [data-solve="${dialog.dataset.opener}"]`)?.focus();}
  async function close(){
+  if(leave.open)return;
+  const answered=session?.status==='active'?Object.values(session.answers).filter(a=>a.o!=null).length:0;
+  if(session?.status==='active'&&(answered||Object.keys(session.answers).length)){
+   stopClock();
+   leave.querySelector('#solverLeaveText').textContent=`Você respondeu ${answered} de ${order().length}. Guarde para continuar de onde parou, ou descarte para começar do zero na próxima vez.`;
+   leave.showModal();leave.querySelector('#solverKeep').focus();
+   motion(leave,[{opacity:0,transform:'translateY(6px) scale(.98)'},{opacity:1,transform:'none'}],{duration:200,easing:EASE});
+   return;
+  }
   stopClock();
-  if(session?.status==='active'&&Object.keys(session.answers).length){try{await flush();toast('Progresso salvo. Continue quando quiser.','info');}catch{toast('Não foi possível salvar o progresso.','info');}}
-  else if(session?.status==='active')flush().catch(()=>{});
-  dialog.close();session=null;questions=[];
-  document.querySelector(`#library [data-solve="${dialog.dataset.opener}"]`)?.focus();
+  if(session?.status==='active')client.rpc('quiz_session_delete',{p_id:session.id}).catch(()=>{}); // nothing answered: nothing to keep
+  finishClose();
  }
+ leave.querySelector('#solverKeep').onclick=async()=>{try{await flush();toast('Progresso guardado. Continue quando quiser.','info');}catch{toast('Não foi possível guardar o progresso.','info');}finishClose();};
+ leave.querySelector('#solverDiscard').onclick=async()=>{const s=session;if(await removeSession(s))finishClose();};
+ leave.querySelector('#solverStay').onclick=()=>{leave.close();startClock();};
+ leave.addEventListener('cancel',event=>{event.preventDefault();leave.close();startClock();});
  $s('solverClose').onclick=close;
  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
  dialog.addEventListener('keydown',event=>{

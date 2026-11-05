@@ -93,3 +93,16 @@ end;$$;
 revoke all on function private.quiz_layout_valid(jsonb,jsonb) from public,anon,authenticated;
 revoke all on function public.quiz_session_start(uuid,text,text,integer,jsonb),public.quiz_session_save(uuid,jsonb,bigint,boolean),public.quiz_sessions_mine(uuid) from public,anon;
 grant execute on function public.quiz_session_start(uuid,text,text,integer,jsonb),public.quiz_session_save(uuid,jsonb,bigint,boolean),public.quiz_sessions_mine(uuid) to authenticated;
+
+-- Deleting one of the member's own sessions: an unfinished one ("descartar") or a finished attempt.
+-- Returns whether it had counted in the statistics, so the app removes its round from the material.
+create or replace function public.quiz_session_delete(p_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare s public.quiz_sessions;
+begin
+ if auth.uid() is null or not public.has_peleja_access() then raise exception 'Acesso negado';end if;
+ delete from public.quiz_sessions where id=p_id and user_id=auth.uid() returning * into s;
+ if s.id is null then raise exception 'Sessão não encontrada';end if;
+ return jsonb_build_object('status',s.status,'counted',s.counted);
+end;$$;
+revoke all on function public.quiz_session_delete(uuid) from public,anon;
+grant execute on function public.quiz_session_delete(uuid) to authenticated;
