@@ -53,3 +53,67 @@ html[data-peleja-motion=on] #refresh.is-syncing svg{animation:connected-sync-spi
 html[data-peleja-motion=off] #refresh.is-syncing svg{animation:none!important;opacity:.6}
 
 .account-disclosure{border-top:1px solid var(--line);margin-top:24px}.account-disclosure summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;padding:18px 0;font-size:14px}.account-disclosure summary::-webkit-details-marker{display:none}.account-disclosure summary span{font-size:20px;color:var(--muted);transition:transform 240ms}.account-disclosure[data-expanded=true] summary span{transform:rotate(45deg)}.account-disclosure form{padding:0 0 8px}
+/* ---- Settings window (sidebar + content card) ---- */
+#settingsDialog.settings-workspace{width:min(1040px,calc(100vw - 32px));height:min(720px,calc(100dvh - 40px));max-height:none;padding:12px;overflow:hidden;border-radius:28px;background:var(--canvas)}
+#settingsDialog.settings-workspace[open]{display:flex}
+.settings-workspace>.settings-heading{position:absolute;top:24px;right:26px;z-index:2;margin:0}
+.settings-workspace>.settings-heading h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.settings-workspace .settings-layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:12px;flex:1;min-height:0;margin:0;align-items:stretch}
+.settings-side{display:flex;flex-direction:column;min-height:0;padding:18px 12px 14px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
+.settings-side-title{margin:2px 12px 6px;font-size:19px;font-weight:500;letter-spacing:-.3px}
+.settings-workspace .settings-nav{position:static;flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:3px}
+.settings-group{margin:16px 12px 6px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.settings-workspace .settings-nav button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border-radius:14px;background:transparent;color:var(--ink);font-size:14.5px;text-align:left;transition:background .18s,color .18s}
+.settings-workspace .settings-nav button svg{width:19px;height:19px;color:var(--muted);flex-shrink:0;transition:color .18s}
+.settings-workspace .settings-nav button:hover{background:var(--soft)}
+.settings-workspace .settings-nav button[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--accent);font-weight:500}
+.settings-workspace .settings-nav button[aria-pressed=true] svg{color:var(--accent)}
+.settings-side-foot{display:grid;gap:10px;padding:14px 4px 0;border-top:1px solid var(--line)}
+.settings-autosave{display:flex;align-items:center;gap:8px;margin:0 8px;font-size:12px;color:var(--muted)}
+.settings-autosave span{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+#settingsDone{width:100%;min-height:46px;justify-content:center;font-size:14px}
+.settings-workspace .settings-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:30px 34px 28px;border:1px solid var(--line);border-radius:20px;background:var(--surface);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.settings-panel-title{margin:0 0 22px;font-size:30px!important;font-weight:500;letter-spacing:-.6px;line-height:1.15}
+.settings-workspace .account-panel,.settings-workspace #preferencesPanel,.settings-workspace #securityPanel{margin:0;padding:0;border:0}
+.settings-card{margin:0 0 16px;padding:18px 20px 20px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--canvas) 45%,var(--surface))}
+.settings-card h3{margin:0 0 14px!important;font-size:11px!important;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.settings-card-note{margin:-6px 0 14px;font-size:13px;color:var(--muted)}
+.settings-card .editor-field{margin-bottom:14px}
+.settings-card .settings-row{padding:12px 0;border-top:1px solid var(--line)}
+.settings-card h3+.settings-row{border-top:0;padding-top:0}
+.settings-card .settings-row[hidden]{display:none}
+.settings-card .settings-row[hidden]+.settings-row{border-top:0}
+.settings-preview{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 0 16px;padding:34px 20px;border-radius:18px;background:var(--soft)}
+.settings-preview .avatar{display:grid;place-items:center;width:62px;height:62px;flex:0 0 62px;overflow:hidden;border-radius:50%;font-size:22px;box-shadow:0 0 0 3px var(--surface),0 0 0 5px color-mix(in srgb,var(--accent) 55%,transparent)}
+.settings-preview .avatar img{width:100%;height:100%;object-fit:cover}
+.settings-preview strong{display:block;font-size:18px;font-weight:500}
+.settings-preview small{display:block;margin-top:2px;font-size:13px;color:var(--accent)}
+#accountFeedback:empty{display:none}
+#accountFeedback{margin:4px 0 0;padding:12px 14px;border-radius:14px;background:var(--soft);font-size:13px}
+@media(max-width:760px){
+ #settingsDialog.settings-workspace{width:calc(100vw - 16px);height:calc(100dvh - 16px);padding:8px;border-radius:22px}
+ .settings-workspace .settings-layout{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:8px}
+ .settings-side{padding:12px 10px 10px;border-radius:18px}
+ .settings-side-title,.settings-group,.settings-autosave{display:none}
+ .settings-workspace .settings-nav{flex-direction:row;overflow-x:auto;gap:6px;padding-right:44px}
+ .settings-workspace .settings-nav button{width:auto;white-space:nowrap;padding:9px 12px;font-size:13.5px}
+ .settings-side-foot{display:none}
+ .settings-workspace>.settings-heading{top:18px;right:18px}
+ .settings-workspace .settings-content{padding:22px 18px;border-radius:18px}
+ .settings-panel-title{font-size:25px!important;margin-bottom:16px}
+}
+.settings-workspace .settings-panel-title{margin:0 0 22px}
+.settings-side,.settings-workspace .settings-content{min-width:0}
+@media(max-width:760px){
+ .settings-workspace .settings-layout{grid-template-columns:minmax(0,1fr)}
+ .settings-workspace .settings-panel-title{margin-bottom:16px}
+ .settings-preview{padding:24px 16px}
+}
+@media(max-width:760px){
+ .settings-workspace .settings-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;overflow:visible;padding-right:40px}
+ .settings-workspace .settings-nav button{flex-direction:column;justify-content:center;gap:4px;width:100%;padding:8px 4px;text-align:center;white-space:normal;font-size:12px;line-height:1.25}
+ .settings-workspace>.settings-heading{top:22px;right:16px}
+ .settings-workspace>.settings-heading .icon{width:36px;height:36px}
+}
+.settings-nav .settings-short{display:none}
+@media(max-width:760px){.settings-nav .settings-long{display:none}.settings-nav .settings-short{display:inline}}
