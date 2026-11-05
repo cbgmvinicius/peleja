@@ -55,7 +55,7 @@ async function app({role='admin',search='',delivery=null}={}){
  assert.deepEqual(opts('importExam'),['Selecione a prova','Próxima prova','Provas pendentes','PR1.1','PR2.1']);
  // Changing the discipline clears and locks the later steps.
  $('importSubject').value='Pediatria';$('importSubject').dispatchEvent(new w.Event('change'));
- assert.equal($('importExam').value,'');assert.equal($('importExam').disabled,false);assert.equal($('importMaterial').disabled,true);assert.equal($('importSave').disabled,true);
+ assert.equal($('importExam').value,'');assert.equal($('importExam').disabled,false);assert.equal($('importMaterial').disabled,true);assert.equal($('importSpecialty').disabled,true);assert.equal($('importSave').disabled,true);
  $('importSubject').value='';$('importSubject').dispatchEvent(new w.Event('change'));assert.equal($('importExam').disabled,true);
  $('importSubject').value='Dermatologia';$('importSubject').dispatchEvent(new w.Event('change'));
  $('importExam').value='next';$('importExam').dispatchEvent(new w.Event('change'));
@@ -65,6 +65,12 @@ async function app({role='admin',search='',delivery=null}={}){
  assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','N12 Neurodivergências','D11 Manifestações']);assert.equal($('importSave').disabled,true);
  $('groupSpecialty').checked=true;$('importExam').dispatchEvent(new w.Event('change'));
  assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','D11 Manifestações','N12 Neurodivergências']);
+ // Optional specialty filter between exam and material.
+ assert.deepEqual(opts('importSpecialty'),['Todas as especialidades','Pele','Neurologia']);assert.equal($('importSpecialty').disabled,false);
+ $('importSpecialty').value='Neurologia';$('importSpecialty').dispatchEvent(new w.Event('change'));
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','N12 Neurodivergências']);
+ $('importSpecialty').value='';$('importSpecialty').dispatchEvent(new w.Event('change'));
+ assert.equal(w.document.getElementById('importMaterial').options.length,4);
  $('importMaterial').value=$('importMaterial').options[1].value;$('importMaterial').dispatchEvent(new w.Event('change'));assert.equal($('importSave').disabled,false);
  // Topic filter.
  const chips=[...w.document.querySelectorAll('#importTopics button')];assert.equal(chips.length,3);chips[2].click();

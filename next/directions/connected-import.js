@@ -29,23 +29,31 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
   fill($('importExam'),subject?[['next',examLabel.next],['pending',examLabel.pending],...types.map(t=>[t,t])]:[],subject?'Selecione a prova':'Escolha a disciplina primeiro');
   $('importExam').disabled=!subject;
  }
+ // Optional narrowing between exam and material: "Todas as especialidades" keeps the whole list.
+ function fillSpecialties(){
+  const exam=$('importExam').value,names=[...new Set(materialsFor($('importSubject').value,exam).map(m=>m.specialty||'').filter(Boolean))];
+  fill($('importSpecialty'),names.map(s=>[s,s]),exam?'Todas as especialidades':'Escolha a prova primeiro');
+  $('importSpecialty').disabled=!exam||names.length<2;
+ }
  function fillMaterials(){
-  const exam=$('importExam').value,list=materialsFor($('importSubject').value,exam);
+  const exam=$('importExam').value,specialty=$('importSpecialty').value;
+  const list=materialsFor($('importSubject').value,exam).filter(m=>!specialty||m.specialty===specialty);
   fill($('importMaterial'),list.map(m=>[m.code,m.fullTitle||m.title]),!exam?'Escolha a prova primeiro':list.length?'Selecione a apostila':'Nenhuma apostila nesta prova');
   $('importMaterial').disabled=!exam||!list.length;
  }
  function onScopeChange(){renderSets();refreshSave();syncFilterControls();}
  // A manual choice replaces the "suggested by the NotebookLM link" note.
- $('importSubject').onchange=()=>{status('');fillExams();fillMaterials();onScopeChange();};
- $('importExam').onchange=()=>{status('');fillMaterials();onScopeChange();};
+ $('importSubject').onchange=()=>{status('');fillExams();fillSpecialties();fillMaterials();onScopeChange();};
+ $('importExam').onchange=()=>{status('');fillSpecialties();fillMaterials();onScopeChange();};
+ $('importSpecialty').onchange=()=>{status('');fillMaterials();onScopeChange();};
  $('importMaterial').onchange=()=>{status('');onScopeChange();};
  function suggest(source){
-  fillSubjects();fillExams();fillMaterials();
+  fillSubjects();fillExams();fillSpecialties();fillMaterials();
   const key=plain(source),m=key&&data.find(x=>plain(x.notebookUrl||'')===key);
   if(m){
    $('importSubject').value=m.subject;fillExams();
    const exam=['next','pending',...(m.examTypes||[])].find(e=>materialsFor(m.subject,e).includes(m));
-   if(exam){$('importExam').value=exam;fillMaterials();$('importMaterial').value=m.code;}
+   if(exam){$('importExam').value=exam;fillSpecialties();fillMaterials();$('importMaterial').value=m.code;}
   }
   onScopeChange();
   return m;
@@ -131,7 +139,7 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
 
  // ---------- open / close ----------
  function open(){
-  if(!allowed())return;closeMenus?.();resetView();fillSubjects();fillExams();fillMaterials();syncFilterControls();
+  if(!allowed())return;closeMenus?.();resetView();fillSubjects();fillExams();fillSpecialties();fillMaterials();syncFilterControls();
   if(!dialog.open)dialog.showModal();$('importClose').focus();
   motion(dialog.querySelector('.import-body'),[{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:220,easing:'cubic-bezier(.25,.1,.25,1)'});
   loadSets().catch(error=>status(message(error),'error'));
