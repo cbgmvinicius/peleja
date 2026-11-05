@@ -167,6 +167,17 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  q('.mobile-tabs [data-more]').click();await tick();assert.equal(q('.mobile-sheet').hidden,false);assert.equal(q('.mobile-tabs [data-more]').getAttribute('aria-expanded'),'true');
  q('.mobile-sheet [data-target=navPerformance]').click();await tick(300);assert.equal($('performancePage').hidden,false);assert.ok(q('.mobile-tabs [data-more]').classList.contains('is-active'),'Mais marks Ranking/Cursos');assert.equal(q('.mobile-sheet').hidden,true);
  q('.mobile-tabs [data-more]').click();await tick();q('.mobile-sheet [data-settings]').click();await tick(300);assert.equal($('settingsDialog').open,true);
+ // Coming back to an app kept in memory (tablets): the latest catalog arrives without a click.
+ if($('settingsDialog').open)$('settingsDialog').close();
+ remote.catalog.materials.push({id:'neuro:9',title:'N14 Epilepsia',subject:'Dermatologia',classDate:'2026-11-04'});remote.catalog.exams[0].materialIds.push('neuro:9');remote.catalog_revision++;
+ const reads=()=>calls.filter(([n])=>n==='get_workspace').length,readsBefore=reads();
+ const shown=new w.Event('pageshow');Object.defineProperty(shown,'persisted',{value:true});w.dispatchEvent(shown);await tick(300);
+ assert.equal(reads(),readsBefore+1,'restored page syncs');
+ tab('navLibrary').click();await tick(80);assert.match($('library').textContent,/N14 EPILEPSIA/i,'new material shows up');
+ // Never over an open form.
+ w.document.querySelector('[data-create=questions]').click();await tick(60);assert.equal($('questionsDialog').open,true);
+ w.PELEJA_AUTO_SYNC(true);await tick(100);assert.equal(reads(),readsBefore+1,'no sync while a dialog is open');
+ $('questionsDialog').close();
  console.log('PASS solver: solve button and menu, training reveal/lock/scissors/hint, result + stats round once, review, redo missed, resume, exam shuffle/change/timer');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
