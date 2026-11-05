@@ -231,5 +231,28 @@ await user(A);await rpc('delete_question_set',[qbId],['uuid']);assert.equal((awa
 await db.exec('reset role');assert.equal(Number((await db.query('select count(*) n from public.quiz_sessions')).rows[0].n),0,'deleting a set removes its sessions');
 console.log('PASS Question sets: admin-only create/delete, catalog material, validation, duplicates, member read, inactive denial');
 console.log('PASS Quiz sessions: layout validation, resume, server scoring, first finished session counts, one open session, privacy, cascade');
+
+// Pomodoro focus blocks.
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro.sql'),'utf8'));
+const pCasts=['uuid','text','timestamptz','timestamptz','integer','integer','integer'];
+const ago=min=>new Date(Date.now()-min*60000).toISOString();
+const blockId='00000000-0000-4000-8000-00000000b001';
+await user(C);
+await rpc('pomodoro_block_save',[blockId,'  Hematologia  ',ago(30),ago(5),25*60000,25*60000,0],pCasts);
+await rpc('pomodoro_block_save',[blockId,'Hematologia',ago(30),ago(5),25*60000,25*60000,0],pCasts);
+let mineBlocks=await rpc('pomodoro_blocks_mine',[ago(60)],['timestamptz']);
+assert.equal(mineBlocks.length,1,'same id never duplicates');assert.equal(mineBlocks[0].task,'Hematologia');assert.equal(mineBlocks[0].focusMs,25*60000);
+await assert.rejects(()=>rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b002','x',ago(10),ago(5),30*60000,0,0],pCasts),/check/,'focus cannot exceed the wall time');
+await assert.rejects(()=>rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b003','x',ago(10),ago(9),30000,0,0],pCasts),/check/,'under one minute is not a block');
+await assert.rejects(()=>rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b004','x',ago(60*24*20),ago(60*24*20-30),25*60000,0,0],pCasts),/Horário/);
+await assert.rejects(()=>db.query('select * from public.pomodoro_blocks'),/permission denied/);
+await user(A);assert.equal((await rpc('pomodoro_blocks_mine',[null],['timestamptz'])).length,0,'blocks are private');
+await rpc('pomodoro_block_delete',[blockId],['uuid']);
+await user(C);assert.equal((await rpc('pomodoro_blocks_mine',[null],['timestamptz'])).length,1,'only the owner deletes');
+await rpc('pomodoro_block_delete',[blockId],['uuid']);assert.equal((await rpc('pomodoro_blocks_mine',[null],['timestamptz'])).length,0);
+await user(B);await assert.rejects(()=>rpc('pomodoro_blocks_mine',[null],['timestamptz']),/Acesso negado/);
+console.log('PASS Pomodoro blocks: idempotent save, trimmed task, wall-time and minimum checks, privacy, owner delete, inactive denial');
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});

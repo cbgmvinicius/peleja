@@ -28,6 +28,9 @@ globalThis.PELEJA_INSTALL_PROFILE=({client,getSession,getName,onName,onReload})=
  $('settingsBack').onclick=()=>{settings.dataset.view='list';};
  layout.querySelector('.settings-nav').addEventListener('click',event=>{if(event.isTrusted&&event.target.closest('button'))settings.dataset.view='panel';});
  const panels={profile:$('accountDialog'),security,appearance:preferences},buttons={profile:$('accountEdit'),security:$('securityEdit'),appearance:$('preferencesEdit')};
+ // Pomodoro preferences (pomodoro.js builds the panel) as one more section under Peleja.
+ const pomodoroPanel=globalThis.PELEJA_POMODORO_SETTINGS;
+ if(pomodoroPanel){$('preferencesEdit').insertAdjacentHTML('afterend','<button type="button" id="pomodoroSettingsEdit" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7"/><path d="M12 10v3.5l2.2 1.6M10 3.5h4"/></svg><span>Pomodoro</span></button>');pomodoroPanel.classList.add('settings-section');preferences.after(pomodoroPanel);panels.pomodoro=pomodoroPanel;buttons.pomodoro=$('pomodoroSettingsEdit');$('pomodoroSettingsEdit').onclick=()=>selectPanel('pomodoro');}
  function selectPanel(target){const name=target===true?'profile':target===false?'appearance':target;for(const [key,panel] of Object.entries(panels)){panel.hidden=key!==name;buttons[key].setAttribute('aria-pressed',String(key===name));}content.scrollTop=0;motion(panels[name],[{opacity:.3,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:200});}
  $('securityEdit').onclick=()=>{if(!initialized)$('accountEdit').click();selectPanel('security');};
  $('settingsDone').onclick=()=>closeSettings();
