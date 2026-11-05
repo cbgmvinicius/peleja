@@ -168,6 +168,20 @@ await assert.rejects(()=>rpc('save_question_set',qbArgs([{...qbQuestions[0],answ
 await assert.rejects(()=>rpc('save_question_set',qbArgs([{...qbQuestions[0],answerOptions:[opt('A',true),{text:'B',isCorrect:false,rationale:' '}]}]),qbCasts),/comentário incompleto/);
 const qbId=await rpc('save_question_set',qbArgs(),qbCasts);
 await assert.rejects(()=>rpc('save_question_set',qbArgs(),qbCasts),/já está no Peleja/);
+// Whole-exam sets ("tudo em um"): tied to a catalog exam instead of a material.
+await db.exec('reset role');await db.query(`update public.academic_catalog set payload=jsonb_set(payload,'{exams}',coalesce(payload->'exams','[]')||'[{"id":"qb-exam","subject":"Dermatologia","type":"PR2.2","date":"2099-12-01","materialIds":["qb-material"]}]')`);
+const examArgs=(exam='qb-exam',f='b'.repeat(64),q=qbQuestions)=>[exam,'PR2.2 tudo em um','',JSON.stringify(q),f];
+await user(C);await assert.rejects(()=>rpc('save_exam_question_set',examArgs(),qbCasts),/Acesso negado/);
+await user(A);
+await assert.rejects(()=>rpc('save_exam_question_set',examArgs('nao-existe'),qbCasts),/Prova não encontrada/);
+await assert.rejects(()=>rpc('save_exam_question_set',examArgs('qb-exam','c'.repeat(64),[{...qbQuestions[0],answerOptions:[opt('A',true),opt('B',true)]}]),qbCasts),/gabarito ambíguo/);
+await assert.rejects(()=>rpc('save_exam_question_set',examArgs('qb-exam',fp),qbCasts),/já está no Peleja/,'same quiz cannot be imported twice anywhere');
+const examSet=await rpc('save_exam_question_set',examArgs(),qbCasts);
+let both=await rpc('question_sets_list',[],[]);
+assert.deepEqual(both.map(s=>[s.materialId,s.examId]).sort(),[['qb-material',null],[null,'qb-exam']].sort());
+assert.equal((await rpc('question_set',[examSet],['uuid'])).examId,'qb-exam');
+await db.exec('reset role');await assert.rejects(()=>db.query(`insert into public.question_sets(material_id,exam_id,title,questions,question_count,fingerprint,created_by) values('m','e','x','[{}]',1,'${'d'.repeat(64)}',$1)`,[A]),/question_sets_target_check/,'never both targets');
+await user(A);await rpc('delete_question_set',[examSet],['uuid']);
 await user(C);
 const qbList=await rpc('question_sets_list',[],[]);
 assert.equal(qbList.length,1);assert.equal(qbList[0].materialId,'qb-material');assert.equal(qbList[0].count,1);assert.equal(qbList[0].questions,undefined);
