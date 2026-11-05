@@ -7,13 +7,13 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  const LETTERS='ABCDEFGHIJKLMNOPQRST',EASE='cubic-bezier(.22,1,.36,1)';
  const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;};
  const ICON={
-  solve:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2.6"/><path d="m8.6 9.2 1.5 1.5 3-3.2M8.6 15.2h6.8"/></svg>',
-  cut:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.6" cy="7" r="2.4"/><circle cx="5.6" cy="17" r="2.4"/><path d="M7.7 8.2 14.5 13M7.7 15.8 14.5 11"/><path d="M15.5 12h.6M18 12h.6M20.5 12h.6"/></svg>',
+  solve:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6.5" r="2.1"/><path d="M11 6.5h8"/><circle cx="6" cy="12" r="2.1" fill="currentColor"/><path d="M11 12h8"/><circle cx="6" cy="17.5" r="2.1"/><path d="M11 17.5h8"/></svg>',
+  cut:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.6" cy="7.4" r="2.6"/><circle cx="18.6" cy="16.6" r="2.6"/><path d="M16.4 15.1 12.6 12 3.4 8.1"/><path d="M16.4 8.9 12.6 12 3.4 15.9"/><path d="M1 12h9.4" stroke-dasharray="0.1 3.1" stroke-width="2.4"/></svg>',
   hint:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></svg>',
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   wrong:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>'
  };
- let sets=[],material=null,setInfo=null,questions=[],session=null,history=[],position=0,screen='setup',reviewing=false;
+ let pending=new Map(),hintOpen=new Set(),sets=[],material=null,setInfo=null,questions=[],session=null,history=[],position=0,screen='setup',reviewing=false;
  let clockStart=0,clockBase=0,clockTimer=0,saveTimer=0,busy=false,resultFilter='all';
  const dialog=document.createElement('dialog');dialog.id='solverDialog';dialog.className='solver';dialog.setAttribute('aria-labelledby','solverTitle');
  dialog.innerHTML='<div class="solver-shell"><header class="solver-top"><div class="solver-place"><span class="editor-kicker" id="solverKicker"></span><h2 id="solverTitle"></h2></div><div class="solver-clock" id="solverClock" hidden></div><button type="button" class="icon" id="solverClose" aria-label="Fechar">✕</button></header><div class="solver-progress" id="solverProgress" hidden><span></span></div><div class="solver-body" id="solverBody"></div><footer class="solver-foot editor-footer" id="solverFoot"></footer></div>';
@@ -120,12 +120,12 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    const timerSeconds=clock==='timer'?Math.round(minutes*60):null;
    const r=await client.rpc('quiz_session_start',{p_set:setInfo.id,p_mode:mode,p_clock:clock,p_timer:timerSeconds,p_layout:layout});if(r.error)throw r.error;
    session={id:r.data,mode,clock,timerSeconds,layout,answers:{},status:'active',elapsedMs:0};
-   clockBase=0;position=0;reviewing=false;renderQuestion();startClock();
+   clockBase=0;position=0;reviewing=false;pending=new Map();hintOpen=new Set();renderQuestion();startClock();
   }catch(error){toast(message(error),'info');}
   finally{busy=false;button?.removeAttribute('aria-busy');}
  }
  async function resumeSession(open){
-  try{await loadQuestions();session={...open,answers:open.answers||{}};clockBase=open.elapsedMs||0;reviewing=false;
+  try{await loadQuestions();session={...open,answers:open.answers||{}};clockBase=open.elapsedMs||0;reviewing=false;pending=new Map();hintOpen=new Set();
    const first=order().findIndex(q=>answerOf(q).o==null);position=first<0?order().length-1:first;renderQuestion();startClock();}
   catch(error){toast(message(error),'info');}
  }
@@ -138,12 +138,14 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   const bar=$s('solverProgress');bar.hidden=false;bar.firstElementChild.style.width=`${(Object.values(session.answers).filter(a=>a.o!=null).length/total)*100}%`;
   const body=$s('solverBody'),list=el('ol',{className:'solver-options'});
   session.layout.options[q].forEach((o,j)=>{
-   const option=item.answerOptions[o],cut=answer.x?.includes(o),chosen=answer.o===o;
+   const option=item.answerOptions[o],cut=answer.x?.includes(o),chosen=answer.o===o,selected=pending.get(q);
    const li=el('li',{className:'solver-option'});
-   if(show)li.dataset.state=option.isCorrect?'right':chosen?'wrong':'idle';else if(chosen)li.dataset.state='chosen';
+   // chosen = marked, waiting for "Confirmar resposta"; marked = confirmed answer (exam mode).
+   if(show)li.dataset.state=option.isCorrect?'right':chosen?'wrong':'idle';
+   else if(selected===o)li.dataset.state='chosen';else if(chosen&&selected==null)li.dataset.state='marked';
    if(cut&&!show)li.dataset.cut='';
    const pick=el('button',{type:'button',className:'solver-pick',disabled:show||cut},el('span',{className:'solver-letter',textContent:LETTERS[j]}),el('span',{className:'solver-text',textContent:option.text}));
-   pick.setAttribute('aria-pressed',String(chosen));pick.onclick=()=>choose(q,o);
+   pick.setAttribute('aria-pressed',String(selected===o||(chosen&&selected==null)));pick.onclick=()=>choose(q,o);
    li.append(pick);
    if(!show){const scissors=el('button',{type:'button',className:'icon solver-cut',title:cut?'Trazer alternativa de volta':'Descartar alternativa'});scissors.innerHTML=ICON.cut;scissors.setAttribute('aria-pressed',String(!!cut));scissors.setAttribute('aria-label',`${cut?'Trazer de volta':'Descartar'} alternativa ${LETTERS[j]}`);scissors.onclick=()=>toggleCut(q,o);li.append(scissors);}
    if(show){
@@ -154,9 +156,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   });
   const content=el('div',{className:'solver-question'},el('p',{className:'solver-stem',textContent:item.question}),list);
   if(item.hint){
-   const panel=el('div',{className:'solver-hint',hidden:true},el('span',{innerHTML:ICON.hint}),el('p',{textContent:item.hint}));
-   const toggle=el('button',{type:'button',className:'solver-hint-toggle'},'Dica');toggle.setAttribute('aria-expanded','false');
-   toggle.onclick=()=>{const open=panel.hidden;panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)animateIn(panel,-6);};
+   // The hint stays hidden until asked for, and stays open for that question once asked.
+   const open=hintOpen.has(q),panel=el('div',{className:'solver-hint',hidden:!open},el('span',{innerHTML:ICON.hint}),el('p',{textContent:item.hint}));
+   const toggle=el('button',{type:'button',className:'solver-hint-toggle'},open?'Ocultar dica':'Ver dica');toggle.setAttribute('aria-expanded',String(open));
+   toggle.onclick=()=>{const show=panel.hidden;panel.hidden=!show;show?hintOpen.add(q):hintOpen.delete(q);toggle.textContent=show?'Ocultar dica':'Ver dica';toggle.setAttribute('aria-expanded',String(show));if(show)animateIn(panel,-6);};
    content.append(toggle,panel);
   }
   if(show&&session.mode==='treino'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
@@ -166,23 +169,38 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  }
  function renderQuestionFoot(){
   const total=order().length,last=position===total-1,foot=$s('solverFoot');
+  const q=order()[position],answer=answerOf(q),selected=pending.get(q);
   const prev=el('button',{type:'button',className:'editor-cancel',textContent:'Anterior',disabled:position===0,onclick:()=>go(-1)});
-  const next=last?null:el('button',{type:'button',className:reviewing?'primary':'primary',textContent:'Próxima',onclick:()=>go(1)});
+  const next=last?null:el('button',{type:'button',className:'primary',textContent:'Próxima',onclick:()=>go(1)});
   if(reviewing){foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Voltar ao resultado',onclick:()=>renderResult()}),prev,...(next?[next]:[]));return;}
   const finish=el('button',{type:'button',className:last?'primary':'editor-cancel',textContent:session.mode==='prova'?'Finalizar prova':'Finalizar',onclick:askFinish});
+  // A marked option still needs "Confirmar resposta": in training it reveals the key, in the exam it records the answer.
+  const needsConfirm=session.mode==='treino'?answer.o==null:selected!=null&&selected!==answer.o;
+  if(needsConfirm){
+   const confirm=el('button',{type:'button',className:'primary',id:'solverConfirm',textContent:'Confirmar resposta',disabled:selected==null,onclick:()=>confirmAnswer(q)});
+   const skip=last?null:el('button',{type:'button',className:'editor-cancel',textContent:'Próxima',onclick:()=>go(1)});
+   foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:finish.textContent,onclick:askFinish}),prev,...(skip?[skip]:[]),confirm);return;
+  }
   foot.replaceChildren(...(last?[]:[finish]),prev,...(next?[next]:[finish]));
   if(!last)finish.classList.add('solver-left');
  }
  function go(step){const next=position+step;if(next<0||next>=order().length)return;position=next;renderQuestion(step);}
  function choose(q,o){
-  const answer={...answerOf(q)};if(answer.x?.includes(o))return;
-  if(session.mode==='treino'&&answer.o!=null)return; // the first answer counts in training
-  answer.o=session.mode==='prova'&&answer.o===o?null:o;session.answers={...session.answers,[q]:answer};
-  queueSave();renderQuestion();
+  const answer=answerOf(q);if(answer.x?.includes(o))return;
+  if(session.mode==='treino'&&answer.o!=null)return; // the first confirmed answer counts in training
+  if(pending.get(q)===o)pending.delete(q);else pending.set(q,o);
+  renderQuestion();
+ }
+ function confirmAnswer(q){
+  const o=pending.get(q);if(o==null)return;pending.delete(q);
+  session.answers={...session.answers,[q]:{...answerOf(q),o}};queueSave();
+  if(session.mode==='prova'&&position<order().length-1){go(1);return;}
+  renderQuestion();
   if(session.mode==='treino')for(const why of $s('solverBody').querySelectorAll('.solver-why'))animateIn(why,-4);
  }
  function toggleCut(q,o){
   const answer={o:null,x:[],...answerOf(q)},cut=new Set(answer.x||[]);cut.has(o)?cut.delete(o):cut.add(o);
+  if(pending.get(q)===o)pending.delete(q);
   answer.x=[...cut];if(answer.o===o)answer.o=null;session.answers={...session.answers,[q]:answer};queueSave();renderQuestion();
  }
  function askFinish(){
@@ -251,7 +269,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
  dialog.addEventListener('keydown',event=>{
   if(screen!=='question'||event.target.closest('input,textarea'))return;
-  if(event.key==='ArrowRight')go(1);else if(event.key==='ArrowLeft')go(-1);
+  if(event.key==='ArrowRight')go(1);else if(event.key==='ArrowLeft')go(-1);else if(event.key==='Enter'&&$s('solverConfirm')&&!$s('solverConfirm').disabled&&!event.target.closest('button')){event.preventDefault();$s('solverConfirm').click();}
  });
  addEventListener('pagehide',()=>{if(session?.status==='active'){clockBase=elapsed();clockStart=clockStart&&Date.now();flush().catch(()=>{});}});
 
