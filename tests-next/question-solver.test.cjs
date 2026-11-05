@@ -62,14 +62,18 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  wrongLi.querySelector('.solver-cut').click();await tick();
  let cut=qa('.solver-option').find(li=>optionText(li)==='Candida');assert.ok(cut.hasAttribute('data-cut'));assert.equal(cut.querySelector('.solver-pick').disabled,true);
  // Hint toggles.
- q('.solver-hint-toggle').click();assert.equal(q('.solver-hint').hidden,false);
+ assert.equal(q('.solver-hint').hidden,true,'hint hidden until asked');q('.solver-hint-toggle').click();assert.equal(q('.solver-hint').hidden,false);
  // Answer correctly: key and every comment appear, and the answer is locked.
  qa('.solver-option').find(li=>optionText(li)==='Malassezia').querySelector('.solver-pick').click();await tick();
+ // Marking is not answering: nothing is revealed until "Confirmar resposta".
+ assert.equal(qa('.solver-option').find(li=>optionText(li)==='Malassezia').dataset.state,'chosen');assert.equal(q('.solver-why'),null);assert.equal(Object.keys(p.state.sessions[0].answers).length,0);
+ assert.equal(q('.solver-hint').hidden,false,'open hint survives re-render');
+ $('solverConfirm').click();await tick();
  options=qa('.solver-option');assert.equal(options.find(li=>optionText(li)==='Malassezia').dataset.state,'right');
  assert.equal(qa('.solver-why').length,3,'all comments shown');assert.ok(options.every(li=>li.querySelector('.solver-pick').disabled));assert.equal(q('.solver-cut'),null);
  // Q2 wrong, Q3 skipped.
  qa('#solverFoot button').find(b=>b.textContent==='Próxima').click();await tick();
- qa('.solver-option').find(li=>optionText(li)==='Nistatina').querySelector('.solver-pick').click();await tick();
+ assert.equal($('solverConfirm').disabled,true);qa('.solver-option').find(li=>optionText(li)==='Nistatina').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
  assert.equal(qa('.solver-option').find(li=>optionText(li)==='Nistatina').dataset.state,'wrong');assert.equal(qa('.solver-option').find(li=>optionText(li)==='Griseofulvina').dataset.state,'right');
  qa('#solverFoot button').find(b=>b.textContent==='Próxima').click();await tick();
  assert.equal(q('#solverKicker').textContent,'3 / 3');
@@ -88,7 +92,7 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  qa('#solverFoot button').find(b=>b.textContent==='Refazer erradas').click();await tick(80);
  const redo=calls.filter(([n])=>n==='quiz_session_start').at(-1)[1];assert.deepEqual(redo.p_layout.questions,[1,2]);
  assert.equal(q('#solverKicker').textContent,'1 / 2');
- qa('.solver-option').find(li=>optionText(li)==='Griseofulvina').querySelector('.solver-pick').click();await tick();
+ qa('.solver-option').find(li=>optionText(li)==='Griseofulvina').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
  // Close mid-session: progress is saved and can be resumed.
  $('solverClose').click();await tick(120);assert.equal($('solverDialog').open,false);
  const open=state.sessions.find(s=>s.status==='active');assert.deepEqual(Object.keys(open.answers),['1']);
@@ -105,8 +109,12 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  assert.deepEqual([...exam.p_layout.questions].sort(),[0,1,2]);
  const first=exam.p_layout.questions[0];
  // Choosing does not reveal the key and can be changed.
- let picks=qa('.solver-pick');picks[0].click();await tick();assert.equal(qa('.solver-option')[0].dataset.state,'chosen');assert.equal(q('.solver-why'),null);
+ // Mark, confirm (records and moves on), then come back and change it.
+ qa('.solver-pick')[0].click();await tick();assert.equal(qa('.solver-option')[0].dataset.state,'chosen');assert.equal(q('.solver-why'),null);
+ $('solverConfirm').click();await tick();assert.equal(q('#solverKicker').textContent,'2 / 3');
+ qa('#solverFoot button').find(b=>b.textContent==='Anterior').click();await tick();assert.equal(qa('.solver-option')[0].dataset.state,'marked');
  qa('.solver-pick')[1].click();await tick();assert.equal(qa('.solver-option')[1].dataset.state,'chosen');assert.equal(qa('.solver-option')[0].dataset.state,undefined);
+ $('solverConfirm').click();await tick();
  assert.match(q('#solverClock').textContent,/^0[12]:[0-5]\d$/,'timer counts down');
  qa('#solverFoot button').find(b=>b.textContent==='Finalizar prova').click();await tick();$('confirmAccept').click();await tick(120);
  assert.match(q('#solverKicker').textContent,/RESULTADO DA PROVA/);

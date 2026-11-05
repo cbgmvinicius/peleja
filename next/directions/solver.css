@@ -97,3 +97,16 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 /* App-wide input styles must not reach the radio cards or the hidden minutes field. */
 #solverDialog .solver-choice input[type=radio]{appearance:auto;flex:none;width:18px;height:18px;min-width:0;padding:0;margin:2px 0 0;border:0;background:none;box-shadow:none}
 #solverDialog .solver-minutes[hidden]{display:none}
+/* Marked, waiting for "Confirmar resposta" (outlined) vs. confirmed exam answer (filled). */
+.solver-option[data-state=chosen]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface));box-shadow:0 0 0 1px var(--accent) inset}
+.solver-option[data-state=chosen] .solver-letter{background:transparent;border-color:var(--accent);color:var(--accent)}
+.solver-option[data-state=marked]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.solver-option[data-state=marked] .solver-letter{background:var(--button);border-color:var(--button);color:var(--onbutton)}
+#solverDialog .solver-hint[hidden]{display:none}
+#solverConfirm:disabled{opacity:.45;filter:saturate(.6)}
+.solver-cut svg{width:22px;height:22px}
+/* Hover lights the whole option row, not only the text part. */
+.solver-pick:not(:disabled):hover{background:transparent}
+.solver-option:has(.solver-pick:not(:disabled):hover){background:var(--soft)}
+.solver-option[data-state=chosen]:has(.solver-pick:hover){background:color-mix(in srgb,var(--accent) 11%,var(--surface))}
+#solverDialog .solver-pick,#solverDialog .solver-pick:is(:hover,:focus-visible,:active){background:transparent!important}
