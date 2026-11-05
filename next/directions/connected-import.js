@@ -152,7 +152,7 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
    if(result.error)throw result.error;
    const count=quiz.questions.length;saving=false;close(true);
    toast(`${count} ${count===1?'questão importada':'questões importadas'} em ${m.fullTitle||m.title}`,'info');
-   loadSets().catch(()=>{});
+   loadSets().catch(()=>{});globalThis.PELEJA_REFRESH_SOLVER?.();
   }catch(error){status(message(error),'error');}
   finally{saving=false;$('importSave').removeAttribute('aria-busy');refreshSave();}
  };

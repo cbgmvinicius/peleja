@@ -2,7 +2,7 @@ function canEditDemoStructure(){return app.dataset.previewRole!=='participant';}
 function applyDemoPermissions(){
   const hidden=!canEditDemoStructure();
   if(document.getElementById('facultyDemo'))$('facultyDemo').hidden=hidden||$('facultyPage').hidden;
-  document.querySelectorAll('[data-edit-menu],[data-exam-menu],[data-mock-menu],#facultyCreate,#mockCreate,#editSubject,#deleteSubject,#facultyMenuEdit,#facultyMenuDelete,#mockEdit,#mockDelete,#mockKeyEdit,[data-create=subject],[data-create=college],[data-create=residency]').forEach(button=>button.hidden=hidden);
+  document.querySelectorAll('[data-exam-menu],[data-mock-menu],#facultyCreate,#mockCreate,#editSubject,#deleteSubject,#facultyMenuEdit,#facultyMenuDelete,#mockEdit,#mockDelete,#mockKeyEdit,[data-create=subject],[data-create=college],[data-create=residency]').forEach(button=>button.hidden=hidden);
 }
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons={study:'<path d="m3 9 9-5 9 5-9 5-9-5ZM7 12v5c3 3 7 3 10 0v-5M21 9v7"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',refresh:'<path d="M3 11a9 9 0 0 1 15.4-6.4L21 7M21 3v4h-4M21 13a9 9 0 0 1-15.4 6.4L3 17M3 21v-4h4"/>',clear:'<path d="m7 7 10 10M7 17 17 7"/>',check:'<path d="m5 12 4 4 10-10"/>',pending:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',created:'<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h5M8 16h7"/>',target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".7"/>',more:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'};

@@ -1,0 +1,263 @@
+// "Resolver questões": members answer the question sets imported for a material.
+// Treino (training): options shuffled, answer key and every comment right after answering.
+// Prova (exam): questions and options shuffled, answer key only when finished.
+// Sessions live in Supabase (quiz_sessions) and can be resumed; the first finished session
+// of each set becomes a question round of the material, so it counts in the statistics once.
+globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
+ const LETTERS='ABCDEFGHIJKLMNOPQRST',EASE='cubic-bezier(.22,1,.36,1)';
+ const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;};
+ const ICON={
+  solve:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2.6"/><path d="m8.6 9.2 1.5 1.5 3-3.2M8.6 15.2h6.8"/></svg>',
+  cut:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.6" cy="7" r="2.4"/><circle cx="5.6" cy="17" r="2.4"/><path d="M7.7 8.2 14.5 13M7.7 15.8 14.5 11"/><path d="M15.5 12h.6M18 12h.6M20.5 12h.6"/></svg>',
+  hint:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></svg>',
+  right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  wrong:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>'
+ };
+ let sets=[],material=null,setInfo=null,questions=[],session=null,history=[],position=0,screen='setup',reviewing=false;
+ let clockStart=0,clockBase=0,clockTimer=0,saveTimer=0,busy=false,resultFilter='all';
+ const dialog=document.createElement('dialog');dialog.id='solverDialog';dialog.className='solver';dialog.setAttribute('aria-labelledby','solverTitle');
+ dialog.innerHTML='<div class="solver-shell"><header class="solver-top"><div class="solver-place"><span class="editor-kicker" id="solverKicker"></span><h2 id="solverTitle"></h2></div><div class="solver-clock" id="solverClock" hidden></div><button type="button" class="icon" id="solverClose" aria-label="Fechar">✕</button></header><div class="solver-progress" id="solverProgress" hidden><span></span></div><div class="solver-body" id="solverBody"></div><footer class="solver-foot editor-footer" id="solverFoot"></footer></div>';
+ app.append(dialog);
+ const $s=id=>dialog.querySelector('#'+id);
+ const message=error=>String(error?.message||error||'').replace(/^Error:\s*/,'')||'Não foi possível concluir. Tente novamente.';
+ const random=n=>{const v=new Uint32Array(1);crypto.getRandomValues(v);return v[0]%n;};
+ const shuffle=list=>{const a=[...list];for(let i=a.length-1;i>0;i--){const j=random(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
+ const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+ const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
+ const setsFor=m=>m?sets.filter(s=>s.materialId===m.sourceId):[];
+ const answerOf=q=>session.answers[q]||{o:null,x:[]};
+ const isCorrect=(q,o)=>o!=null&&!!questions[q]?.answerOptions[o]?.isCorrect;
+ const order=()=>session.layout.questions;
+ function animateIn(node,dy=8){motion(node,[{opacity:0,transform:`translateY(${dy}px)`},{opacity:1,transform:'none'}],{duration:260,easing:EASE});}
+
+ // ---------- library rows ----------
+ // Materials with imported questions show "Resolver questões" where the round target was;
+ // registering external questions moves to the row's "more" menu for everyone.
+ function decorate(){
+  for(const button of document.querySelectorAll('#library [data-questions]')){
+   const m=data.find(x=>x.code===button.dataset.questions);if(!setsFor(m).length)continue;
+   const solve=el('button',{type:'button',className:'icon solve-action',title:'Resolver questões'});
+   solve.dataset.solve=m.code;solve.setAttribute('aria-label',`Resolver questões de ${m.fullTitle||m.title}`);solve.innerHTML=ICON.solve;
+   button.replaceWith(solve);
+  }
+ }
+ new MutationObserver(decorate).observe($('library'),{childList:true,subtree:true});
+ $('library').addEventListener('click',event=>{const b=event.target.closest('[data-solve]');if(!b)return;event.preventDefault();event.stopPropagation();open(data.find(m=>m.code===b.dataset.solve),b);});
+ async function loadSets(){const r=await client.rpc('question_sets_list');if(r.error)throw r.error;sets=Array.isArray(r.data)?r.data:[];render();}
+
+ // ---------- clock ----------
+ const elapsed=()=>clockBase+(clockStart?Date.now()-clockStart:0);
+ const fmt=ms=>{const t=Math.floor(Math.abs(ms)/1000),h=Math.floor(t/3600),m=Math.floor(t/60)%60,s=t%60;return (h?h+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0'))+':'+String(s).padStart(2,'0');};
+ function tick(){
+  const node=$s('solverClock');if(!session){node.hidden=true;return;}
+  node.hidden=false;
+  if(session.clock==='timer'){const left=session.timerSeconds*1000-elapsed();node.dataset.over=String(left<0);node.textContent=left<0?'+'+fmt(left):fmt(left);node.title=left<0?'Tempo esgotado':'Tempo restante';}
+  else{node.dataset.over='false';node.textContent=fmt(elapsed());node.title='Tempo decorrido';}
+ }
+ function startClock(){if(clockStart)return;clockStart=Date.now();clearInterval(clockTimer);clockTimer=setInterval(tick,250);tick();}
+ function stopClock(){if(clockStart){clockBase=elapsed();clockStart=0;}clearInterval(clockTimer);clockTimer=0;tick();}
+
+ // ---------- persistence ----------
+ function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>flush().catch(()=>{}),700);}
+ async function flush(){
+  clearTimeout(saveTimer);if(!session||session.status!=='active')return;
+  const r=await client.rpc('quiz_session_save',{p_id:session.id,p_answers:session.answers,p_elapsed:Math.round(elapsed()),p_finish:false});if(r.error)throw r.error;
+ }
+
+ // ---------- setup ----------
+ async function loadHistory(){const r=await client.rpc('quiz_sessions_mine',{p_set:setInfo.id});if(r.error)throw r.error;history=Array.isArray(r.data)?r.data:[];}
+ function choice(name,value,title,text,checked){
+  const input=el('input',{type:'radio',name,value,checked});const card=el('label',{className:'solver-choice'},input,el('span',{className:'solver-choice-text'},el('strong',{textContent:title}),el('small',{textContent:text})));return card;
+ }
+ async function renderSetup(){
+  screen='setup';session=null;stopClock();clockBase=0;
+  $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.fullTitle||material.title;$s('solverProgress').hidden=true;tick();
+  const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
+  if(list.length>1){
+   const group=el('fieldset',{className:'solver-group'},el('legend',{textContent:'Conjunto'}));
+   list.forEach(s=>group.append(choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id)));
+   group.onchange=async()=>{setInfo=list.find(s=>s.id===group.querySelector('input:checked').value);await refreshSetupDetails();};
+   body.append(group);
+  }else body.append(el('p',{className:'solver-lead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões')));
+  const modes=el('fieldset',{className:'solver-group solver-pair'},el('legend',{textContent:'Modo'}));
+  modes.append(choice('solverMode','treino','Treino','Gabarito e comentários a cada resposta. Alternativas embaralhadas.',true),choice('solverMode','prova','Prova','Gabarito só ao finalizar. Questões e alternativas embaralhadas.',false));
+  const clocks=el('fieldset',{className:'solver-group solver-pair'},el('legend',{textContent:'Relógio'}));
+  clocks.append(choice('solverClock','stopwatch','Cronômetro','Mostra quanto tempo você levou.',true),choice('solverClock','timer','Temporizador','Conta o tempo que você definir.',false));
+  const minutes=el('label',{className:'editor-field solver-minutes',hidden:true},el('span',{textContent:'Minutos'}),el('input',{type:'number',id:'solverMinutes',min:1,max:600,step:1,inputMode:'numeric'}));
+  clocks.append(minutes);clocks.onchange=()=>{minutes.hidden=clocks.querySelector('input:checked').value!=='timer';if(!minutes.hidden)animateIn(minutes,-4);};
+  body.append(modes,clocks,el('div',{id:'solverResume'}),el('div',{id:'solverHistory'}));
+  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>start()}));
+  await refreshSetupDetails();
+ }
+ async function refreshSetupDetails(){
+  $s('solverMinutes').value=Math.max(1,Math.round(setInfo.count*1.5));
+  const resume=$s('solverResume'),past=$s('solverHistory');resume.replaceChildren();past.replaceChildren();
+  try{await loadHistory();}catch(error){resume.append(el('p',{className:'solver-note',textContent:message(error)}));return;}
+  const open=history.find(s=>s.status==='active');
+  if(open){
+   const done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length;
+   resume.append(el('div',{className:'solver-resume'},el('div',{},el('strong',{textContent:'Continuar de onde parei'}),el('small',{textContent:`${open.mode==='prova'?'Prova':'Treino'} · ${done} de ${open.layout.questions.length} respondidas · ${fmt(open.elapsedMs)}`})),el('button',{type:'button',className:'primary',textContent:'Continuar',onclick:()=>resumeSession(open)})));
+  }
+  const finished=history.filter(s=>s.status==='done').slice(0,5);
+  if(finished.length){
+   past.append(el('p',{className:'solver-section-title',textContent:'Tentativas anteriores'}));
+   for(const s of finished)past.append(el('div',{className:'solver-past'},el('span',{textContent:new Date(s.finishedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+' · '+(s.mode==='prova'?'Prova':'Treino')+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`})));
+  }
+ }
+ async function loadQuestions(){const r=await client.rpc('question_set',{p_id:setInfo.id});if(r.error||!r.data)throw r.error||Error('Conjunto não encontrado');questions=r.data.questions;}
+ function layoutFor(mode,subset){
+  const base=subset||questions.map((_,i)=>i),options={};
+  for(const q of base)options[q]=shuffle(questions[q].answerOptions.map((_,i)=>i));
+  return {questions:mode==='prova'?shuffle(base):base,options};
+ }
+ async function start(subset,forced){
+  if(busy)return;busy=true;const button=$s('solverStart');button?.setAttribute('aria-busy','true');
+  try{
+   const mode=forced?.mode||dialog.querySelector('input[name=solverMode]:checked').value,clock=forced?.clock||dialog.querySelector('input[name=solverClock]:checked').value;
+   const minutes=forced?.timerSeconds?forced.timerSeconds/60:Number($s('solverMinutes')?.value);
+   if(clock==='timer'&&!(minutes>=1&&minutes<=600)){$s('solverMinutes').focus();throw Error('Informe entre 1 e 600 minutos.');}
+   await loadQuestions();const layout=layoutFor(mode,subset);
+   const timerSeconds=clock==='timer'?Math.round(minutes*60):null;
+   const r=await client.rpc('quiz_session_start',{p_set:setInfo.id,p_mode:mode,p_clock:clock,p_timer:timerSeconds,p_layout:layout});if(r.error)throw r.error;
+   session={id:r.data,mode,clock,timerSeconds,layout,answers:{},status:'active',elapsedMs:0};
+   clockBase=0;position=0;reviewing=false;renderQuestion();startClock();
+  }catch(error){toast(message(error),'info');}
+  finally{busy=false;button?.removeAttribute('aria-busy');}
+ }
+ async function resumeSession(open){
+  try{await loadQuestions();session={...open,answers:open.answers||{}};clockBase=open.elapsedMs||0;reviewing=false;
+   const first=order().findIndex(q=>answerOf(q).o==null);position=first<0?order().length-1:first;renderQuestion();startClock();}
+  catch(error){toast(message(error),'info');}
+ }
+
+ // ---------- question ----------
+ function revealed(q){return reviewing||(session.mode==='treino'&&answerOf(q).o!=null);}
+ function renderQuestion(dir=0){
+  screen='question';const q=order()[position],item=questions[q],answer=answerOf(q),show=revealed(q),total=order().length;
+  $s('solverKicker').textContent=`${reviewing?'REVISÃO · ':''}${position+1} / ${total}`;
+  const bar=$s('solverProgress');bar.hidden=false;bar.firstElementChild.style.width=`${(Object.values(session.answers).filter(a=>a.o!=null).length/total)*100}%`;
+  const body=$s('solverBody'),list=el('ol',{className:'solver-options'});
+  session.layout.options[q].forEach((o,j)=>{
+   const option=item.answerOptions[o],cut=answer.x?.includes(o),chosen=answer.o===o;
+   const li=el('li',{className:'solver-option'});
+   if(show)li.dataset.state=option.isCorrect?'right':chosen?'wrong':'idle';else if(chosen)li.dataset.state='chosen';
+   if(cut&&!show)li.dataset.cut='';
+   const pick=el('button',{type:'button',className:'solver-pick',disabled:show||cut},el('span',{className:'solver-letter',textContent:LETTERS[j]}),el('span',{className:'solver-text',textContent:option.text}));
+   pick.setAttribute('aria-pressed',String(chosen));pick.onclick=()=>choose(q,o);
+   li.append(pick);
+   if(!show){const scissors=el('button',{type:'button',className:'icon solver-cut',title:cut?'Trazer alternativa de volta':'Descartar alternativa'});scissors.innerHTML=ICON.cut;scissors.setAttribute('aria-pressed',String(!!cut));scissors.setAttribute('aria-label',`${cut?'Trazer de volta':'Descartar'} alternativa ${LETTERS[j]}`);scissors.onclick=()=>toggleCut(q,o);li.append(scissors);}
+   if(show){
+    const verdict=option.isCorrect?el('span',{className:'solver-verdict right',innerHTML:ICON.right+'<span>Resposta certa</span>'}):chosen?el('span',{className:'solver-verdict wrong',innerHTML:ICON.wrong+'<span>Não é essa</span>'}):null;
+    li.append(el('div',{className:'solver-why'},...(verdict?[verdict]:[]),el('p',{textContent:option.rationale})));
+   }
+   list.append(li);
+  });
+  const content=el('div',{className:'solver-question'},el('p',{className:'solver-stem',textContent:item.question}),list);
+  if(item.hint){
+   const panel=el('div',{className:'solver-hint',hidden:true},el('span',{innerHTML:ICON.hint}),el('p',{textContent:item.hint}));
+   const toggle=el('button',{type:'button',className:'solver-hint-toggle'},'Dica');toggle.setAttribute('aria-expanded','false');
+   toggle.onclick=()=>{const open=panel.hidden;panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)animateIn(panel,-6);};
+   content.append(toggle,panel);
+  }
+  if(show&&session.mode==='treino'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
+  body.replaceChildren(content);body.scrollTop=0;
+  if(dir)motion(content,[{opacity:0,transform:`translateX(${dir*14}px)`},{opacity:1,transform:'none'}],{duration:240,easing:EASE});
+  renderQuestionFoot();
+ }
+ function renderQuestionFoot(){
+  const total=order().length,last=position===total-1,foot=$s('solverFoot');
+  const prev=el('button',{type:'button',className:'editor-cancel',textContent:'Anterior',disabled:position===0,onclick:()=>go(-1)});
+  const next=last?null:el('button',{type:'button',className:reviewing?'primary':'primary',textContent:'Próxima',onclick:()=>go(1)});
+  if(reviewing){foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Voltar ao resultado',onclick:()=>renderResult()}),prev,...(next?[next]:[]));return;}
+  const finish=el('button',{type:'button',className:last?'primary':'editor-cancel',textContent:session.mode==='prova'?'Finalizar prova':'Finalizar',onclick:askFinish});
+  foot.replaceChildren(...(last?[]:[finish]),prev,...(next?[next]:[finish]));
+  if(!last)finish.classList.add('solver-left');
+ }
+ function go(step){const next=position+step;if(next<0||next>=order().length)return;position=next;renderQuestion(step);}
+ function choose(q,o){
+  const answer={...answerOf(q)};if(answer.x?.includes(o))return;
+  if(session.mode==='treino'&&answer.o!=null)return; // the first answer counts in training
+  answer.o=session.mode==='prova'&&answer.o===o?null:o;session.answers={...session.answers,[q]:answer};
+  queueSave();renderQuestion();
+  if(session.mode==='treino')for(const why of $s('solverBody').querySelectorAll('.solver-why'))animateIn(why,-4);
+ }
+ function toggleCut(q,o){
+  const answer={o:null,x:[],...answerOf(q)},cut=new Set(answer.x||[]);cut.has(o)?cut.delete(o):cut.add(o);
+  answer.x=[...cut];if(answer.o===o)answer.o=null;session.answers={...session.answers,[q]:answer};queueSave();renderQuestion();
+ }
+ function askFinish(){
+  const missing=order().filter(q=>answerOf(q).o==null).length;
+  const finish=()=>finishSession();
+  if(missing)confirmPeleja(session.mode==='prova'?'Finalizar a prova?':'Finalizar o treino?',finish,{description:`${plural(missing,'questão ficou','questões ficaram')} sem resposta e ${missing===1?'conta':'contam'} como pulada${missing===1?'':'s'}.`,accept:'Finalizar'});
+  else finish();
+ }
+ async function finishSession(){
+  if(busy)return;busy=true;stopClock();
+  try{
+   const r=await client.rpc('quiz_session_save',{p_id:session.id,p_answers:session.answers,p_elapsed:Math.round(elapsed()),p_finish:true});if(r.error)throw r.error;
+   session={...session,status:'done',answered:r.data.answered,correct:r.data.correct,counted:r.data.counted,elapsedMs:Math.round(elapsed())};
+   if(r.data.counted)recordRound(r.data);
+   renderResult();
+  }catch(error){startClock();toast(message(error),'info');}
+  finally{busy=false;}
+ }
+ // The first finished session of a set becomes one round of the material (idempotent by id).
+ function recordRound({answered,correct}){
+  const m=data.find(x=>x.sourceId===material.sourceId);if(!m||!saveChange)return;
+  const round={id:'quiz-'+session.id,date:today(),q:answered,c:correct,w:answered-correct};
+  const before=structuredClone({q:m.q,c:m.c,w:m.w,questionRounds:m.questionRounds});
+  m.questionRounds=[...(m.questionRounds||[]).filter(r=>r.id!==round.id),round];
+  Object.assign(m,m.questionRounds.reduce((a,r)=>({q:a.q+r.q,c:a.c+r.c,w:a.w+r.w}),{q:0,c:0,w:0}));render();
+  saveChange({kind:'round',id:m.sourceId,round},()=>{},null,()=>{Object.assign(m,before);render();toast('O resultado não entrou nas estatísticas. Sincronize e tente de novo.','info');});
+ }
+
+ // ---------- result ----------
+ function status(q){const a=answerOf(q);return a.o==null?'skipped':isCorrect(q,a.o)?'right':'wrong';}
+ function renderResult(){
+  screen='result';reviewing=false;stopClock();
+  const all=order(),counts={right:0,wrong:0,skipped:0};all.forEach(q=>counts[status(q)]++);
+  const total=all.length,pct=Math.round(counts.right/total*100);
+  $s('solverKicker').textContent=session.mode==='prova'?'RESULTADO DA PROVA':'RESULTADO DO TREINO';$s('solverProgress').hidden=true;
+  const clockNote=session.clock==='timer'&&elapsed()>session.timerSeconds*1000?` · passou ${fmt(elapsed()-session.timerSeconds*1000)} do tempo`:'';
+  const head=el('div',{className:'solver-score'},el('div',{},el('span',{className:'solver-score-label',textContent:'Sua nota'}),el('strong',{},`${counts.right}/${total}`,el('small',{textContent:` (${pct}%)`}))),el('span',{className:'solver-note',textContent:`Tempo ${fmt(elapsed())}${clockNote}${session.counted?' · contou nas estatísticas da apostila':''}`}));
+  const bar=el('div',{className:'solver-bar'});for(const k of ['right','wrong','skipped'])if(counts[k])bar.append(el('span',{className:k,style:`flex:${counts[k]}`}));
+  const filters=el('div',{className:'solver-filters',role:'group'});filters.setAttribute('aria-label','Filtrar questões');
+  const labels={all:'Todas',right:'Acertou',wrong:'Errou',skipped:'Pulou'};
+  for(const k of ['all','right','wrong','skipped']){const b=el('button',{type:'button'},labels[k],el('small',{textContent:k==='all'?total:counts[k]}));b.dataset.kind=k;b.setAttribute('aria-pressed',String(resultFilter===k));b.onclick=()=>{resultFilter=k;renderResult();};filters.append(b);}
+  const list=el('ol',{className:'solver-review-list'});
+  all.forEach((q,i)=>{const s=status(q);if(resultFilter!=='all'&&s!==resultFilter)return;const b=el('button',{type:'button'},el('span',{className:'solver-dot '+s}),el('span',{className:'solver-review-n',textContent:i+1}),el('span',{className:'solver-review-q',textContent:questions[q].question}));b.onclick=()=>{reviewing=true;position=i;renderQuestion();};list.append(el('li',{},b));});
+  if(!list.children.length)list.append(el('li',{className:'solver-note',textContent:'Nenhuma questão aqui.'}));
+  const body=$s('solverBody');body.replaceChildren(el('div',{className:'solver-result'},head,bar,filters,list));body.scrollTop=0;animateIn(body.firstElementChild);
+  const missed=all.filter(q=>status(q)!=='right'),foot=$s('solverFoot'),again={mode:session.mode,clock:session.clock,timerSeconds:session.timerSeconds};
+  foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Fechar',onclick:close}));
+  if(missed.length)foot.append(el('button',{type:'button',className:'editor-cancel',textContent:'Refazer erradas',onclick:()=>start(missed,{...again,timerSeconds:again.timerSeconds&&Math.max(60,Math.round(again.timerSeconds*missed.length/total))})}));
+  foot.append(el('button',{type:'button',className:'primary',textContent:'Refazer tudo',onclick:()=>start(null,again)}));
+ }
+
+ // ---------- open / close ----------
+ async function open(m,opener){
+  material=m;const list=setsFor(m);if(!list.length)return;setInfo=list[0];resultFilter='all';dialog.dataset.opener=opener?.dataset.solve||'';
+  if(!dialog.open)dialog.showModal();motion(dialog.querySelector('.solver-shell'),[{opacity:0,transform:'translateY(10px) scale(.99)'},{opacity:1,transform:'none'}],{duration:260,easing:EASE});
+  await renderSetup();$s('solverClose').focus();
+ }
+ async function close(){
+  stopClock();
+  if(session?.status==='active'&&Object.keys(session.answers).length){try{await flush();toast('Progresso salvo. Continue quando quiser.','info');}catch{toast('Não foi possível salvar o progresso.','info');}}
+  else if(session?.status==='active')flush().catch(()=>{});
+  dialog.close();session=null;questions=[];
+  document.querySelector(`#library [data-solve="${dialog.dataset.opener}"]`)?.focus();
+ }
+ $s('solverClose').onclick=close;
+ dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+ dialog.addEventListener('keydown',event=>{
+  if(screen!=='question'||event.target.closest('input,textarea'))return;
+  if(event.key==='ArrowRight')go(1);else if(event.key==='ArrowLeft')go(-1);
+ });
+ addEventListener('pagehide',()=>{if(session?.status==='active'){clockBase=elapsed();clockStart=clockStart&&Date.now();flush().catch(()=>{});}});
+
+ return {
+  async ready(){try{await loadSets();}catch{sets=[];}decorate();},
+  reset(){sets=[];if(dialog.open){stopClock();dialog.close();}session=null;},
+  _debug:{get session(){return session;},get questions(){return questions;}}
+ };
+};

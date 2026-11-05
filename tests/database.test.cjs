@@ -174,7 +174,38 @@ assert.equal(qbList.length,1);assert.equal(qbList[0].materialId,'qb-material');a
 assert.deepEqual((await rpc('question_set',[qbId],['uuid'])).questions,qbQuestions);
 await assert.rejects(()=>rpc('delete_question_set',[qbId],['uuid']),/Acesso negado/);
 await user(B);await assert.rejects(()=>rpc('question_sets_list',[],[]),/Acesso negado/);
+// Solver sessions over that set.
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-sessions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-sessions.sql'),'utf8'));
+const qsCasts=['uuid','text','text','integer','jsonb'],layout={questions:[0],options:{'0':[1,0]}};
+await user(C);
+await assert.rejects(()=>rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify({questions:[0],options:{'0':[0,0]}})],qsCasts),/Ordem das questões inválida/);
+await assert.rejects(()=>rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify({questions:[3],options:{'3':[0,1]}})],qsCasts),/Ordem das questões inválida/);
+await assert.rejects(()=>rpc('quiz_session_start',[qbId,'prova','timer',null,JSON.stringify(layout)],qsCasts),/temporizador/);
+await assert.rejects(()=>db.query('select * from public.quiz_sessions'),/permission denied/);
+let qz=await rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify(layout)],qsCasts);
+await rpc('quiz_session_save',[qz,JSON.stringify({'0':{o:null,x:[1]}}),1200,false],['uuid','jsonb','bigint','boolean']);
+let mine=await rpc('quiz_sessions_mine',[qbId],['uuid']);assert.equal(mine.length,1);assert.equal(mine[0].status,'active');assert.deepEqual(mine[0].answers,{'0':{o:null,x:[1]}});assert.equal(mine[0].elapsedMs,1200);
+await assert.rejects(()=>rpc('quiz_session_save',[qz,JSON.stringify({'0':{o:5}}),1300,false],['uuid','jsonb','bigint','boolean']),/Alternativa inválida/);
+await assert.rejects(()=>rpc('quiz_session_save',[qz,JSON.stringify({'4':{o:0}}),1300,false],['uuid','jsonb','bigint','boolean']),/fora da sessão/);
+let done=await rpc('quiz_session_save',[qz,JSON.stringify({'0':{o:0,x:[1]}}),5000,true],['uuid','jsonb','bigint','boolean']);
+assert.deepEqual(done,{answered:1,correct:1,counted:true},'first finished session counts, scored on the server');
+await assert.rejects(()=>rpc('quiz_session_save',[qz,'{}',6000,false],['uuid','jsonb','bigint','boolean']),/já finalizada/);
+const redo=await rpc('quiz_session_start',[qbId,'prova','timer',600,JSON.stringify(layout)],qsCasts);
+done=await rpc('quiz_session_save',[redo,JSON.stringify({'0':{o:1}}),9000,true],['uuid','jsonb','bigint','boolean']);
+assert.deepEqual(done,{answered:1,correct:0,counted:false},'later sessions stay in history only');
+// Starting again replaces only the unfinished session.
+const open1=await rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify(layout)],qsCasts);
+await rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify(layout)],qsCasts);
+mine=await rpc('quiz_sessions_mine',[qbId],['uuid']);assert.equal(mine.length,3);assert.equal(mine.filter(s=>s.status==='active').length,1);assert.ok(!mine.some(s=>s.id===open1));
+// Sessions are private to their owner.
+await user(A);assert.equal((await rpc('quiz_sessions_mine',[qbId],['uuid'])).length,0);
+await assert.rejects(()=>rpc('quiz_session_save',[redo,'{}',1,false],['uuid','jsonb','bigint','boolean']),/Sessão não encontrada/);
+await user(B);await assert.rejects(()=>rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify(layout)],qsCasts),/Acesso negado/);
 await user(A);await rpc('delete_question_set',[qbId],['uuid']);assert.equal((await rpc('question_sets_list',[],[])).length,0);
+await db.exec('reset role');assert.equal(Number((await db.query('select count(*) n from public.quiz_sessions')).rows[0].n),0,'deleting a set removes its sessions');
 console.log('PASS Question sets: admin-only create/delete, catalog material, validation, duplicates, member read, inactive denial');
+console.log('PASS Quiz sessions: layout validation, resume, server scoring, first finished session counts, one open session, privacy, cascade');
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});
