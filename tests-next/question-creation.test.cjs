@@ -60,18 +60,18 @@ async function app({role='admin',search='',delivery=null}={}){
  $('importSubject').value='';$('importSubject').dispatchEvent(new w.Event('change'));assert.equal($('importExam').disabled,true);
  $('importSubject').value='Dermatologia';$('importSubject').dispatchEvent(new w.Event('change'));
  $('importExam').value='next';$('importExam').dispatchEvent(new w.Event('change'));
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','Prova inteira · PR1.1 (1 apostila)','D10 Acne'],'next exam is PR1.1 (2098)');
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D10 Acne'],'next exam is PR1.1 (2098)');
  $('importExam').value='PR2.1';$('importExam').dispatchEvent(new w.Event('change'));
  // Same sequence as the Library: by class date, or kept together by specialty when the Library is grouped.
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','Prova inteira · PR2.1 (3 apostilas)','D09 Micoses','N12 Neurodivergências','D11 Manifestações']);assert.equal($('importSave').disabled,true);
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','N12 Neurodivergências','D11 Manifestações']);assert.equal($('importSave').disabled,true);
  $('groupSpecialty').checked=true;$('importExam').dispatchEvent(new w.Event('change'));
- assert.deepEqual(opts('importMaterial'),['Selecione a apostila','Prova inteira · PR2.1 (3 apostilas)','D09 Micoses','D11 Manifestações','N12 Neurodivergências']);
+ assert.deepEqual(opts('importMaterial'),['Selecione a apostila','D09 Micoses','D11 Manifestações','N12 Neurodivergências']);
  // Optional specialty filter between exam and material.
  assert.deepEqual(opts('importSpecialty'),['Todas as especialidades','Pele','Neurologia']);assert.equal($('importSpecialty').disabled,false);
  $('importSpecialty').value='Neurologia';$('importSpecialty').dispatchEvent(new w.Event('change'));
  assert.deepEqual(opts('importMaterial'),['Selecione a apostila','N12 Neurodivergências']);
  $('importSpecialty').value='';$('importSpecialty').dispatchEvent(new w.Event('change'));
- assert.equal(w.document.getElementById('importMaterial').options.length,5);
+ assert.equal(w.document.getElementById('importMaterial').options.length,4);
  $('importMaterial').value=[...$('importMaterial').options].find(o=>o.textContent==='D09 Micoses').value;$('importMaterial').dispatchEvent(new w.Event('change'));assert.equal($('importSave').disabled,false);
  // Topic filter.
  const chips=[...w.document.querySelectorAll('#importTopics button')];assert.equal(chips.length,3);chips[2].click();
@@ -103,10 +103,12 @@ async function app({role='admin',search='',delivery=null}={}){
  w.document.querySelector('[data-create=import]').click();await tick(60);
  const e=new w.Event('drop',{bubbles:true,cancelable:true});e.dataTransfer={files:[new w.File([JSON.stringify({...quiz,title:'PR2.1 tudo em um',source:''})],'q.json',{type:'application/json'})]};$('importDrop').dispatchEvent(e);await tick(80);
  $('importSubject').value='Dermatologia';$('importSubject').dispatchEvent(new w.Event('change'));
- $('importExam').value='pending';$('importExam').dispatchEvent(new w.Event('change'));
- assert.ok(![...$('importMaterial').options].some(o=>o.value.startsWith('exam:')),'two pending exams: no single whole exam');
- $('importExam').value='PR2.1';$('importExam').dispatchEvent(new w.Event('change'));
- $('importMaterial').value=$('importMaterial').options[1].value;$('importMaterial').dispatchEvent(new w.Event('change'));
+ assert.equal($('importExamPickField').hidden,true,'apostila mode by default');
+ w.document.querySelector('#importTarget [data-target=exam]').click();await tick();
+ assert.equal($('importExamPickField').hidden,false);assert.equal($('importMaterial').closest('.editor-field').hidden,true);assert.equal($('importExam').closest('.editor-field').hidden,true);
+ assert.equal($('importSave').disabled,true);
+ const examOptions=[...$('importExamPick').options].map(o=>o.textContent);assert.equal(examOptions.length,3);assert.match(examOptions[1],/^PR1.1 · 10 de jan. · 1 apostila$/,'upcoming first, by date');assert.match(examOptions[2],/^PR2.1 · 31 de dez. · 3 apostilas$/);
+ $('importExamPick').value=$('importExamPick').options[2].value;$('importExamPick').dispatchEvent(new w.Event('change'));
  assert.equal($('importSave').disabled,false);$('importSave').click();await tick(60);
  const saved=calls.find(([n])=>n==='save_exam_question_set')[1];assert.equal(saved.p_exam_id,'e1');assert.equal(saved.p_title,'PR2.1 tudo em um');
  assert.equal(calls.some(([n])=>n==='save_question_set'),false);assert.equal($('importDialog').open,false);w.close();}

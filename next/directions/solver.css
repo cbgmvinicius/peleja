@@ -124,3 +124,6 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 .solver-danger{color:var(--negative)!important}
 @media(max-width:640px){.solver-resume{flex-wrap:wrap}.solver-resume-actions{width:100%;justify-content:flex-end}}
 .solver-resume .solver-resume-actions{display:flex;gap:8px;align-items:center}
+/* Exam card button before any whole-exam set exists. */
+.solve-action.is-empty{opacity:.4;cursor:default}
+.solve-action.is-empty:hover{opacity:.55}

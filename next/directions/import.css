@@ -78,3 +78,9 @@ html[data-peleja-motion=off] .import-chevron{transition:none}
 .import-q summary:is(:hover,:focus-visible) .import-num{background:var(--surface)}
 .import-q-body{padding-right:10px}
 #importSave:disabled{opacity:.45;filter:saturate(.6)}
+/* "Importar para": one material, or the whole exam ("tudo em um"). */
+.import-target{display:flex;align-items:center;gap:14px;margin:0 0 16px}
+.import-target>span{font-size:13px;font-weight:500;white-space:nowrap}
+.import-target .sliding-tabs{max-width:320px}
+#importDialog .editor-field[hidden]{display:none}
+@media(max-width:640px){.import-target{flex-direction:column;align-items:stretch;gap:8px}.import-target .sliding-tabs{max-width:none}}

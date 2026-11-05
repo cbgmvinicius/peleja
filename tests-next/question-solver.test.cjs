@@ -13,7 +13,7 @@ async function app(){
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
  const remote={revision:1,catalog_revision:1,catalog:{materials:[
   {id:'derm:1',title:'D09 Micoses',subject:'Dermatologia',classDate:'2026-10-10'},
-  {id:'derm:2',title:'D10 Acne',subject:'Dermatologia',classDate:'2026-10-11'}],simulations:[],exams:[{id:'e1',subject:'Dermatologia',type:'PR2.1',date:'2099-12-31',materialIds:['derm:1','derm:2']}]},
+  {id:'derm:2',title:'D10 Acne',subject:'Dermatologia',classDate:'2026-10-11'}],simulations:[],exams:[{id:'e1',subject:'Dermatologia',type:'PR2.1',date:'2099-12-31',materialIds:['derm:1','derm:2']},{id:'e2',subject:'Dermatologia',type:'PR2.2',date:'2100-01-15',materialIds:['derm:2']}]},
   payload:{materials:[],exams:[],simulations:[],courses:[],questionSessions:[]}};
  const calls=[],state={sessions:[]};
  const score=answers=>{let answered=0,correct=0;for(const [k,a] of Object.entries(answers))if(a.o!=null){answered++;if(questions[k].answerOptions[a.o].isCorrect)correct++;}return {answered,correct};};
@@ -147,7 +147,10 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  // ---- Whole exam on the Provas page: same button, result counts for the discipline ----
  $('solverClose').click();await tick(80);if($('solverLeave').open){$('solverDiscard').click();await tick(80);}
  w.location.hash='#provas';await tick(120);
- const examSolve=q('#facultyList .faculty-card [data-solve-exam]');assert.ok(examSolve,'exam card shows Resolver questões');
+ const examButtons=qa('#facultyList .faculty-card [data-solve-exam]');assert.equal(examButtons.length,2,'every exam card has the button');
+ const emptyButton=examButtons.find(b=>b.getAttribute('aria-disabled')==='true');assert.ok(emptyButton);assert.equal(emptyButton.title,'Ainda não há questões desta prova');assert.ok(emptyButton.classList.contains('is-empty'));
+ emptyButton.click();await tick();assert.equal($('solverDialog').open,false,'empty exam does not open');
+ const examSolve=examButtons.find(b=>b.getAttribute('aria-disabled')==='false');assert.ok(examSolve,'exam with a set is ready');
  assert.equal(examSolve.parentElement.className,'faculty-actions');
  examSolve.click();await tick(120);assert.equal($('solverTitle').textContent,'Prova inteira · PR2.1 · Dermatologia');
  const before=state.sessions.length;$('solverStart').click();await tick(80);
