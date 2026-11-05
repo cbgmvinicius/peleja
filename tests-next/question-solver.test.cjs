@@ -160,6 +160,13 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  const sessionRound=(remote.payload.questionSessions||[]).find(r=>r.id.startsWith('quiz-'));
  assert.ok(sessionRound,'recorded as a round of the discipline');assert.equal(sessionRound.subject,'Dermatologia');assert.equal(sessionRound.questions,1);assert.equal(sessionRound.correct,1);
  assert.match(q('.solver-score .solver-note').textContent,/estatísticas da disciplina/);
+ // Phone navigation: bottom tabs drive the same pages; "Mais" opens a sheet for the rest.
+ $('solverClose').click();await tick(60);if($('solverLeave').open){$('solverDiscard').click();await tick(80);}
+ const tab=t=>q(`.mobile-tabs [data-target=${t}]`);assert.equal(qa('.mobile-tabs button').length,5);
+ tab('navLibrary').click();await tick(60);assert.equal($('libraryPage').hidden,false);assert.equal(tab('navLibrary').getAttribute('aria-current'),'true');
+ q('.mobile-tabs [data-more]').click();await tick();assert.equal(q('.mobile-sheet').hidden,false);assert.equal(q('.mobile-tabs [data-more]').getAttribute('aria-expanded'),'true');
+ q('.mobile-sheet [data-target=navPerformance]').click();await tick(300);assert.equal($('performancePage').hidden,false);assert.ok(q('.mobile-tabs [data-more]').classList.contains('is-active'),'Mais marks Ranking/Cursos');assert.equal(q('.mobile-sheet').hidden,true);
+ q('.mobile-tabs [data-more]').click();await tick();q('.mobile-sheet [data-settings]').click();await tick(300);assert.equal($('settingsDialog').open,true);
  console.log('PASS solver: solve button and menu, training reveal/lock/scissors/hint, result + stats round once, review, redo missed, resume, exam shuffle/change/timer');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));

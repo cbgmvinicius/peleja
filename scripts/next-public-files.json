@@ -47,6 +47,8 @@
   "directions/filter-selects.js",
   "directions/import.css",
   "directions/index.html",
+  "directions/mobile-nav.css",
+  "directions/mobile-nav.js",
   "directions/mock-answers.js",
   "directions/mocks.js",
   "directions/notebooklm-dark.svg",
