@@ -626,3 +626,17 @@ body.review-dark{background:#141413;color:#f1eee7}
 .exam-countdown{display:inline-block;margin-left:10px;font-size:12px;font-weight:500;color:var(--accent)}
 .dashboard-exam-heading{flex-wrap:wrap}.dashboard-exam-heading .exam-countdown{margin-left:0}
 .app .dashboard-ranking .dashboard-track i{width:100%;transform-origin:left center;transition:none!important}
+/* Exam countdown: a pill whose weight grows as the exam gets closer. */
+.exam-countdown{display:inline-flex;align-items:baseline;gap:4px;margin-left:10px;padding:3px 11px 4px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.35;vertical-align:1px;background:var(--soft);color:var(--accent);white-space:nowrap}
+.exam-countdown b{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.exam-countdown[data-urgency=soon]{background:color-mix(in srgb,#d9864a 16%,var(--surface));color:#a3561f}
+.exam-countdown[data-urgency=near]{background:color-mix(in srgb,#d9864a 30%,var(--surface));color:#8a3c12;box-shadow:inset 0 0 0 1px color-mix(in srgb,#d9864a 55%,transparent)}
+.exam-countdown[data-urgency=urgent]{background:#b9583c;color:#fff;animation:exam-countdown-pulse 1.8s ease-in-out infinite}
+.exam-countdown[data-urgency=urgent] b{font-size:14px}
+.app.dark .exam-countdown[data-urgency=soon]{background:color-mix(in srgb,#d9864a 18%,var(--surface));color:#f0b07c}
+.app.dark .exam-countdown[data-urgency=near]{background:color-mix(in srgb,#d9864a 32%,var(--surface));color:#ffc8a0}
+.app.dark .exam-countdown[data-urgency=urgent]{background:#cf6a4c}
+@keyframes exam-countdown-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,#b9583c 45%,transparent)}50%{box-shadow:0 0 0 6px color-mix(in srgb,#b9583c 0%,transparent)}}
+@media(prefers-reduced-motion:reduce){html:not([data-peleja-motion=on]) .exam-countdown{animation:none}}
+html[data-peleja-motion=off] .exam-countdown{animation:none}
+.dashboard-exam-heading .exam-countdown{margin-left:0}

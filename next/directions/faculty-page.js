@@ -6,9 +6,14 @@ function examCountdown(date,today=localQuestionDate()){
  const days=Math.round((Date.parse(date+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000);
  return !Number.isFinite(days)||days<0?'':days===0?'Hoje':days===1?'Amanhã':`Faltam ${days} dias`;
 }
+// The closer the exam, the louder the badge: calm (>14 days), soon (8–14), near (3–7), urgent (0–2).
 function examCountdownBadge(exam){
  const label=exam.q==null&&exam.grade==null?examCountdown(exam.date):'';
- return label?`<span class="exam-countdown">${label}</span>`:'';
+ if(!label)return '';
+ const days=Math.round((Date.parse(exam.date+'T00:00:00Z')-Date.parse(localQuestionDate()+'T00:00:00Z'))/86400000);
+ const urgency=days<=2?'urgent':days<=7?'near':days<=14?'soon':'calm';
+ const text=days>1?`Faltam <b>${days}</b> dias`:`<b>${label}</b>`;
+ return `<span class="exam-countdown" data-urgency="${urgency}" aria-label="${label}">${text}</span>`;
 }
 function orderedFaculty(exams,today=localQuestionDate()){
   return [...exams].sort((a,b)=>{
