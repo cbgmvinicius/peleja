@@ -59,7 +59,7 @@ html[data-peleja-motion=off] #refresh.is-syncing svg{animation:none!important;op
 .settings-workspace>.settings-heading{position:absolute;top:24px;right:26px;z-index:2;margin:0}
 .settings-workspace>.settings-heading h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .settings-workspace .settings-layout{display:grid;grid-template-columns:248px minmax(0,1fr);gap:12px;flex:1;min-height:0;margin:0;align-items:stretch}
-.settings-side{display:flex;flex-direction:column;min-height:0;padding:18px 12px 14px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
+.settings-side{display:flex;flex-direction:column;min-width:0;min-height:0;padding:18px 12px 14px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
 .settings-side-title{margin:2px 12px 6px;font-size:19px;font-weight:500;letter-spacing:-.3px}
 .settings-workspace .settings-nav{position:static;flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:3px}
 .settings-group{margin:16px 12px 6px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -68,13 +68,15 @@ html[data-peleja-motion=off] #refresh.is-syncing svg{animation:none!important;op
 .settings-workspace .settings-nav button:hover{background:var(--soft)}
 .settings-workspace .settings-nav button[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--accent);font-weight:500}
 .settings-workspace .settings-nav button[aria-pressed=true] svg{color:var(--accent)}
+.settings-nav .settings-short{display:none}
 .settings-side-foot{display:grid;gap:10px;padding:14px 4px 0;border-top:1px solid var(--line)}
 .settings-autosave{display:flex;align-items:center;gap:8px;margin:0 8px;font-size:12px;color:var(--muted)}
 .settings-autosave span{width:6px;height:6px;border-radius:50%;background:var(--accent)}
 #settingsDone{width:100%;min-height:46px;justify-content:center;font-size:14px}
-.settings-workspace .settings-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:30px 34px 28px;border:1px solid var(--line);border-radius:20px;background:var(--surface);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-.settings-panel-title{margin:0 0 22px;font-size:30px!important;font-weight:500;letter-spacing:-.6px;line-height:1.15}
+.settings-workspace .settings-content{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding:30px 34px 28px;border:1px solid var(--line);border-radius:20px;background:var(--surface);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#settingsDialog .settings-panel-title{margin:0 0 30px;font-size:30px;font-weight:500;letter-spacing:-.6px;line-height:1.15}
 .settings-workspace .account-panel,.settings-workspace #preferencesPanel,.settings-workspace #securityPanel{margin:0;padding:0;border:0}
+.settings-back{display:none}
 .settings-card{margin:0 0 16px;padding:18px 20px 20px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--canvas) 45%,var(--surface))}
 .settings-card h3{margin:0 0 14px!important;font-size:11px!important;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .settings-card-note{margin:-6px 0 14px;font-size:13px;color:var(--muted)}
@@ -90,30 +92,34 @@ html[data-peleja-motion=off] #refresh.is-syncing svg{animation:none!important;op
 .settings-preview small{display:block;margin-top:2px;font-size:13px;color:var(--accent)}
 #accountFeedback:empty{display:none}
 #accountFeedback{margin:4px 0 0;padding:12px 14px;border-radius:14px;background:var(--soft);font-size:13px}
+
+/* Phone: a full-screen list of sections; tapping one slides it in, with "Configurações" to go back. */
 @media(max-width:760px){
- #settingsDialog.settings-workspace{width:calc(100vw - 16px);height:calc(100dvh - 16px);padding:8px;border-radius:22px}
- .settings-workspace .settings-layout{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:8px}
- .settings-side{padding:12px 10px 10px;border-radius:18px}
- .settings-side-title,.settings-group,.settings-autosave{display:none}
- .settings-workspace .settings-nav{flex-direction:row;overflow-x:auto;gap:6px;padding-right:44px}
- .settings-workspace .settings-nav button{width:auto;white-space:nowrap;padding:9px 12px;font-size:13.5px}
- .settings-side-foot{display:none}
- .settings-workspace>.settings-heading{top:18px;right:18px}
- .settings-workspace .settings-content{padding:22px 18px;border-radius:18px}
- .settings-panel-title{font-size:25px!important;margin-bottom:16px}
-}
-.settings-workspace .settings-panel-title{margin:0 0 22px}
-.settings-side,.settings-workspace .settings-content{min-width:0}
-@media(max-width:760px){
- .settings-workspace .settings-layout{grid-template-columns:minmax(0,1fr)}
- .settings-workspace .settings-panel-title{margin-bottom:16px}
+ #settingsDialog.settings-workspace{inset:0;width:100vw;max-width:none;height:100dvh;margin:0;padding:0;border:0;border-radius:0;background:var(--canvas)}
+ .settings-workspace .settings-layout{display:block;position:relative;flex:1;min-height:0;overflow:hidden}
+ .settings-side,.settings-workspace .settings-content{position:absolute;inset:0;border:0;border-radius:0;background:var(--canvas);transition:transform .32s cubic-bezier(.22,1,.36,1)}
+ .settings-side{padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom))}
+ .settings-side-title{margin:6px 4px 4px;font-size:28px;font-weight:500;letter-spacing:-.6px}
+ .settings-group{margin:22px 6px 8px}
+ .settings-workspace .settings-nav{display:flex;flex-direction:column;gap:0;overflow:auto}
+ .settings-workspace .settings-nav button,.settings-workspace .settings-nav button[aria-pressed=true]{min-height:56px;padding:14px 16px;border-radius:0;background:var(--surface);color:var(--ink);font-weight:400;font-size:15.5px;border-bottom:1px solid var(--line)}
+ .settings-workspace .settings-nav button svg,.settings-workspace .settings-nav button[aria-pressed=true] svg{width:21px;height:21px;color:var(--accent)}
+ .settings-workspace .settings-nav button::after{content:"";margin-left:auto;width:8px;height:8px;border:solid var(--muted);border-width:0 1.8px 1.8px 0;transform:rotate(-45deg)}
+ .settings-workspace .settings-nav .settings-group+button{border-top-left-radius:16px;border-top-right-radius:16px}
+ .settings-workspace .settings-nav button:has(+.settings-group),.settings-workspace .settings-nav button:last-child{border-bottom-left-radius:16px;border-bottom-right-radius:16px;border-bottom:0}
+ .settings-side-title{order:0}.settings-workspace .settings-nav{order:1;flex:0 1 auto}
+ .settings-workspace .settings-nav button{flex:none!important;text-align:left}
+ .settings-side-foot{order:2;margin-top:auto;border-top:0;padding:16px 0 0}
+ .settings-workspace .settings-content{padding:0 16px calc(24px + env(safe-area-inset-bottom));overflow:auto}
+ .settings-back{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:6px;width:calc(100% + 32px);margin:0 -16px 6px;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;background:color-mix(in srgb,var(--canvas) 92%,transparent);backdrop-filter:blur(10px);color:var(--accent);font-size:15px;text-align:left;border-radius:0}
+ .settings-back::before{content:"";width:9px;height:9px;border:solid currentColor;border-width:0 0 2px 2px;transform:rotate(45deg);margin:0 2px 0 4px}
+ #settingsDialog .settings-panel-title{margin:6px 0 24px;font-size:28px}
  .settings-preview{padding:24px 16px}
+ .settings-card{padding:16px}
+ #settingsDialog[data-view=list] .settings-content{transform:translateX(100%)}
+ #settingsDialog[data-view=panel] .settings-side{transform:translateX(-30%);visibility:hidden;transition:transform .32s cubic-bezier(.22,1,.36,1),visibility 0s .32s}
+ .settings-workspace>.settings-heading{top:calc(14px + env(safe-area-inset-top));right:12px}
+ #settingsDialog[data-view=panel]>.settings-heading{display:none}
 }
-@media(max-width:760px){
- .settings-workspace .settings-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;overflow:visible;padding-right:40px}
- .settings-workspace .settings-nav button{flex-direction:column;justify-content:center;gap:4px;width:100%;padding:8px 4px;text-align:center;white-space:normal;font-size:12px;line-height:1.25}
- .settings-workspace>.settings-heading{top:22px;right:16px}
- .settings-workspace>.settings-heading .icon{width:36px;height:36px}
-}
-.settings-nav .settings-short{display:none}
-@media(max-width:760px){.settings-nav .settings-long{display:none}.settings-nav .settings-short{display:inline}}
+@media(max-width:760px) and (prefers-reduced-motion:reduce){html:not([data-peleja-motion=on]) :is(.settings-side,.settings-workspace .settings-content){transition:none}}
+html[data-peleja-motion=off] :is(.settings-side,.settings-workspace .settings-content){transition:none}
