@@ -24,6 +24,7 @@ async function app(){
   if(name==='quiz_sessions_mine')return {data:structuredClone(state.sessions)};
   if(name==='quiz_session_start'){state.sessions=state.sessions.filter(s=>s.status!=='active');const s={id:'s'+(state.sessions.length+1),mode:args.p_mode,clock:args.p_clock,timerSeconds:args.p_timer,layout:args.p_layout,answers:{},elapsedMs:0,status:'active',createdAt:new Date().toISOString()};state.sessions.unshift(s);return {data:s.id};}
   if(name==='quiz_session_save'){const s=state.sessions.find(x=>x.id===args.p_id);s.answers=args.p_answers;s.elapsedMs=args.p_elapsed;const r=score(args.p_answers);if(args.p_finish){const first=!state.sessions.some(x=>x.status==='done'&&x.counted);Object.assign(s,{status:'done',...r,counted:first&&r.answered>0,finishedAt:new Date().toISOString()});return {data:{...r,counted:s.counted}};}return {data:{...r,counted:false}};}
+  if(name==='quiz_session_delete'){const s=state.sessions.find(x=>x.id===args.p_id);if(!s)return {error:{message:'Sessão não encontrada'}};state.sessions=state.sessions.filter(x=>x!==s);return {data:{status:s.status,counted:!!s.counted}};}
   if(name==='save_workspace'){remote.payload=structuredClone(args.p_payload);remote.revision++;return {data:{revision:remote.revision,catalog_revision:1}};}
   return {data:true};},
   from:()=>{const b={select:()=>b,eq:()=>b,order:()=>b,range:async()=>({data:[]}),maybeSingle:async()=>({data:{display_name:'Aluno',role:'participant'}})};return b;}};
@@ -93,13 +94,34 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  const redo=calls.filter(([n])=>n==='quiz_session_start').at(-1)[1];assert.deepEqual(redo.p_layout.questions,[1,2]);
  assert.equal(q('#solverKicker').textContent,'1 / 2');
  qa('.solver-option').find(li=>optionText(li)==='Griseofulvina').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
- // Close mid-session: progress is saved and can be resumed.
- $('solverClose').click();await tick(120);assert.equal($('solverDialog').open,false);
+ // Leaving before the end asks; "Continuar respondendo" goes back, "Guardar progresso" keeps it for later.
+ $('solverClose').click();await tick(60);assert.equal($('solverLeave').open,true);assert.match($('solverLeaveText').textContent,/1 de 2/);
+ $('solverStay').click();await tick();assert.equal($('solverLeave').open,false);assert.equal($('solverDialog').open,true);
+ $('solverClose').click();await tick(60);$('solverKeep').click();await tick(120);assert.equal($('solverDialog').open,false);
  const open=state.sessions.find(s=>s.status==='active');assert.deepEqual(Object.keys(open.answers),['1']);
  q('[data-solve]').click();await tick(120);
  const resume=qa('.solver-resume button').find(b=>b.textContent==='Continuar');assert.ok(resume,'resume offered');
  resume.click();await tick(80);assert.equal(q('#solverKicker').textContent,'2 / 2','resumes at the first unanswered question');
- $('solverClose').click();await tick(80);
+ // ... and "Descartar e recomeçar depois" deletes it.
+ $('solverClose').click();await tick(60);$('solverDiscard').click();await tick(120);
+ assert.equal($('solverDialog').open,false);assert.equal(state.sessions.some(s=>s.status==='active'),false);
+ // Discard from the resume card.
+ q('[data-solve]').click();await tick(120);$('solverStart').click();await tick(80);
+ qa('.solver-pick')[0].click();await tick();$('solverConfirm').click();await tick();
+ $('solverClose').click();await tick(60);$('solverKeep').click();await tick(120);
+ q('[data-solve]').click();await tick(120);
+ qa('.solver-resume button').find(b=>b.textContent==='Descartar').click();await tick();$('confirmAccept').click();await tick(150);
+ assert.equal(state.sessions.some(s=>s.status==='active'),false);assert.equal(q('.solver-resume'),null,'resume card gone');
+ // Delete the attempt that counted: its round leaves the material.
+ const counted=state.sessions.find(s=>s.counted);assert.ok(counted);
+ const del=qa('.solver-past-delete');assert.equal(del.length,state.sessions.filter(s=>s.status==='done').length);
+ del[qa('.solver-past').findIndex(row=>/conta nas estatísticas/.test(row.textContent))].click();await tick();
+ assert.match($('confirmDescription').textContent,/estatísticas/);$('confirmAccept').click();await tick(200);
+ assert.equal(state.sessions.some(s=>s.id===counted.id),false);
+ assert.equal((remote.payload.materials.find(m=>m.id==='derm:1').questionEntries||[]).some(e=>e.id==='quiz-'+counted.id),false,'round removed from the statistics');
+ // Closing with nothing answered keeps nothing.
+ $('solverStart').click();await tick(80);const empty=state.sessions.find(s=>s.status==='active');assert.ok(empty);
+ $('solverClose').click();await tick(80);assert.equal($('solverLeave').open,false);assert.equal(state.sessions.some(s=>s.id===empty.id),false);
 
  // ---- Prova ----
  q('[data-solve]').click();await tick(120);
@@ -120,7 +142,8 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  assert.match(q('#solverKicker').textContent,/RESULTADO DA PROVA/);
  const examSave=calls.filter(([n])=>n==='quiz_session_save').at(-1)[1];assert.equal(examSave.p_finish,true);
  assert.equal(examSave.p_answers[first].o,exam.p_layout.options[first][1]);
- assert.equal(calls.filter(([n])=>n==='save_workspace').length,1,'later sessions do not count again');
+ // The counted attempt was deleted above, so this exam becomes the one that counts: still a single round.
+ assert.equal(remote.payload.materials.find(m=>m.id==='derm:1').questionEntries.filter(e=>e.id.startsWith('quiz-')).length,1,'one solver round per material set');
  console.log('PASS solver: solve button and menu, training reveal/lock/scissors/hint, result + stats round once, review, redo missed, resume, exam shuffle/change/timer');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
