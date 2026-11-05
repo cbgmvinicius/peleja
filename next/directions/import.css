@@ -25,7 +25,7 @@
 @keyframes import-pulse{50%{opacity:.35;transform:scale(.8)}}
 
 #importReview{margin-top:18px}
-.import-scope{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.import-scope{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px}
 .import-scope .editor-field{margin-bottom:14px}
 
 .import-sets{margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--soft)}
@@ -77,3 +77,4 @@ html[data-peleja-motion=off] .import-chevron{transition:none}
 .import-q summary{padding-inline:10px}
 .import-q summary:is(:hover,:focus-visible) .import-num{background:var(--surface)}
 .import-q-body{padding-right:10px}
+#importSave:disabled{opacity:.45;filter:saturate(.6)}
