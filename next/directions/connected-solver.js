@@ -318,7 +318,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    return;
   }
   stopClock();
-  if(session?.status==='active')client.rpc('quiz_session_delete',{p_id:session.id}).catch(()=>{}); // nothing answered: nothing to keep
+  if(session?.status==='active')Promise.resolve(client.rpc('quiz_session_delete',{p_id:session.id})).catch(()=>{}); // nothing answered: nothing to keep
   finishClose();
  }
  leave.querySelector('#solverKeep').onclick=async()=>{try{await flush();toast('Progresso guardado. Continue quando quiser.','info');}catch{toast('Não foi possível guardar o progresso.','info');}finishClose();};

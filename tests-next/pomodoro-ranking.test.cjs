@@ -82,3 +82,13 @@ async function app(){
  assert.deepEqual(out.results.map(r=>r.user_id),['a','me']);assert.equal(out.university.length,0);assert.deepEqual(out.materialExams.rows.map(r=>r.user_id),['a']);
  console.log('PASS ranking page privacy: anonymous loses name and photo, hidden leaves every list, you always keep your row');
 }
+// Supabase query builders are thenables without .catch: loading must not depend on .catch existing.
+(async()=>{
+ const {loadSimulationData}=require('../next/access/simulations.js');
+ const thenable=value=>({then:(ok,ko)=>Promise.resolve(value).then(ok,ko)});
+ const query=()=>{const q={select:()=>q,order:()=>q,eq:()=>q,range:()=>thenable({data:[]})};return q;};
+ const client={from:()=>query(),rpc:name=>thenable(name==='material_exam_results'?{data:{types:[],rows:[]}}:name==='ranking_privacy_list'?{data:[{userId:'x',mode:'hidden'}]}:{data:name==='simulation_bases'?{}:[]})};
+ const source=await loadSimulationData(client,'me');
+ assert.ok(Array.isArray(source.results));
+ console.log('PASS simulations load with Supabase-style thenables (no .catch)');
+})().catch(e=>{console.error(e);process.exitCode=1;});
