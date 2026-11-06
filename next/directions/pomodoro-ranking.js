@@ -21,7 +21,7 @@
  const tabs=page.querySelector('.pomo-views');
  const tab=el('button',{type:'button',textContent:'Ranking',id:'pomoViewRanking'});tab.dataset.view='ranking';tab.setAttribute('role','tab');tab.setAttribute('aria-selected','false');tabs?.append(tab);
  const panel=el('section',{className:'pomo-ranking',id:'pomoRanking',hidden:true});panel.setAttribute('aria-label','Ranking de horas');page.append(panel);
- let period='day',rows=[],loadedFor='',loading=false,photos=null,timer=0;
+ let period='day',rows=[],loadedFor='',loading=false,photos=null,timer=0,expanded=false;
  new MutationObserver(()=>{const on=page.dataset.view==='ranking'&&!page.hidden;if(on===!panel.hidden)return;panel.hidden=!on;clearInterval(timer);if(on){draw();load();timer=setInterval(()=>{load();},30000);if(typeof motion==='function')motion(panel,[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:200});}}).observe(page,{attributes:true,attributeFilter:['data-view','hidden']});
  // live minutes tick on screen without asking the server
  setInterval(()=>{if(!panel.hidden)draw();},15000);
@@ -72,16 +72,26 @@
   if(!list.length)body=el('p',{className:'pomo-ranking-empty',textContent:loadedFor?'Ninguém por aqui ainda.':'Carregando o ranking…'});
   else if(!list.some(r=>r.shown))body=el('div',{className:'pomo-ranking-empty'},el('strong',{textContent:'Ninguém focou nesse período ainda'}),el('p',{textContent:'Dá o play e sai na frente.'}));
   else{
-   body=el('ol',{className:'pomo-board'});let place=0,last=-1;
-   list.forEach((r,i)=>{if(r.shown!==last){place=i+1;last=r.shown;}
+   // Only who focused in the period; places shared on ties.
+   const ranked=list.filter(r=>r.shown>0);let place=0,last=-1;
+   ranked.forEach((r,i)=>{if(r.shown!==last){place=i+1;last=r.shown;}r.place=place;});
+   // Compact by default: the top 3, plus whoever is right above and right below you.
+   const meAt=ranked.findIndex(r=>r.me),keep=new Set([0,1,2,meAt-1,meAt,meAt+1].filter(i=>i>=0&&i<ranked.length));
+   const compact=!expanded&&ranked.length>keep.size;
+   body=el('div',{});const board=el('ol',{className:'pomo-board'});body.append(board);
+   ranked.forEach((r,i)=>{
+    if(compact&&!keep.has(i)){if(keep.has(i-1)||i===0)board.append(el('li',{className:'pomo-board-gap','aria-hidden':'true',textContent:'⋯'}));return;}
     const bar=el('i');bar.style.width=(r.shown/max*100)+'%';
-    const li=el('li',{className:r.me?'is-me':''},el('span',{className:'pomo-place',textContent:place+'º'}),avatar(r),
-     el('span',{className:'pomo-board-name'},el('b',{},r.name,r.me?el('small',{className:'pomo-you',textContent:'Você'}):null),el('small',{textContent:[r.sessions?(r.sessions===1?'1 sessão':r.sessions+' sessões'):'',r.live?(r.live.running&&r.live.mode==='focus'?'focando agora':liveText(r.live)):''].filter(Boolean).join(' · ')||'sem foco'})),
-     el('span',{className:'pomo-board-total'},el('strong',{textContent:r.shown?dur(r.shown):'0 min'}),el('span',{className:'pomo-board-bar'},bar)));
-    li.dataset.place=String(place);if(r.live?.running&&r.live.mode==='focus')li.dataset.live='true';body.append(li);});
+    const li=el('li',{className:r.me?'is-me':''},el('span',{className:'pomo-place',textContent:r.place+'º'}),avatar(r),
+     el('span',{className:'pomo-board-name'},el('b',{},r.name,r.me?el('small',{className:'pomo-you',textContent:'Você'}):null),el('small',{textContent:[r.sessions?(r.sessions===1?'1 sessão':r.sessions+' sessões'):'',r.live?(r.live.running&&r.live.mode==='focus'?'focando agora':liveText(r.live)):''].filter(Boolean).join(' · ')})),
+     el('span',{className:'pomo-board-total'},el('strong',{textContent:dur(r.shown)}),el('span',{className:'pomo-board-bar'},bar)));
+    li.dataset.place=String(r.place);if(r.live?.running&&r.live.mode==='focus')li.dataset.live='true';board.append(li);
+   });
+   if(ranked.length>keep.size)body.append(el('button',{type:'button',className:'pomo-board-more',id:'pomoBoardMore',textContent:expanded?'Mostrar menos':`Ver todos (${ranked.length})`,onclick:()=>{expanded=!expanded;draw();}}));
+   if(meAt<0)body.append(el('p',{className:'pomo-ranking-note',textContent:'Você ainda não focou nesse período. Dá o play e entra no ranking.'}));
   }
   const mine=list.find(r=>r.me),note=mine?.hidden?el('p',{className:'pomo-ranking-note',textContent:'Você escolheu não aparecer nos rankings: só você vê a sua linha. Dá para mudar em Configurações → Privacidade.'}):null;
-  panel.replaceChildren(head,note,liveBox,body);
+  panel.replaceChildren(...[head,note,liveBox,body].filter(Boolean));
  }
 
  // ---------- publishing my live state ----------
