@@ -126,6 +126,10 @@ async function app(){
  P.state().config.longEnabled=false;$('pomoPlay').click();p.advance(25*MIN+5*MIN+25*MIN+1000);P.advance();P.render();await tick();
  assert.equal(P.state().timer.status,'idle');assert.equal(saved.length,7);$('pomoDialog').close();
 
+ // A background sync redraws in place: it never flashes another tab.
+ let flips=0;const mo=new w.MutationObserver(()=>{if(!$('libraryPage').hidden)flips++;});mo.observe($('libraryPage'),{attributes:true,attributeFilter:['hidden']});
+ await w.PELEJA_AUTO_SYNC(true);await tick(300);mo.disconnect();
+ assert.equal(flips,0,'Biblioteca never shows during a sync');assert.equal($('pomodoroPage').hidden,false);
  // Settings: a Pomodoro section under Peleja.
  assert.ok($('pomodoroSettingsEdit'));$('pomodoroSettingsEdit').click();assert.equal($('pomodoroSettingsPanel').hidden,false);
  $('pomoPrefEffects').click();assert.equal(P.state().prefs.effects,false);
