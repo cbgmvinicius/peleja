@@ -23,3 +23,8 @@
 }
 /* Phone: toasts sit above the tab bar and beside the "+" button instead of under them. */
 @media(max-width:760px){.app .toast{left:12px;right:84px;bottom:calc(86px + env(safe-area-inset-bottom));transform:none;min-width:0;max-width:none;z-index:45}.app .toast-copy{min-width:0}.app .toast-title,.app .toast-detail{overflow-wrap:anywhere}}
+/* Swipe pager: the neighbour section shows beside the current one while dragging. */
+main.pager-dragging{position:relative}
+main.pager-dragging>[hidden].page-peek,#dashboardPage[hidden].page-peek,#libraryPage[hidden].page-peek,#facultyPage[hidden].page-peek{display:block!important;position:absolute;pointer-events:none;will-change:transform}
+#pomodoroPage[hidden].page-peek{display:grid!important;position:absolute;pointer-events:none;will-change:transform}
+main.pager-dragging>:not([hidden]){will-change:transform}

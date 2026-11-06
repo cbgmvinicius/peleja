@@ -34,46 +34,93 @@
  }
  new MutationObserver(sync).observe(document.querySelector('.app header nav'),{attributes:true,subtree:true,attributeFilter:['class']});sync();
 
- // Swipe between the bar's sections, and slide the page in from the side it comes from.
+
+ // Swipe between the bar's sections like a phone pager: while dragging, the next (or previous) section
+ // sits right beside the current one and follows the finger; letting go finishes the move or springs back.
  const order=tabs.map(([, ,id])=>id),main=document.querySelector('.app main');
+ const PAGES={navDashboard:'dashboardPage',navLibrary:'libraryPage',navFaculty:'facultyPage',navPomodoro:'pomodoroPage'};
+ const pageOf=navId=>document.getElementById(PAGES[navId]);
  const phone=()=>globalThis.matchMedia?.('(max-width:760px)')?.matches;
  const currentIndex=()=>order.findIndex(id=>document.getElementById(id)?.classList.contains('selected'));
  const still=()=>document.documentElement.dataset.pelejaMotion==='off'||!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
- function slideTo(id,fromOffset=0){
+ const EASE='cubic-bezier(.22,1,.36,1)';
+ // Tapping the bar: the new section slides in from the side it lives on.
+ function slideTo(id){
   const from=currentIndex(),to=order.indexOf(id);
   document.getElementById(id)?.click();toTop();
-  if(!main)return;main.style.transform='';
-  if(still()||from<0||to<0||from===to)return;
-  const dir=to>from?1:-1,start=fromOffset||dir*60;
-  motion(main,[{transform:`translateX(${start}px)`,opacity:fromOffset?.85:.35},{transform:'none',opacity:1}],{duration:280,easing:'cubic-bezier(.22,1,.36,1)'});
+  const page=pageOf(id);
+  if(!page||still()||from<0||to<0||from===to)return;
+  const w=main.clientWidth||360;
+  motion(page,[{transform:`translateX(${(to>from?1:-1)*w*.35}px)`,opacity:.4},{transform:'none',opacity:1}],{duration:260,easing:EASE});
  }
  // Horizontal drags only, and never on things that scroll or slide sideways by themselves.
  const ignore=target=>{
   if(document.querySelector('dialog[open]')||!sheet.hidden)return true;
   for(let n=target;n&&n!==main;n=n.parentElement){
-   if(n.matches?.('input,textarea,select,[contenteditable=true],.sliding-tabs,.pomo-views,.pomo-period'))return true;
+   if(n.matches?.('input,textarea,select,[contenteditable=true],.sliding-tabs,.pomo-views,.pomo-period,input[type=range]'))return true;
    if(n.scrollWidth>n.clientWidth+4&&/(auto|scroll)/.test(getComputedStyle(n).overflowX))return true;
   }
   return false;
  };
  let drag=null;
- main?.addEventListener('touchstart',e=>{if(!phone()||e.touches.length!==1||ignore(e.target)){drag=null;return;}const t=e.touches[0];drag={x:t.clientX,y:t.clientY,dx:0,axis:null};},{passive:true});
- main?.addEventListener('touchmove',e=>{
-  if(!drag)return;const t=e.touches[0],dx=t.clientX-drag.x,dy=t.clientY-drag.y;
-  if(!drag.axis&&Math.hypot(dx,dy)>10)drag.axis=Math.abs(dx)>Math.abs(dy)*1.3?'x':'y';
-  if(drag.axis!=='x')return;
-  const i=currentIndex(),edge=(dx>0&&i<=0)||(dx<0&&(i<0||i>=order.length-1));
-  drag.dx=dx;if(!still())main.style.transform=`translateX(${edge?dx*.12:dx*.4}px)`;
+ function peek(page,cur){
+  if(!page)return null;
+  page.classList.add('page-peek');
+  // same box as the current section (left/right, so centred pages with a max width stay centred)
+  Object.assign(page.style,{top:cur.offsetTop+'px',left:cur.offsetLeft+'px',right:(main.clientWidth-cur.offsetLeft-cur.offsetWidth)+'px'});
+  return page;
+ }
+ function place(dx){
+  const {cur,prev,next,w}=drag;
+  cur.style.transform=`translateX(${dx}px)`;
+  if(prev)prev.style.transform=`translateX(${dx-w}px)`;
+  if(next)next.style.transform=`translateX(${dx+w}px)`;
+ }
+ function cleanup(d){
+  main.classList.remove('pager-dragging');
+  for(const el of [d.cur,d.prev,d.next])if(el){el.classList.remove('page-peek');el.style.transform='';el.style.top=el.style.left=el.style.right='';el.style.transition='';}
+ }
+ function settle(d,from,to,done){
+  if(still()){done();return;}
+  const els=[d.cur,d.prev,d.next].filter(Boolean),off={cur:0,prev:-d.w,next:d.w};
+  let left=els.length;const finish=()=>{if(--left===0)done();};
+  for(const [key,el] of [['cur',d.cur],['prev',d.prev],['next',d.next]]){
+   if(!el)continue;
+   const a=el.animate?.([{transform:`translateX(${from+off[key]}px)`},{transform:`translateX(${to+off[key]}px)`}],{duration:240,easing:EASE,fill:'forwards'});
+   if(a){a.onfinish=()=>{a.cancel?.();finish();};}else finish();
+  }
+ }
+ main?.addEventListener('touchstart',e=>{
+  if(!phone()||e.touches.length!==1||drag?.settling||ignore(e.target)){if(!drag?.settling)drag=null;return;}
+  const t=e.touches[0];drag={x:t.clientX,y:t.clientY,t:Date.now(),dx:0,axis:null};
  },{passive:true});
- main?.addEventListener('touchend',()=>{
-  if(!drag)return;const {dx,axis}=drag;drag=null;if(axis!=='x'){main.style.transform='';return;}
-  const i=currentIndex(),next=dx<0?order[i+1]:order[i-1];
-  // the new page comes in from the side the finger pushed it
-  if(Math.abs(dx)>70&&i>=0&&next){slideTo(next,dx<0?120:-120);return;}
-  const from=main.style.transform;main.style.transform='';
-  if(from&&!still())motion(main,[{transform:from},{transform:'none'}],{duration:220,easing:'cubic-bezier(.22,1,.36,1)'});
- });
- main?.addEventListener('touchcancel',()=>{drag=null;if(main)main.style.transform='';});
+ main?.addEventListener('touchmove',e=>{
+  if(!drag||drag.settling)return;const t=e.touches[0],dx=t.clientX-drag.x,dy=t.clientY-drag.y;
+  if(!drag.axis&&Math.hypot(dx,dy)>10){
+   drag.axis=Math.abs(dx)>Math.abs(dy)*1.3?'x':'y';
+   if(drag.axis==='x'){
+    const i=currentIndex(),cur=pageOf(order[i]);
+    if(i<0||!cur||still()){drag.axis='y';return;}
+    main.classList.add('pager-dragging');
+    Object.assign(drag,{i,cur,w:main.clientWidth||cur.offsetWidth,prev:peek(pageOf(order[i-1]),cur),next:peek(pageOf(order[i+1]),cur)});
+   }
+  }
+  if(drag.axis!=='x')return;
+  // past the first or last section the page resists, like a rubber band
+  const edge=(dx>0&&!drag.prev)||(dx<0&&!drag.next);
+  drag.dx=edge?dx*.25:dx;place(drag.dx);
+ },{passive:true});
+ function end(){
+  if(!drag||drag.settling)return;const d=drag;if(d.axis!=='x'){drag=null;return;}
+  const speed=Math.abs(d.dx)/Math.max(1,Date.now()-d.t),target=d.dx<0?d.next:d.prev;
+  const go=target&&(Math.abs(d.dx)>d.w*.28||(speed>.45&&Math.abs(d.dx)>30));
+  d.settling=true;
+  if(go){
+   const navId=order[d.i+(d.dx<0?1:-1)];
+   settle(d,d.dx,d.dx<0?-d.w:d.w,()=>{cleanup(d);drag=null;document.getElementById(navId)?.click();toTop();});
+  }else settle(d,d.dx,0,()=>{cleanup(d);drag=null;});
+ }
+ main?.addEventListener('touchend',end);
+ main?.addEventListener('touchcancel',()=>{if(drag&&drag.axis==='x'&&!drag.settling){drag.dx=0;end();}else drag=null;});
  globalThis.PELEJA_MOBILE_NAV={slideTo,order};
 })();
-
