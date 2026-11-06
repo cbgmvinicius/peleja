@@ -33,9 +33,9 @@
  // Streak on the timer screen too: always in sight while studying.
  const chip=el('button',{type:'button',className:'pomo-streak-chip',id:'pomoStreakChip',onclick:()=>setView('insights')});
  page.querySelector('.pomo-head')?.append(chip);
- let period='week',blocks=[],loaded=false,loading=null,selectedDay=null,owner=null;
+ let period='week',blocks=[],loaded=false,loading=null,owner=null;
  // Another account on this device: forget the previous member's blocks.
- const checkOwner=()=>{if(owner!==P.user()){owner=P.user();blocks=[];loaded=false;selectedDay=null;}};
+ const checkOwner=()=>{if(owner!==P.user()){owner=P.user();blocks=[];loaded=false;}};
  function setView(view){
   page.dataset.view=view;panel.hidden=view!=='insights';
   for(const b of tabs.children)b.setAttribute('aria-selected',String(b.dataset.view===view));
@@ -154,25 +154,46 @@
   return el('section',{className:'pomo-card'},el('div',{className:'pomo-card-head'},el('h3',{textContent:'Últimos 7 dias'}),el('span',{textContent:dur(week)})),el('p',{className:'pomo-card-note pomo-beat',textContent:text}),chart);
  }
  function yearCard(byDay){
-  // 53 columns of weeks (Sunday on top), ending with the current week
-  const today=startOfDay(now()),end=addDays(today,6-today.getDay()),start=addDays(end,-(53*7-1));
+  // One column per week (Sunday on top), from the week of the first focus to the current one: few weeks
+  // means big squares; it scrolls sideways once the history is longer than the card.
+  const today=startOfDay(now()),end=addDays(today,6-today.getDay());
+  const first=[...byDay.keys()].sort()[0],firstDay=first?new Date(first+'T12:00'):today;
+  const weeks=Math.min(53,Math.max(10,Math.ceil((end-startOfDay(firstDay))/DAY/7)+1)),start=addDays(end,-(weeks*7-1));
   const grid=el('div',{className:'pomo-year-grid',role:'img'}),months=el('div',{className:'pomo-year-months','aria-hidden':'true'});
+  grid.style.setProperty('--weeks',weeks);months.style.setProperty('--weeks',weeks);
   let total=0,active=0,lastMonth=-1;
-  for(let i=0;i<53*7;i++){
-   const d=addDays(start,i),info=byDay.get(keyOf(d)),future=d>today,cell=el('span');
+  for(let i=0;i<weeks*7;i++){
+   const d=addDays(start,i),info=byDay.get(keyOf(d)),future=d>today,cell=el('span',{textContent:String(d.getDate())});
    cell.dataset.level=future?'future':String(dayLevel(info?.ms));
-   if(!future){cell.title=`${dateLabel(d)} · ${info?dur(info.ms)+' · '+sessions(info.n):'sem foco'}`;cell.dataset.day=keyOf(d);if(info){total+=info.ms;active++;}}
-   if(i%7===0&&d.getMonth()!==lastMonth&&d.getDate()<=7){lastMonth=d.getMonth();const m=el('span',{textContent:MONTHS[d.getMonth()]});m.style.gridColumn=String(i/7+1);months.append(m);}
+   if(!future){cell.dataset.day=keyOf(d);if(info){total+=info.ms;active++;}}
+   if(+d===+today)cell.dataset.today='true';
+   if(i%7===0&&d.getMonth()!==lastMonth&&(d.getDate()<=7||i===0)){lastMonth=d.getMonth();const m=el('span',{textContent:MONTHS[d.getMonth()]});m.style.gridColumn=String(i/7+1);months.append(m);}
    grid.append(cell);
   }
-  grid.setAttribute('aria-label',`Foco por dia nas últimas 53 semanas: ${days(active)} com foco, ${dur(total)} no total.`);
-  const detail=el('p',{className:'pomo-day-detail',id:'pomoDayDetail'});
-  const show=k=>{const info=byDay.get(k),d=new Date(k+'T12:00');detail.replaceChildren(el('strong',{textContent:dateLabel(d)+' · '}),info?`${dur(info.ms)} de foco em ${sessions(info.n)}`:'sem foco');for(const c of grid.querySelectorAll('[aria-current]'))c.removeAttribute('aria-current');grid.querySelector(`[data-day="${k}"]`)?.setAttribute('aria-current','true');};
-  grid.onclick=e=>{const c=e.target.closest('[data-day]');if(c){selectedDay=c.dataset.day;show(selectedDay);}};
-  show(selectedDay&&byDay.has(selectedDay)?selectedDay:keyOf(today));
+  grid.setAttribute('aria-label',`Foco por dia nas últimas ${weeks} semanas: ${days(active)} com foco, ${dur(total)} no total.`);
+  const labels=el('div',{className:'pomo-year-days','aria-hidden':'true'},...WEEKDAYS.map(w=>el('span',{textContent:w[0]})));
   const legend=el('div',{className:'pomo-legend','aria-hidden':'true'},'Menos',...[0,1,2,3,4].map(l=>{const s=el('span');s.dataset.level=String(l);return s;}),'Mais');
-  const labels=el('div',{className:'pomo-year-days','aria-hidden':'true'},...WEEKDAYS.map((w,i)=>el('span',{textContent:i%2?w:''})));
-  return card('Seu ano',el('div',{className:'pomo-year-scroll'},el('div',{className:'pomo-year'},el('span'),months,labels,grid)),el('div',{className:'pomo-year-foot'},detail,legend));
+  const scroll=el('div',{className:'pomo-year-scroll'},el('div',{className:'pomo-year'},el('span'),months,labels,grid));
+  const box=card('Seu ano',scroll,el('div',{className:'pomo-year-foot'},legend));box.classList.add('pomo-year-card');
+  // The day's total in a small balloon over the square: hover with a mouse, a tap shows it for 3 s.
+  const tip=el('div',{className:'pomo-day-tip',id:'pomoDayTip',hidden:true,role:'status'});box.append(tip);
+  let tipTimer=0,lastPointer='';
+  const hide=()=>{clearTimeout(tipTimer);tip.hidden=true;grid.querySelector('[aria-current]')?.removeAttribute('aria-current');};
+  const show=(c,ms)=>{
+   const k=c.dataset.day,info=byDay.get(k),d=new Date(k+'T12:00');
+   tip.replaceChildren(el('span',{textContent:`${WEEKDAYS[d.getDay()]}, ${dateLabel(d)}`}),el('strong',{textContent:info?dur(info.ms):'sem foco'}),info?el('small',{textContent:sessions(info.n)}):'');
+   grid.querySelector('[aria-current]')?.removeAttribute('aria-current');c.setAttribute('aria-current','true');
+   tip.hidden=false;
+   const r=c.getBoundingClientRect(),b=box.getBoundingClientRect(),half=(tip.offsetWidth||120)/2;
+   tip.style.left=Math.max(half+8,Math.min(b.width-half-8,r.left-b.left+r.width/2))+'px';tip.style.top=(r.top-b.top-8)+'px';
+   clearTimeout(tipTimer);if(ms)tipTimer=setTimeout(hide,ms);
+  };
+  grid.addEventListener('pointerdown',e=>{lastPointer=e.pointerType;});
+  grid.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const c=e.target.closest('[data-day]');if(c)show(c,0);});
+  grid.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')hide();});
+  grid.onclick=e=>{const c=e.target.closest('[data-day]');if(c&&lastPointer!=='mouse')show(c,3000);lastPointer='';};
+  scroll.addEventListener('scroll',hide,{passive:true});
+  return box;
  }
  function tasksCard(s){
   if(!s.ranked.length)return card('Tarefas',el('p',{className:'pomo-card-note',textContent:'Sem foco no período.'}));
