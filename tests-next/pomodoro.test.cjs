@@ -80,9 +80,9 @@ async function app(){
  assert.equal($('pomoConfig').hidden,true);assert.equal($('pomoGoal').hidden,false);assert.equal($('pomoDone').textContent,'1');assert.equal($('pomoTarget').textContent,' de 4');
  assert.match(ambient().src,/forest/);assert.equal(ambient().paused,false);assert.ok(ambient().volume>.95);
  // Pause: silent, status Parado, same button resumes; Skip only while running.
- $('pomoPlay').click();await settle();assert.equal(P.state().timer.status,'paused');assert.equal($('pomoStatus').textContent,'Parado');assert.ok(ambient().volume<.01);assert.equal($('pomoSkip').disabled,true);
+ $('pomoPlay').click();await settle();assert.equal(P.state().timer.status,'paused');assert.equal(chimes().at(-1),'session_end','a chime when pausing');assert.equal($('pomoStatus').textContent,'Parado');assert.ok(ambient().volume<.01);assert.equal($('pomoSkip').disabled,true);
  p.advance(10*MIN);P.advance();assert.equal(P.state().timer.mode,'focus','paused time does not count');
- $('pomoPlay').click();await settle();assert.equal(P.state().timer.status,'running');assert.ok(ambient().volume>.95);
+ $('pomoPlay').click();await settle();assert.equal(P.state().timer.status,'running');assert.ok(ambient().volume>.95);assert.equal(chimes().at(-1),'session_start','and when resuming');
  // Sound chip toggles mute.
  $('pomoSoundChip').click();await settle();assert.equal($('pomoSoundChip').textContent,'Mudo');assert.ok(ambient().volume<.01);$('pomoSoundChip').click();await settle();assert.ok(ambient().volume>.95);
 

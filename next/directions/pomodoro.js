@@ -80,7 +80,11 @@
  const syncSound=ms=>fadeTo(targetVolume(),ms);
  // Flow minimum reached: a short dip in the background and back, without leaving the focus.
  function wave(){if(!soundOn()||!ambient)return;fadeTo(.35,500);setTimeout(()=>{if(state.timer.mode==='focus'&&state.timer.status==='running')fadeTo(1,900);},700);}
- function chime(name,volume=.9){if(!state.prefs.effects)return;try{const a=new Audio(soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
+ // Chimes are fetched once and kept in memory, so they sound the moment they are called (from the network a
+ // phone could take seconds, e.g. when the cached copy has expired).
+ const chimeUrls={};
+ for(const n of ['session_start','session_end','session_stop'])Promise.resolve(globalThis.fetch?.(soundUrl(n))).then(r=>r?.ok?r.blob():null).then(b=>{if(b)chimeUrls[n]=URL.createObjectURL(b);}).catch(()=>{});
+ function chime(name,volume=.9){if(!state.prefs.effects)return;try{const a=new Audio(chimeUrls[name]||soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
  // ---------- notifications ----------
  // Through a small service worker: Android has no "new Notification()", and only a worker's
  // notification can carry buttons (Pausar / Pular / Concluir) that come back to this page.
@@ -105,8 +109,11 @@
  }
  // While a session is on, one silent notification that stays: what phase, until when, and the buttons.
  // A website cannot tick a countdown there, so it shows the end time, which stays right.
- let ongoingSig='';
- async function updateOngoing(){
+ let ongoingSig='',ongoingChain=Promise.resolve();
+ // One update at a time, each from the state as it is then: a slow show must not land after the close and
+ // bring back the notification of a session that has already ended.
+ function updateOngoing(){ongoingChain=ongoingChain.then(ongoingNow).catch(()=>{});return ongoingChain;}
+ async function ongoingNow(){
   const t=state.timer,c=state.config,on=allowed()&&t.status!=='idle';
   const sig=on?[t.status,t.mode,t.setsDone,t.runningSince,Math.round(t.accMs/1000),state.task,c.flow,t.flowNotified].join('|'):'off';
   if(sig===ongoingSig)return;ongoingSig=sig;
@@ -163,8 +170,8 @@
  const actions={
   toggle(){
    const t=state.timer;
-   if(t.status==='running'){t.accMs=elapsed();t.status='paused';t.runningSince=0;}
-   else if(t.status==='paused'){t.status='running';t.runningSince=now();}
+   if(t.status==='running'){t.accMs=elapsed();t.status='paused';t.runningSince=0;chime('session_end',.7);}
+   else if(t.status==='paused'){t.status='running';t.runningSince=now();chime('session_start',.7);}
    else{flash='';startPhase('focus');t.setsDone=0;chime('session_start',.7);
     // the browser only asks for permission after a tap: the first play is that moment
     if(state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='default')Promise.resolve(Notification.requestPermission?.()).then(()=>{ongoingSig='';updateOngoing();}).catch(()=>{});}
@@ -407,7 +414,9 @@
  $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled)return;state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
  for(const b of page.querySelectorAll('[data-duration]'))b.onclick=()=>openDuration(b.dataset.duration);
  setInterval(()=>{if(state.timer.status==='running'){const before=state.timer.mode+state.timer.setsDone+state.timer.status;advance();if(before!==state.timer.mode+state.timer.setsDone+state.timer.status){render();syncSound();}else if(document.hidden)draw();}},500);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden){advance();render();}});
+ // Back on the page: it shows the phase itself, so the "pausa/foco" notices already seen can go.
+ const clearAlerts=()=>{if(!allowed())return;worker().then(reg=>reg?.getNotifications?.({tag:'peleja-pomodoro-alert'})).then(list=>(list||[]).forEach(n=>n.close())).catch(()=>{});};
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){advance();render();clearAlerts();}});
  addEventListener('online',()=>flush());
 
  // ---------- navigation ----------
