@@ -24,9 +24,11 @@
  const KEY='peleja-pomodoro-v1',OUTBOX='peleja-pomodoro-outbox-v1';
  const read=(key,fallback)=>{try{return {...fallback,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{return {...fallback};}};
  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
- const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:false},task:'',templates:[],
+ const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:true,notifyDefault:1},task:'',templates:[],
   timer:{status:'idle',mode:'focus',accMs:0,runningSince:0,phaseStartedAt:0,setsDone:0,flowNotified:false}};
  let state=read(KEY,DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k],...state[k]};
+ // Notifications are on by default, also for whoever had the old default (off) saved; turning them off later sticks.
+ if(!state.prefs.notifyDefault){state.prefs.notify=true;state.prefs.notifyDefault=1;}
  const save=()=>write(KEY,state);
  const planned=mode=>(mode==='focus'?state.config.focusMin:mode==='short'?state.config.shortMin:state.config.longMin)*60000;
  const elapsed=()=>state.timer.accMs+(state.timer.status==='running'?Math.max(0,now()-state.timer.runningSince):0);
@@ -116,7 +118,8 @@
   let body=t.status==='paused'?`Pausado · ${fmt(remaining)} restantes`:t.mode==='focus'&&c.flow&&remaining<=0?'Flow · tempo mínimo cumprido':`${t.mode==='focus'?'Foco':'Pausa'} até ${hhmm}`;
   if(state.task)body+=' · '+state.task;
   try{await reg.showNotification(title,{tag:ONGOING,body,icon:ICON,badge:BADGE,silent:true,renotify:false,requireInteraction:true,timestamp:+end,
-   actions:[{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'},{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
+   // Chrome shows at most two buttons: in focus Pausar/Continuar + Concluir, in a break Pular + Concluir
+   actions:[t.mode==='focus'?{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'}:{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
  }
 
  // ---------- state machine ----------
@@ -162,7 +165,9 @@
    const t=state.timer;
    if(t.status==='running'){t.accMs=elapsed();t.status='paused';t.runningSince=0;}
    else if(t.status==='paused'){t.status='running';t.runningSince=now();}
-   else{flash='';startPhase('focus');t.setsDone=0;chime('session_start',.7);}
+   else{flash='';startPhase('focus');t.setsDone=0;chime('session_start',.7);
+    // the browser only asks for permission after a tap: the first play is that moment
+    if(state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='default')Promise.resolve(Notification.requestPermission?.()).then(()=>{ongoingSig='';updateOngoing();}).catch(()=>{});}
    save();render();syncSound(t.status==='running'?1500:600);
   },
   // Flow: "Começar pausa" ends the focus with the extra time counted.
@@ -426,7 +431,7 @@
  settingsPanel.innerHTML='<h2 class="settings-panel-title">Pomodoro</h2>';
  const card=el('div',{className:'settings-card'},el('h3',{textContent:'Avisos e sons'}));
  const effects=switchRow('Sons de efeito (apitos de início e fim)',state.prefs.effects,'pomoPrefEffects');effects.classList.add('settings-row');
- const notifyRow=switchRow('Notificações do Pomodoro: o timer em andamento, com Pausar, Pular e Concluir, e um aviso quando um foco ou pausa terminar',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
+ const notifyRow=switchRow('Notificações do Pomodoro: o timer em andamento, com Pausar ou Pular e Concluir, e um aviso quando um foco ou pausa terminar',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
  card.append(effects,notifyRow);settingsPanel.append(card);
  effects.querySelector('input').onchange=e=>{state.prefs.effects=e.target.checked;save();};
  notifyRow.querySelector('input').onchange=async e=>{

@@ -37,10 +37,10 @@ async function app(){
  P.state().task='Hematologia';$('pomoPlay').click();await tick(60);
  assert.equal(p.reg.url,'pomodoro-sw.js');
  let n=last();assert.ok(n,'ongoing notification while focusing');assert.match(n.title,/^Foco – faltam 4 séries/);assert.match(n.body,/^Foco até \d\d:\d\d · Hematologia$/);
- assert.equal(n.silent,true);assert.equal(n.requireInteraction,true);assert.equal(n.actions.map(a=>a.title).join(','),'Pausar,Pular,Concluir');
+ assert.equal(n.silent,true);assert.equal(n.requireInteraction,true);assert.equal(n.actions.map(a=>a.title).join(','),'Pausar,Concluir');
  p.advance(5*MIN);p.post('toggle');await tick(60);assert.equal(P.state().timer.status,'paused');n=last();assert.match(n.body,/^Pausado · 20:00 restantes/);assert.equal(n.actions[0].title,'Continuar');
  p.post('toggle');await tick(60);assert.equal(P.state().timer.status,'running');
- p.post('skip');await tick(60);assert.equal(P.state().timer.mode,'short');assert.match(last().title,/^Pausa curta – faltam 3 séries/);
+ p.post('skip');await tick(60);assert.equal(P.state().timer.mode,'short');assert.match(last().title,/^Pausa curta – faltam 3 séries/);assert.equal(last().actions.map(a=>a.title).join(','),'Pular,Concluir');
  const count=p.shown.length;P.render();P.render();await tick(60);assert.equal(p.shown.length,count,'not rewritten when nothing changed');
  p.post('finish');await tick(60);assert.equal(P.state().timer.status,'idle');assert.equal(last(),undefined,'closed when the session ends');
  P.state().prefs.notify=false;$('pomoPlay').click();await tick(60);assert.equal(last(),undefined,'off in settings: nothing shows');
