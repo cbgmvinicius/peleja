@@ -84,7 +84,8 @@
  // ---------- notifications ----------
  // Through a small service worker: Android has no "new Notification()", and only a worker's
  // notification can carry buttons (Pausar / Pular / Concluir) that come back to this page.
- const ICON='../assets/peleja-icon-192.png',ONGOING='peleja-pomodoro-ongoing';
+ // BADGE: the small status-bar icon; Android only keeps its transparency, so it is a white cactus outline
+ const ICON='../assets/peleja-icon-192.png',BADGE='../assets/peleja-badge-96.png',ONGOING='peleja-pomodoro-ongoing';
  let swReg=null,swTried=false;
  const allowed=()=>state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='granted';
  async function worker(){
@@ -100,7 +101,7 @@
  async function notify(text){
   if(!allowed()||!document.hidden)return;
   const reg=await worker();
-  try{if(reg)await reg.showNotification('Peleja · Pomodoro',{body:text,icon:ICON,badge:ICON,tag:'peleja-pomodoro-alert'});else new Notification('Peleja · Pomodoro',{body:text,icon:ICON,tag:'peleja-pomodoro-alert'});}catch{}
+  try{if(reg)await reg.showNotification('Peleja · Pomodoro',{body:text,icon:ICON,badge:BADGE,tag:'peleja-pomodoro-alert'});else new Notification('Peleja · Pomodoro',{body:text,icon:ICON,tag:'peleja-pomodoro-alert'});}catch{}
  }
  // While a session is on, one silent notification that stays: what phase, until when, and the buttons.
  // A website cannot tick a countdown there, so it shows the end time, which stays right.
@@ -116,7 +117,7 @@
   const title=t.mode==='focus'?`Foco – ${left<=1?'última série':`faltam ${left} séries`}`:`${modeName[t.mode]} – ${left===1?'falta 1 série':`faltam ${left} séries`}`;
   let body=t.status==='paused'?`Pausado · ${fmt(remaining)} restantes`:t.mode==='focus'&&c.flow&&remaining<=0?'Flow · tempo mínimo cumprido':`${t.mode==='focus'?'Foco':'Pausa'} até ${hhmm}`;
   if(state.task)body+=' · '+state.task;
-  try{await reg.showNotification(title,{tag:ONGOING,body,icon:ICON,badge:ICON,silent:true,renotify:false,requireInteraction:true,timestamp:+end,
+  try{await reg.showNotification(title,{tag:ONGOING,body,icon:ICON,badge:BADGE,silent:true,renotify:false,requireInteraction:true,timestamp:+end,
    // Chrome shows at most two buttons: in focus Pausar/Continuar + Concluir, in a break Pular + Concluir
    actions:[t.mode==='focus'?{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'}:{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
  }
