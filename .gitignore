@@ -26,3 +26,5 @@ TEMP*
 node_modules/
 dist/
 coverage/
+*.jks
+*.keystore

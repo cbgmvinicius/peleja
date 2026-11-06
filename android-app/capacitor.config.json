@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.cbgmvinicius.peleja",
+  "appName": "Peleja",
+  "webDir": "www",
+  "server": {
+    "url": "https://cbgmvinicius.github.io/peleja/next/directions/",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#f3dfc1"
+  }
+}

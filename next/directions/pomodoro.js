@@ -80,12 +80,18 @@
  const syncSound=ms=>fadeTo(targetVolume(),ms);
  // Flow minimum reached: a short dip in the background and back, without leaving the focus.
  function wave(){if(!soundOn()||!ambient)return;fadeTo(.35,500);setTimeout(()=>{if(state.timer.mode==='focus'&&state.timer.status==='running')fadeTo(1,900);},700);}
- function chime(name,volume=.9){if(!state.prefs.effects)return;try{const a=new Audio(soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
+ function chime(name,volume=.9){if(!state.prefs.effects||replaying)return;try{const a=new Audio(soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
  // ---------- notifications ----------
  // Through a small service worker: Android has no "new Notification()", and only a worker's
  // notification can carry buttons (Pausar / Pular / Concluir) that come back to this page.
  // BADGE: the small status-bar icon; Android only keeps its transparency, so it is a white cactus outline
  const ICON='../assets/peleja-icon-192.png',BADGE='../assets/peleja-badge-96.png',ONGOING='peleja-pomodoro-ongoing';
+ // In the Peleja Android app (Capacitor) a native service does this instead: see android-app/.
+ // The page is the published site, so it talks to the plugin through the bridge the app injects (no @capacitor/core).
+ const cap=globalThis.Capacitor,native=cap?.isPluginAvailable?.('PelejaTimer')&&cap.nativePromise?{
+  update:plan=>cap.nativePromise('PelejaTimer','update',plan),stop:()=>cap.nativePromise('PelejaTimer','stop',{}),
+  drain:()=>cap.nativePromise('PelejaTimer','drain',{}),addListener:(name,fn)=>cap.addListener('PelejaTimer',name,fn)}:null;
+ let replaying=false;
  let swReg=null,swTried=false;
  const allowed=()=>state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='granted';
  async function worker(){
@@ -99,7 +105,7 @@
   ({toggle:()=>actions.toggle(),skip:()=>actions.skip(),finish:()=>actions.stop()})[e.data.action]?.();
  });
  async function notify(text){
-  if(!allowed()||!document.hidden)return;
+  if(native||!allowed()||!document.hidden)return;
   const reg=await worker();
   try{if(reg)await reg.showNotification('Peleja · Pomodoro',{body:text,icon:ICON,badge:BADGE,tag:'peleja-pomodoro-alert'});else new Notification('Peleja · Pomodoro',{body:text,icon:ICON,tag:'peleja-pomodoro-alert'});}catch{}
  }
@@ -107,6 +113,7 @@
  // A website cannot tick a countdown there, so it shows the end time, which stays right.
  let ongoingSig='';
  async function updateOngoing(){
+  if(native)return nativeOngoing();
   const t=state.timer,c=state.config,on=allowed()&&t.status!=='idle';
   const sig=on?[t.status,t.mode,t.setsDone,t.runningSince,Math.round(t.accMs/1000),state.task,c.flow,t.flowNotified].join('|'):'off';
   if(sig===ongoingSig)return;ongoingSig=sig;
@@ -121,6 +128,52 @@
    // Chrome shows at most two buttons: in focus Pausar/Continuar + Concluir, in a break Pular + Concluir
    actions:[t.mode==='focus'?{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'}:{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
  }
+
+ // ---------- Android app: native timer notification ----------
+ // The service shows a real countdown with Pausar/Continuar, Pular and Concluir and changes phase on time
+ // even with the app closed. It follows the plan sent from here: the phases ahead, as the state machine
+ // below would run them. Buttons pressed there are queued with their time and replayed here.
+ const titleFor=(mode,sets)=>{const left=Math.max(0,state.config.targetSets-sets);return mode==='focus'?`Foco – ${left<=1?'última série':`faltam ${left} séries`}`:`${modeName[mode]} – ${left===1?'falta 1 série':`faltam ${left} séries`}`;};
+ function nativePlan(){
+  const t=state.timer,c=state.config,segments=[];let mode=t.mode,sets=t.setsDone;
+  const startText={focus:'De volta ao foco.',short:'Hora da pausa curta.',long:'Hora da pausa longa.'};
+  for(let i=0;i<40;i++){
+   segments.push({mode,durMs:planned(mode),title:titleFor(mode,sets),open:mode==='focus'&&!!c.flow,startText:startText[mode]});
+   if(mode!=='focus'){mode='focus';continue;}
+   if(++sets>=c.targetSets)break;
+   mode=c.longEnabled&&sets%c.longEvery===0?'long':'short';
+  }
+  return {segments,at:now(),elapsedMs:elapsed(),paused:t.status==='paused',flowNotified:!!t.flowNotified,task:state.task.trim(),effects:!!state.prefs.effects,
+   endText:'Meta da sessão concluída!',flowText:'Tempo mínimo atingido. Siga no flow ou comece a pausa.'};
+ }
+ function nativeOngoing(){
+  const t=state.timer,on=state.prefs.notify&&t.status!=='idle';
+  const sig=on?JSON.stringify([t,state.config,state.task,state.prefs.effects]):'off';
+  if(sig===ongoingSig)return;ongoingSig=sig;
+  Promise.resolve(on?native.update(nativePlan()):native.stop()).catch(()=>{});
+ }
+ // Replays the buttons pressed on the notification, each at the moment it was pressed.
+ let draining=null;
+ function drainNative(){
+  if(!native)return;
+  if(draining)return draining;
+  draining=(async()=>{
+   try{
+    const list=(await native.drain())?.actions||[];if(!list.length)return;
+    const clock=globalThis.PELEJA_NOW;replaying=true;
+    try{for(const a of list){
+     globalThis.PELEJA_NOW=()=>a.at;advance();
+     if(state.timer.status==='idle')continue;
+     if(a.action==='toggle')actions.toggle();
+     else if(a.action==='skip'){if(state.timer.status==='paused')actions.toggle();actions.skip();}
+     else if(a.action==='finish')actions.stop();
+    }}finally{globalThis.PELEJA_NOW=clock;replaying=false;}
+    advance();ongoingSig='';render();syncSound();
+   }catch(e){console.error(e);}finally{draining=null;}
+  })();
+  return draining;
+ }
+ native?.addListener?.('action',()=>drainNative());
 
  // ---------- state machine ----------
  function startPhase(mode,at=now(),carry=0){Object.assign(state.timer,{mode,status:'running',accMs:carry,runningSince:at,phaseStartedAt:at-carry,flowNotified:false});}
@@ -167,7 +220,7 @@
    else if(t.status==='paused'){t.status='running';t.runningSince=now();}
    else{flash='';startPhase('focus');t.setsDone=0;chime('session_start',.7);
     // the browser only asks for permission after a tap: the first play is that moment
-    if(state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='default')Promise.resolve(Notification.requestPermission?.()).then(()=>{ongoingSig='';updateOngoing();}).catch(()=>{});}
+    if(!native&&state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='default')Promise.resolve(Notification.requestPermission?.()).then(()=>{ongoingSig='';updateOngoing();}).catch(()=>{});}
    save();render();syncSound(t.status==='running'?1500:600);
   },
   // Flow: "Começar pausa" ends the focus with the extra time counted.
@@ -407,7 +460,7 @@
  $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled)return;state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
  for(const b of page.querySelectorAll('[data-duration]'))b.onclick=()=>openDuration(b.dataset.duration);
  setInterval(()=>{if(state.timer.status==='running'){const before=state.timer.mode+state.timer.setsDone+state.timer.status;advance();if(before!==state.timer.mode+state.timer.setsDone+state.timer.status){render();syncSound();}else if(document.hidden)draw();}},500);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden){advance();render();}});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){advance();render();drainNative();}});
  addEventListener('online',()=>flush());
 
  // ---------- navigation ----------
@@ -435,8 +488,8 @@
  card.append(effects,notifyRow);settingsPanel.append(card);
  effects.querySelector('input').onchange=e=>{state.prefs.effects=e.target.checked;save();};
  notifyRow.querySelector('input').onchange=async e=>{
-  if(e.target.checked&&typeof Notification!=='undefined'&&Notification.permission!=='granted'){const p=await Notification.requestPermission().catch(()=>'denied');if(p!=='granted'){e.target.checked=false;globalThis.toast?.('O navegador não permitiu avisos','info');}}
-  state.prefs.notify=e.target.checked;save();if(e.target.checked)await worker();updateOngoing();
+  if(e.target.checked&&!native&&typeof Notification!=='undefined'&&Notification.permission!=='granted'){const p=await Notification.requestPermission().catch(()=>'denied');if(p!=='granted'){e.target.checked=false;globalThis.toast?.('O navegador não permitiu avisos','info');}}
+  state.prefs.notify=e.target.checked;save();if(e.target.checked&&!native)await worker();updateOngoing();
  };
  globalThis.PELEJA_POMODORO_SETTINGS=settingsPanel;
 
@@ -455,5 +508,5 @@
   rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,
   reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};save();render();}
  };
- advance();render();
+ advance();render();drainNative();
 })();
