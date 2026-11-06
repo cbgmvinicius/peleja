@@ -7,7 +7,7 @@ let authEvent,reads=0,saveDelay=0,failSave=false;const client={auth:{onAuthState
 const append=w.document.head.append.bind(w.document.head);
 // Resolve local scripts using the URL rather than executing external network requests.
 w.document.head.append=(el)=>{append(el);if(el.tagName==='SCRIPT')setTimeout(()=>{try{if(el.src.startsWith('https:'))w.supabase={createClient:()=>client};else w.eval(fs.readFileSync(path.join(root,'..',new URL(el.src).pathname.replace(/^\//,'')),'utf8'));el.onload();}catch(e){console.error(e);el.onerror()}},0)};
-(async()=>{w.eval([...html.matchAll(/<script src="([^"?]+)[^"]*"/g)].map(m=>fs.readFileSync(path.join(root,m[1]),'utf8')).join('\n'));await new Promise(r=>setTimeout(r,200));
+(async()=>{w.eval([...html.matchAll(/<script src="([^"?]+)[^"]*"/g)].map(m=>fs.readFileSync(path.join(root,m[1]),'utf8')).join('\n'));for(const t0=Date.now();w.document.documentElement.classList.contains('connected-loading')&&Date.now()-t0<5000;)await new Promise(r=>setTimeout(r,20)); // wait for the first load
 
 assert.equal(w.document.documentElement.classList.contains('connected-loading'),false,w.document.getElementById('connectionGate').textContent);
 assert.equal(w.document.querySelector('#app')?.dataset.previewRole||w.document.querySelector('.app').dataset.previewRole,'admin');
