@@ -58,7 +58,10 @@
   if(row.live)a.dataset.live=row.live.running?(row.live.mode==='focus'?'focus':'break'):'paused';
   return a;
  }
+ const abstained=()=>globalThis.PELEJA_MY_PRIVACY==='hidden';
+ function abstainNote(){return el('div',{className:'pomo-ranking-empty pomo-abstained'},el('strong',{textContent:'Você não está participando dos rankings'}),el('p',{textContent:'Você escolheu não aparecer nem ver os rankings. Para voltar, vá em Configurações → Privacidade.'}));}
  function draw(){
+  if(abstained()){panel.replaceChildren(el('div',{className:'pomo-ranking-head'},el('div',{},el('h2',{textContent:'Ranking de foco'}))),abstainNote());return;}
   const from=+periodStart(period);
   const list=rows.map(r=>({...r,shown:r.totalMs+liveFocusMs(r.live,from)})).sort((a,b)=>b.shown-a.shown||a.name.localeCompare(b.name));
   const max=Math.max(...list.map(r=>r.shown),1);
@@ -111,7 +114,7 @@
  const prefs=()=>P.state().prefs;
  let seen=null;
  async function watchFriends(){
-  if(!P.user()||prefs().friends===false)return;
+  if(!P.user()||prefs().friends===false||abstained())return;
   let r;try{r=await P.rpc('pomodoro_ranking',{p_from:startOfDay(now()).toISOString()});}catch{return;}
   if(r?.error||!Array.isArray(r.data))return;
   const focusing=new Set(r.data.filter(x=>!x.me&&!x.anonymous&&x.live?.running&&x.live.mode==='focus').map(x=>x.userId));

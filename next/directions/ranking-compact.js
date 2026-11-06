@@ -35,7 +35,7 @@
  // A small mark on your own row when the others see you as "Anônimo" or not at all.
  const MARK={anonymous:['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11h18M6 11l1.5-5h9L18 11"/><circle cx="7.5" cy="16" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/><path d="M10 16h4"/></svg>','Para os outros, você aparece como Anônimo'],
   hidden:['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a16 16 0 0 1-2.7 3.3M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6a8.6 8.6 0 0 0 4.4-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>','Você não aparece nos rankings dos outros']};
- function markPrivacy(){
+ let markPrivacy=function(){
   const mode=globalThis.PELEJA_MY_PRIVACY,mark=MARK[mode];
   for(const row of document.querySelectorAll('.app main .is-me')){
    const old=row.querySelector('.rank-privacy');if(old&&old.dataset.mode===mode)continue; // already right: no change, no loop
@@ -44,6 +44,14 @@
    const tag=document.createElement('span');tag.className='rank-privacy';tag.dataset.mode=mode;tag.title=mark[1];tag.setAttribute('role','img');tag.setAttribute('aria-label',mark[1]);tag.innerHTML=mark[0]+'<span>'+(mode==='hidden'?'Oculto':'Anônimo')+'</span>';where.after(tag);
   }
  }
- globalThis.PELEJA_MARK_PRIVACY=markPrivacy;
+ // "Não participar": no ranking at all, neither showing up nor seeing the others.
+ const NOTE='<p class="rank-abstained"><strong>Você não está participando dos rankings.</strong> Para voltar, vá em Configurações → Privacidade.</p>';
+ function abstain(){
+  const on=globalThis.PELEJA_MY_PRIVACY==='hidden';
+  document.querySelector('.dashboard-comparison')?.toggleAttribute('data-abstained',on);
+  if(on)for(const box of document.querySelectorAll('#rankingContent,.mock-comparison'))if(!box.querySelector(':scope > .rank-abstained'))box.innerHTML=NOTE;
+ }
+ const markOwn=markPrivacy;markPrivacy=()=>{abstain();markOwn();};
+ globalThis.PELEJA_MARK_PRIVACY=()=>{markPrivacy();if(globalThis.PELEJA_MY_PRIVACY!=='hidden')globalThis.renderGeneralRanking?.();};
  globalThis.PELEJA_COMPACT_RANKINGS=scan;
 })();

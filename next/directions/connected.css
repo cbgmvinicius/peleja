@@ -144,3 +144,6 @@ tr.rank-gap td{text-align:center;padding:2px 0!important;color:var(--muted)}
 .dashboard-ranking .rank-privacy,.ranking-table .rank-privacy,.mock-comparison .rank-privacy{height:15px;font-size:9px;padding:0 6px 0 4px;text-transform:uppercase}.dashboard-ranking .rank-privacy svg,.ranking-table .rank-privacy svg,.mock-comparison .rank-privacy svg{width:10px!important;height:10px!important}
 /* Without the courses card, "Próxima prova" and the comparison sit side by side on wide screens. */
 @container (min-width:900px){#dashboardPage:has(>.dashboard-grid.is-single){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:stretch}#dashboardPage>.dashboard-grid.is-single{margin:0;grid-template-rows:1fr}#dashboardPage>.dashboard-grid.is-single+.dashboard-comparison{margin:0}}
+.dashboard-comparison[data-abstained]{display:none!important}
+.rank-abstained{margin:0;padding:24px 16px;border:1px dashed var(--line);border-radius:18px;text-align:center;color:var(--muted);font-size:14px}.rank-abstained strong{display:block;color:var(--ink);margin-bottom:4px}
+@container (min-width:900px){#dashboardPage:has(>.dashboard-comparison[data-abstained]){grid-template-columns:minmax(0,1fr)!important}}

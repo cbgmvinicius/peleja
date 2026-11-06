@@ -25,7 +25,7 @@ begin
  return (select coalesce(jsonb_agg(jsonb_build_object('userId',user_id,'mode',mode)),'[]'::jsonb) from public.ranking_privacy);
 end;$$;
 
--- Pomodoro ranking with privacy: hidden members only see themselves; anonymous ones get a neutral id and name.
+-- Pomodoro ranking with privacy: hidden members neither show up for others nor see them; anonymous ones get a neutral id and name.
 create or replace function public.pomodoro_ranking(p_from timestamptz) returns jsonb language plpgsql stable security definer set search_path='' as $$
 begin
  if auth.uid() is null or not public.has_peleja_access() then raise exception 'Acesso negado';end if;
@@ -38,7 +38,9 @@ begin
   ) order by coalesce(t.total,0) desc,m.name),'[]'::jsonb)
   from (select h.user_id,coalesce(p.display_name,h.username) as name,(coalesce(r.mode,'')='anonymous' and h.user_id<>auth.uid()) as anon
         from public.account_handles h left join public.profiles p on p.id=h.user_id left join public.ranking_privacy r on r.user_id=h.user_id
-        where h.active and (coalesce(r.mode,'')<>'hidden' or h.user_id=auth.uid())) m
+        where h.active and (coalesce(r.mode,'')<>'hidden' or h.user_id=auth.uid())
+          -- whoever chose not to take part sees only their own row
+          and (h.user_id=auth.uid() or not exists(select 1 from public.ranking_privacy me where me.user_id=auth.uid() and me.mode='hidden'))) m
   left join public.ranking_privacy pr on pr.user_id=m.user_id
   left join (select user_id,sum(focus_ms)::bigint total,count(*) n from public.pomodoro_blocks where started_at>=p_from group by user_id) t on t.user_id=m.user_id
   left join public.pomodoro_live l on l.user_id=m.user_id and l.updated_at>now()-interval '3 minutes');
