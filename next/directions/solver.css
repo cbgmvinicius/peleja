@@ -127,3 +127,9 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 /* Exam card button before any whole-exam set exists. */
 .solve-action.is-empty{opacity:.4;cursor:default}
 .solve-action.is-empty:hover{opacity:.55}
+/* Hint and "Sugerir alteração" on one row */
+.solver-tools-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}
+.solver-tools-row .solver-hint-toggle{margin-top:0;display:inline-flex;align-items:center;gap:6px}
+.solver-tools-row .solver-hint-toggle svg{width:16px;height:16px}
+.app .solver-suggest,.solver-suggest{margin-left:auto;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:13px}
+.app .solver-suggest:hover{color:var(--ink);background:var(--soft)}

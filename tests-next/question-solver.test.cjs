@@ -21,6 +21,7 @@ async function app(){
   if(name==='get_workspace')return {data:remote};if(name==='extra_course_catalog')return {data:[]};if(name==='material_exam_results')return {data:{types:[],rows:[]}};if(name==='simulation_results_next')return {data:[]};if(name==='simulation_bases')return {data:{}};
   if(name==='question_sets_list')return {data:[{id:'set-1',materialId:'derm:1',title:'Micoses',count:3,fingerprint:'f',createdAt:'2026-11-01T00:00:00Z'},{id:'set-exam',examId:'e1',title:'PR2.1 tudo em um',count:3,fingerprint:'g',createdAt:'2026-11-02T00:00:00Z'}]};
   if(name==='question_set')return {data:{id:'set-1',questions}};
+  if(name==='quiz_sessions_counted')return {data:structuredClone(state.counted||[])};
   if(name==='quiz_sessions_mine')return {data:structuredClone(state.sessions)};
   if(name==='quiz_session_start'){state.sessions=state.sessions.filter(s=>s.status!=='active');const s={id:'s'+(state.sessions.length+1)+'-'+Date.now(),setId:args.p_set,mode:args.p_mode,clock:args.p_clock,timerSeconds:args.p_timer,layout:args.p_layout,answers:{},elapsedMs:0,status:'active',createdAt:new Date().toISOString()};state.sessions.unshift(s);return {data:s.id};}
   if(name==='quiz_session_save'){const s=state.sessions.find(x=>x.id===args.p_id);s.answers=args.p_answers;s.elapsedMs=args.p_elapsed;const r=score(args.p_answers);if(args.p_finish){const first=!state.sessions.some(x=>x.status==='done'&&x.counted&&x.setId===s.setId);Object.assign(s,{status:'done',...r,counted:first&&r.answered>0,finishedAt:new Date().toISOString()});return {data:{...r,counted:s.counted}};}return {data:{...r,counted:false}};}
@@ -178,6 +179,12 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  w.document.querySelector('[data-create=questions]').click();await tick(60);assert.equal($('questionsDialog').open,true);
  w.PELEJA_AUTO_SYNC(true);await tick(100);assert.equal(reads(),readsBefore+1,'no sync while a dialog is open');
  $('questionsDialog').close();
+ // A counted attempt missing from the statistics (save lost on another device) is added on load, once.
+ state.counted=[{id:'lost-1',setId:'set-1',materialId:'derm:2',examId:null,answered:3,correct:2,finishedAt:'2026-11-05T13:05:33Z'}];
+ const wsSaves=()=>calls.filter(([n])=>n==='save_workspace').length,wsBefore=wsSaves();
+ await w.PELEJA_REFRESH_SOLVER();await tick(300);
+ const m2=remote.payload.materials.find(m=>m.id==='derm:2');assert.ok(m2?.questionEntries?.some(e=>e.id==='quiz-lost-1'&&e.questions===3&&e.correct===2),'the lost round is back');
+ await w.PELEJA_REFRESH_SOLVER();await tick(300);assert.equal(wsSaves(),wsBefore+1,'only once');
  console.log('PASS solver: solve button and menu, training reveal/lock/scissors/hint, result + stats round once, review, redo missed, resume, exam shuffle/change/timer');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
