@@ -73,6 +73,7 @@
   "directions/question-review.js",
   "directions/questions.js",
   "directions/quiz-format.js",
+  "directions/ranking-compact.js",
   "directions/solver.css",
   "directions/style.css",
   "english-data.js",
