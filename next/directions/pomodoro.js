@@ -117,7 +117,8 @@
   let body=t.status==='paused'?`Pausado · ${fmt(remaining)} restantes`:t.mode==='focus'&&c.flow&&remaining<=0?'Flow · tempo mínimo cumprido':`${t.mode==='focus'?'Foco':'Pausa'} até ${hhmm}`;
   if(state.task)body+=' · '+state.task;
   try{await reg.showNotification(title,{tag:ONGOING,body,icon:ICON,badge:ICON,silent:true,renotify:false,requireInteraction:true,timestamp:+end,
-   actions:[{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'},{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
+   // Chrome shows at most two buttons: in focus Pausar/Continuar + Concluir, in a break Pular + Concluir
+   actions:[t.mode==='focus'?{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'}:{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
  }
 
  // ---------- state machine ----------
@@ -429,7 +430,7 @@
  settingsPanel.innerHTML='<h2 class="settings-panel-title">Pomodoro</h2>';
  const card=el('div',{className:'settings-card'},el('h3',{textContent:'Avisos e sons'}));
  const effects=switchRow('Sons de efeito (apitos de início e fim)',state.prefs.effects,'pomoPrefEffects');effects.classList.add('settings-row');
- const notifyRow=switchRow('Notificações do Pomodoro: o timer em andamento, com Pausar, Pular e Concluir, e um aviso quando um foco ou pausa terminar',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
+ const notifyRow=switchRow('Notificações do Pomodoro: o timer em andamento, com Pausar ou Pular e Concluir, e um aviso quando um foco ou pausa terminar',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
  card.append(effects,notifyRow);settingsPanel.append(card);
  effects.querySelector('input').onchange=e=>{state.prefs.effects=e.target.checked;save();};
  notifyRow.querySelector('input').onchange=async e=>{
