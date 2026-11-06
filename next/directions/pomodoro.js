@@ -51,7 +51,7 @@
   if(focusMs<60000)return; // under a minute is not a block
   const plannedMs=planned('focus'),block={id:crypto.randomUUID(),user:getUser(),task:state.task.trim(),startedAt:new Date(state.timer.phaseStartedAt).toISOString(),endedAt:new Date(endedAt).toISOString(),focusMs:Math.round(Math.min(focusMs,endedAt-state.timer.phaseStartedAt)),plannedMs,flowExtraMs:Math.max(0,Math.round(focusMs-plannedMs))};
   if(block.focusMs<60000)return;
-  write(OUTBOX,[...outbox(),block]);flush();
+  write(OUTBOX,[...outbox(),block]);globalThis.PELEJA_POMODORO_SAVED?.();flush();
  }
 
  // ---------- sound ----------
@@ -262,6 +262,7 @@
   attach(options){client=options.client;getUser=options.getUser;flush();},
   detach(){client=null;getUser=()=>null;},
   state:()=>state,elapsed,actions,advance,render,outbox,
+  rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),user:()=>getUser(),page,
   reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};save();render();}
  };
  advance();render();
