@@ -44,8 +44,17 @@ mine=[block('a',[11,5],9,50,'Hematologia',25),block('b',[11,5],10,25,'Hematologi
  // week: Oct 30 .. Nov 5 → 50+25+25+40+25 = 165 min in 5 sessions over 4 days
  assert.match(tiles[0],/Foco total2h 45min/);assert.match(tiles[0],/4 dias/);
  assert.match(tiles[1],/^Sessões5/);assert.match(tiles[1],/[+]25 min no flow/);
- assert.match(tiles[2],/Sequência3 dias/);assert.match(tiles[2],/Melhor: 5 dias/);
- assert.match(tiles[3],/09h/);
+ assert.match(tiles[2],/Horário de pico09h/);
+ // Streak hero: lit today, 3 days, record 5, next milestone 7; the week shows Tue-Thu lit.
+ const streak=$('pomoStreak');assert.equal(streak.dataset.state,'lit');assert.match(streak.textContent,/^3dias seguidos/);assert.match(streak.textContent,/Fogo aceso!/);
+ assert.match(streak.textContent,/Recorde 5 dias/);assert.match(streak.textContent,/Próxima marca 7 dias · faltam 4/);
+ assert.deepEqual([...streak.querySelectorAll('.pomo-streak-week li')].map(li=>li.dataset.state),['missed','missed','done','done','done','future','future']);
+ assert.equal($('pomoStreakChip').dataset.state,'lit');assert.equal($('pomoStreakChip').textContent,'3');
+ // Last 7 days: one column per day, today beats yesterday.
+ const cols=[...w.document.querySelectorAll('.pomo-days li')];assert.equal(cols.length,7);assert.equal(cols[6].dataset.today,'true');
+ assert.deepEqual(cols.map(c=>c.querySelector('.pomo-days-value').textContent),['25m','','','','40m','25m','1h15']);
+ assert.ok(cols[6].querySelector('.pomo-days-mark'),'yesterday mark on today');
+ assert.match($('pomoInsights').textContent,/Você já passou de ontem [(][+]50 min[)]/);
  assert.match(w.document.querySelector('.pomo-tasks').textContent,/Hematologia1h 55min · 70%/);
  assert.match($('pomoInsights').textContent,/Principal: Hematologia/);
  // year: today selected with its total; clicking another day shows it
@@ -60,6 +69,15 @@ mine=[block('a',[11,5],9,50,'Hematologia',25),block('b',[11,5],10,25,'Hematologi
  $('pomoViewInsights').click();await new Promise(r=>setTimeout(r,80));
  assert.match(w.document.querySelector('.pomo-tasks').textContent,/Nefro/);
  assert.equal(new Set([...w.document.querySelectorAll('.pomo-tasks li span:first-child')].map(n=>n.textContent)).size,[...w.document.querySelectorAll('.pomo-tasks li')].length);
- console.log('PASS pomodoro insights: streak and best, period totals, flow extra, peak hour, tasks share, year days, week hours, new blocks at once');
+ // Next morning with no focus yet: the fire is at risk until midnight.
+ p.advance(Date.parse(local([11,6],10))-p.now());$('pomoViewTimer').click();$('pomoViewInsights').click();
+ assert.equal($('pomoStreak').dataset.state,'risk');assert.match($('pomoStreak').textContent,/próximas 14h 00min pra não perder 3 dias/);
+ assert.match($('pomoStreak').textContent,/Defender o fogo agora/);assert.equal($('pomoStreakChip').dataset.state,'risk');
+ assert.match($('pomoInsights').textContent,/Ontem foram 1h 40min[.] Bora igualar[?]/);
+ // Two days later it is out; the record stays.
+ p.advance(2*24*3600000);$('pomoViewTimer').click();$('pomoViewInsights').click();
+ assert.equal($('pomoStreak').dataset.state,'out');assert.match($('pomoStreak').textContent,/^0dias seguidos/);assert.match($('pomoStreak').textContent,/Seu recorde é 5 dias/);
+ $('pomoStreak').querySelector('.pomo-streak-go').click();assert.equal($('pomodoroPage').dataset.view,'timer');
+ console.log('PASS pomodoro insights: fire lit/at risk/out with record and milestone, timer chip, last 7 days vs yesterday, period totals, peak hour, tasks, year days, new blocks at once');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));

@@ -119,7 +119,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomodoro [data-level="3"]{background:color-mix(in srgb,var(--accent) 76%,var(--soft))}
 .pomodoro [data-level="4"]{background:var(--accent)}
 .pomodoro [data-level=future]{background:transparent}
-.pomo-year-scroll,.pomo-week-scroll{overflow-x:auto;padding:10px 0 4px;scrollbar-width:thin}
+.pomo-year-scroll{overflow-x:auto;padding:10px 0 4px;scrollbar-width:thin}
 .pomo-year{display:grid;grid-template-columns:28px auto;grid-template-rows:auto auto;gap:4px 6px;width:max-content}
 .pomo-year-months{display:grid;grid-template-columns:repeat(53,11px);column-gap:3px;font-size:10px;color:var(--muted);height:14px}
 .pomo-year-months span{white-space:nowrap}
@@ -133,10 +133,6 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-legend{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)}
 .pomo-legend span{width:11px;height:11px;border-radius:3px}
 .pomo-legend span:first-of-type{margin-left:4px}.pomo-legend span:last-of-type{margin-right:4px}
-.pomo-week-grid{display:grid;grid-template-columns:30px repeat(24,minmax(14px,1fr));gap:3px;min-width:430px}
-.pomo-hour{font-size:9px;color:var(--muted);white-space:nowrap}
-.pomo-wd{font-size:10px;color:var(--muted);line-height:16px}
-.pomo-slot{height:16px;border-radius:4px}
 .pomo-tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
 .pomo-tasks li>div{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:6px}
 .pomo-tasks li>div span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -146,3 +142,77 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-empty{padding:40px 24px;border-radius:22px;background:var(--surface);border:1px dashed var(--line);text-align:center}
 .pomo-empty strong{font-size:16px;font-weight:600}.pomo-empty p{margin:6px auto 16px;max-width:340px;font-size:13px;color:var(--muted)}
 @container (max-width:640px){.pomo-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.pomo-tile strong{font-size:20px}}
+/* The fire */
+.pomo-flame .f-o{fill:#ff6a14}.pomo-flame .f-i{fill:#ffc93c}
+.pomo-flame[data-state=risk] .f-o{fill:#f29a66}.pomo-flame[data-state=risk] .f-i{fill:#ffe0b0}
+.pomo-flame[data-state=out] .f-o{fill:var(--line)}.pomo-flame[data-state=out] .f-i{fill:transparent}
+.pomo-flame-wrap{display:inline-grid;place-items:center;line-height:0}
+.pomodoro svg.pomo-flame{width:auto;height:auto}
+.pomo-flame-body{transform-origin:50% 92%;transform-box:fill-box}
+.pomo-flame[data-state=lit] .pomo-flame-body{animation:pomo-flicker 2.4s ease-in-out infinite}
+.pomo-flame[data-state=risk] .pomo-flame-body{animation:pomo-fade 1.8s ease-in-out infinite}
+@keyframes pomo-flicker{0%,100%{transform:scale(1,1) skewX(0)}25%{transform:scale(.97,1.04) skewX(-2deg)}50%{transform:scale(1.02,.97) skewX(1deg)}75%{transform:scale(.98,1.03) skewX(2deg)}}
+@keyframes pomo-fade{50%{opacity:.55;transform:scale(.94)}}
+/* timer chip */
+.app .pomo-chips .pomo-streak-chip{gap:4px;padding:0 12px 0 8px;font-variant-numeric:tabular-nums}
+.pomo-streak-chip b{font-size:14px;font-weight:700}
+.pomo-streak-chip[data-state=lit]{border-color:#f6b48a!important;background:color-mix(in srgb,#ff8a3d 12%,var(--surface))!important}
+.pomo-streak-chip[data-state=lit] b{color:#e0561f}
+.app.dark .pomo-streak-chip[data-state=lit] b{color:#ffab70}
+.pomo-streak-chip[data-state=risk]{border-color:#e9b9a0!important;animation:pomo-nudge 2.6s ease-in-out infinite}
+.pomo-streak-chip[data-state=out] b{color:var(--muted)}
+@keyframes pomo-nudge{0%,80%,100%{transform:none}85%{transform:rotate(-4deg)}90%{transform:rotate(4deg)}95%{transform:rotate(-2deg)}}
+/* streak hero */
+.pomo-streak{position:relative;overflow:hidden;display:grid;grid-template-columns:auto 1fr;gap:6px 22px;align-items:center;padding:24px 26px;border-radius:28px;background:var(--surface);border:1px solid var(--line)}
+.pomo-streak[data-state=lit]{background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,#ff8a3d 22%,var(--surface)) 0%,var(--surface) 60%);border-color:color-mix(in srgb,#ff8a3d 35%,var(--line))}
+.pomo-streak[data-state=risk]{background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,#e9a37a 16%,var(--surface)) 0%,var(--surface) 60%)}
+.pomo-streak-top{display:flex;align-items:center;gap:6px;grid-row:span 2}
+.pomo-streak-flame svg{filter:drop-shadow(0 8px 18px #ff6a2b40)}
+.pomo-streak[data-state=out] .pomo-streak-flame svg{filter:none}
+.pomo-streak-count{display:flex;flex-direction:column;line-height:1}
+.pomo-streak-count strong{font-size:64px;font-weight:700;letter-spacing:-3px;font-variant-numeric:tabular-nums}
+.pomo-streak[data-state=lit] .pomo-streak-count strong{color:#e0561f}
+.app.dark .pomo-streak[data-state=lit] .pomo-streak-count strong{color:#ff9a55}
+.pomo-streak[data-state=out] .pomo-streak-count strong{color:var(--muted)}
+.pomo-streak-count span{font-size:13px;color:var(--muted);margin-top:6px}
+.pomo-streak-text h3{margin:0;font-size:20px;font-weight:600;letter-spacing:-.3px}
+.pomo-streak-text p{margin:4px 0 0;font-size:14px;color:var(--muted);line-height:1.45}
+.pomo-streak-week{grid-column:2;display:flex;gap:6px;list-style:none;margin:8px 0 0;padding:0}
+.pomo-streak-week li{flex:1;max-width:46px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.pomo-streak-week li>.pomo-flame-wrap,.pomo-streak-dot{height:26px;display:grid;place-items:center}
+.pomo-streak-dot{width:22px;height:22px!important;border-radius:50%;background:var(--soft)}
+.pomo-streak-week li[data-state=today] .pomo-streak-dot{background:transparent;border:2px dashed #f0a273}
+.pomo-streak-week li[data-state=future] .pomo-streak-dot{opacity:.45}
+.pomo-streak-week li[data-state=done] span{color:#e0561f;font-weight:700}
+.pomo-streak-foot{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.pomo-streak-foot b{color:var(--ink);font-weight:600}
+.app .pomo-streak-go{grid-column:1/-1;justify-self:start;margin-top:6px}
+.pomo-streak[data-state=risk] .pomo-streak-go{background:#e0561f!important;color:#fff!important}
+/* summary row */
+.pomo-insights-head h2{margin:0}
+.pomo-period-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.pomo-period-row h3{margin:0;font-size:15px;font-weight:600}
+.pomodoro[data-view=insights] .pomo-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* last 7 days */
+.pomo-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.pomo-card-head span{font-size:13px;color:var(--muted)}
+.pomo-beat{font-size:13px!important;color:var(--ink)!important}
+.pomo-days{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;list-style:none;margin:14px 0 0;padding:0}
+.pomo-days li{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.pomo-days-value{font-size:11px;color:var(--muted);height:14px;font-variant-numeric:tabular-nums}
+.pomo-days li[data-today=true] .pomo-days-value{color:var(--ink);font-weight:600}
+.pomo-days-track{position:relative;width:100%;max-width:44px;height:140px;border-radius:12px;background:var(--soft);display:flex;align-items:flex-end;overflow:visible}
+.pomo-days-track i{display:block;width:100%;border-radius:12px;background:color-mix(in srgb,var(--accent) 45%,var(--soft));transition:height .5s cubic-bezier(.22,1,.36,1)}
+.pomo-days li[data-today=true] .pomo-days-track i{background:var(--accent)}
+.pomo-days-mark{position:absolute;left:-4px;right:-4px;height:0;border-top:2px dashed var(--ink);opacity:.55}
+.pomo-days-label{font-size:12px;color:var(--muted)}
+.pomo-days li[data-today=true] .pomo-days-label{color:var(--ink);font-weight:600}
+@container (max-width:640px){
+ .pomo-streak{grid-template-columns:1fr;padding:22px 20px;text-align:left}
+ .pomo-streak-top{grid-row:auto}
+ .pomo-streak-week{grid-column:1;justify-content:space-between}
+ .pomodoro[data-view=insights] .pomo-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .pomodoro[data-view=insights] .pomo-tiles .pomo-tile:first-child{grid-column:1/-1}
+ .pomo-days{gap:6px}.pomo-days-track{height:110px}
+}
+.pomodoro .pomo-insights-head{display:block}
