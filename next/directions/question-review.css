@@ -1,0 +1,59 @@
+/* Question suggestions (member), set editor and suggestions queue (administrator). Same shell as the import menu. */
+#qrDialog{top:clamp(20px,5dvh,48px);bottom:auto;margin:0 auto;width:min(680px,calc(100% - 32px));max-height:calc(100dvh - clamp(20px,5dvh,48px) - 20px);padding:0;border:1px solid var(--line);border-radius:26px;background:var(--surface);color:var(--ink);box-shadow:0 24px 100px #0004;overflow:hidden}
+#qrDialog::backdrop{background:#1319137a}
+#qrDialog[open]{display:flex;flex-direction:column}
+.qr-body{display:flex;flex-direction:column;min-height:0;flex:1}
+.qr-body>.editor-heading{padding:26px 28px 6px}
+.qr-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:8px 28px 16px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.qr-body>.editor-footer{padding:14px 28px 22px;border-top:1px solid var(--line);margin:0}
+.qr-lead{margin:4px 0 14px;font-size:14px;color:var(--muted)}
+.qr-error{margin:10px 0 0;font-size:13px;color:var(--negative)}.qr-error:empty{display:none}
+.qr-empty{padding:28px 10px;text-align:center;color:var(--muted);font-size:14px}
+/* suggest */
+.qr-kinds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.app .qr-kinds button,.qr-kinds button{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:transparent;color:var(--ink);text-align:left}
+.qr-kinds button>span:last-child{display:flex;flex-direction:column;gap:2px}.qr-kinds strong{font-size:14px;font-weight:600}.qr-kinds small{font-size:12px;color:var(--muted);line-height:1.35}
+.qr-radio{width:16px;height:16px;margin-top:2px;flex:none;border-radius:50%;border:2px solid var(--line)}
+.qr-kinds button[aria-checked=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.qr-kinds button[aria-checked=true] .qr-radio{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px var(--surface)}
+.qr-note>span{display:flex;justify-content:space-between}.qr-counter{color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+#qrDialog textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--canvas);color:var(--ink);font:inherit;font-size:14px;line-height:1.45;resize:vertical}
+#qrDialog textarea:focus-visible,#qrDialog input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#qrDialog .editor-field input{height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--canvas)}
+/* editor */
+.qr-question{border:1px solid var(--line);border-radius:16px;margin:10px 0;background:var(--surface)}
+.qr-question>summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none}
+.qr-question>summary::-webkit-details-marker{display:none}
+.qr-question>summary b{flex:none;font-size:13px}
+.qr-stem-preview{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--muted)}
+.qr-badge{flex:none;padding:3px 9px;border-radius:999px;background:#f3e2c2;color:#5d4a22;font-size:11px;font-weight:600}
+.app.dark .qr-badge{background:#3d3424;color:#efd9a8}
+.qr-question[open]{padding-bottom:12px}
+.qr-question[open]>:not(summary){margin-left:14px;margin-right:14px}
+.qr-option{display:flex;gap:10px;margin:10px 0}
+.qr-correct{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:8px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.qr-correct input{width:18px;height:18px;accent-color:var(--accent)}
+.qr-option-fields{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.qr-option-fields textarea:last-child{font-size:13px;color:var(--muted)}
+/* review cards */
+.qr-tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:999px;width:max-content;margin-bottom:12px}
+.app .qr-tabs button,.qr-tabs button{padding:6px 14px;border-radius:999px;background:transparent;color:var(--muted);font-size:13px}
+.qr-tabs button[aria-pressed=true]{background:var(--soft);color:var(--accent);font-weight:600}
+.qr-review{padding:14px 16px;margin:10px 0;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.qr-question .qr-review{border-color:#e9cf9c;background:color-mix(in srgb,#f3e2c2 30%,var(--surface))}
+.qr-review-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.qr-kind{padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:600}
+.qr-review-head small{font-size:12px;color:var(--muted)}
+.qr-review-where{margin:8px 0 2px;font-size:12px;color:var(--muted)}
+.qr-review-stem{margin:0;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qr-review-note{margin:8px 0 0;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.qr-review-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:12px}
+.qr-review-done{margin:10px 0 0;font-size:12px;font-weight:600;color:var(--muted)}
+/* solver: "Ver mais" */
+.solver-more{position:relative;margin-top:14px}
+.app .solver-more-toggle,.solver-more-toggle{padding:6px 12px;border-radius:999px;background:transparent;color:var(--muted);font-size:13px;border:1px solid var(--line)}
+.solver-more-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:5;min-width:200px;padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 12px 32px #0002}
+.app .solver-more-menu button,.solver-more-menu button{display:block;width:100%;padding:10px 12px;border-radius:10px;background:transparent;color:var(--ink);text-align:left;font-size:14px}
+.solver-more-menu button:hover{background:var(--soft)}
+.solver-more-menu[hidden]{display:none}
+@media(max-width:600px){.qr-kinds{grid-template-columns:minmax(0,1fr)}.qr-body>.editor-heading,.qr-scroll{padding-left:18px;padding-right:18px}.qr-body>.editor-footer{padding:12px 18px 18px}}

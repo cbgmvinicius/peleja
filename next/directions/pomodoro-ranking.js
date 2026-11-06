@@ -80,7 +80,8 @@
      el('span',{className:'pomo-board-total'},el('strong',{textContent:r.shown?dur(r.shown):'0 min'}),el('span',{className:'pomo-board-bar'},bar)));
     li.dataset.place=String(place);if(r.live?.running&&r.live.mode==='focus')li.dataset.live='true';body.append(li);});
   }
-  panel.replaceChildren(head,liveBox,body);
+  const mine=list.find(r=>r.me),note=mine?.hidden?el('p',{className:'pomo-ranking-note',textContent:'Você escolheu não aparecer nos rankings: só você vê a sua linha. Dá para mudar em Configurações → Privacidade.'}):null;
+  panel.replaceChildren(head,note,liveBox,body);
  }
 
  // ---------- publishing my live state ----------
@@ -103,7 +104,7 @@
   if(!P.user()||prefs().friends===false)return;
   let r;try{r=await P.rpc('pomodoro_ranking',{p_from:startOfDay(now()).toISOString()});}catch{return;}
   if(r?.error||!Array.isArray(r.data))return;
-  const focusing=new Set(r.data.filter(x=>!x.me&&x.live?.running&&x.live.mode==='focus').map(x=>x.userId));
+  const focusing=new Set(r.data.filter(x=>!x.me&&!x.anonymous&&x.live?.running&&x.live.mode==='focus').map(x=>x.userId));
   if(seen)for(const x of r.data)if(focusing.has(x.userId)&&!seen.has(x.userId)){
    const text=`${x.name} começou a estudar. Bora junto?`;
    globalThis.toast?.(text,'info');

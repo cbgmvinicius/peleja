@@ -193,6 +193,11 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    list.append(li);
   });
   const content=el('div',{className:'solver-question'},el('p',{className:'solver-stem',textContent:item.question}),list);
+  // "Ver mais" > "Sugerir mudança": a member reports a problem with this question (kind + explanation).
+  const more=el('div',{className:'solver-more'}),moreBtn=el('button',{type:'button',className:'solver-more-toggle',textContent:'Ver mais'}),moreMenu=el('div',{className:'solver-more-menu',hidden:true});
+  moreBtn.setAttribute('aria-expanded','false');moreBtn.onclick=()=>{moreMenu.hidden=!moreMenu.hidden;moreBtn.setAttribute('aria-expanded',String(!moreMenu.hidden));};
+  moreMenu.append(el('button',{type:'button',textContent:'Sugerir mudança',onclick:()=>{moreMenu.hidden=true;moreBtn.setAttribute('aria-expanded','false');globalThis.PELEJA_SUGGEST?.(setInfo.id,q,`${setInfo.title} · Questão ${q+1}`);}}));
+  if(globalThis.PELEJA_SUGGEST)more.append(moreBtn,moreMenu);
   if(item.hint){
    // The hint stays hidden until asked for, and stays open for that question once asked.
    const open=hintOpen.has(q),panel=el('div',{className:'solver-hint',hidden:!open},el('span',{innerHTML:ICON.hint}),el('p',{textContent:item.hint}));
@@ -201,6 +206,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    content.append(toggle,panel);
   }
   if(show&&session.mode==='treino'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
+  if(more.childElementCount)content.append(more);
   body.replaceChildren(content);body.scrollTop=0;
   if(dir)motion(content,[{opacity:0,transform:`translateX(${dir*14}px)`},{opacity:1,transform:'none'}],{duration:240,easing:EASE});
   renderQuestionFoot();

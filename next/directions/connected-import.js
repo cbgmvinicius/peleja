@@ -99,7 +99,9 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
     if(result.error){toast(message(result.error),'info');return;}
     toast('Conjunto apagado','info');await loadSets();
    },{description:`“${s.title}” e suas ${s.count} ${s.count===1?'questão':'questões'} saem do Peleja.`,accept:'Apagar',destructive:true});
-   host.append(el('div',{className:'import-set'},el('span',{textContent:s.title}),el('small',{textContent:`${s.count} ${s.count===1?'questão':'questões'}`}),remove));
+   const edit=el('button',{type:'button',className:'icon',title:'Editar conjunto',onclick:()=>{close(true);globalThis.PELEJA_EDIT_SET?.(s.id);}},el('span',{className:'sr-only',textContent:`Editar ${s.title}`}));
+   edit.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.8 5a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.7 18.5Z"/></svg>');
+   host.append(el('div',{className:'import-set'},el('span',{textContent:s.title}),el('small',{textContent:`${s.count} ${s.count===1?'questão':'questões'}`}),edit,remove));
   }
  }
  async function loadSets(){const result=await client.rpc('question_sets_list');if(result.error)throw result.error;sets=Array.isArray(result.data)?result.data:[];renderSets();refreshSave();}
@@ -150,8 +152,8 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
    const value=PelejaQuiz.normalize(raw),digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value.questions)));
    quiz=value;fingerprint=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
    const options=quiz.questions.reduce((n,q)=>n+q.answerOptions.length,0),topicCount=new Set(quiz.questions.map(q=>q.topic).filter(Boolean)).size;
-   $('importSummary').replaceChildren(el('strong',{textContent:quiz.title}),el('br'),`${quiz.questions.length} ${quiz.questions.length===1?'questão':'questões'} · ${options} alternativas${topicCount?` · ${topicCount} ${topicCount===1?'tema':'temas'}`:''} · todas com gabarito e comentário`);
-   $('importQuestions').replaceChildren(...quiz.questions.map(card));topics();
+   $('importSummary').replaceChildren(`${quiz.questions.length} ${quiz.questions.length===1?'questão':'questões'} · ${options} alternativas${topicCount?` · ${topicCount} ${topicCount===1?'tema':'temas'}`:''} · todas com gabarito e comentário`);
+   $('importSetTitle').value=quiz.title||'';$('importQuestions').replaceChildren(...quiz.questions.map(card));topics();
    $('importEntry').hidden=true;$('importReview').hidden=false;
    const m=suggest(quiz.source);
    status(m?'Apostila escolhida pelo link do NotebookLM cadastrado nela. Confira antes de importar.':'Escolha a disciplina, a prova e a apostila.', 'ok');
@@ -183,7 +185,7 @@ globalThis.PELEJA_INSTALL_IMPORT=({client,allowed})=>{
   const t=target();if(!quiz||!t||saving)return;
   saving=true;refreshSave();$('importSave').setAttribute('aria-busy','true');status('Importando…','busy');
   try{
-   const common={p_title:quiz.title.trim()||'Questões do NotebookLM',p_source_url:quiz.source||'',p_questions:quiz.questions,p_fingerprint:fingerprint};
+   const common={p_title:$('importSetTitle').value.trim().slice(0,200)||quiz.title.trim()||'Questões do NotebookLM',p_source_url:quiz.source||'',p_questions:quiz.questions,p_fingerprint:fingerprint};
    const result=t.kind==='exam'?await client.rpc('save_exam_question_set',{p_exam_id:t.sourceId,...common}):await client.rpc('save_question_set',{p_material_id:t.sourceId,...common});
    if(result.error)throw result.error;
    const count=quiz.questions.length;saving=false;close(true);

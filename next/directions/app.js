@@ -52,10 +52,11 @@ function toast(text,icon='info'){
   const parts=String(text).split(' · '),title=document.createElement('span');title.className='toast-title';title.textContent=parts.shift();copy.append(title);
   if(parts.length){const detail=document.createElement('span');detail.className='toast-detail';detail.textContent=parts.join(' · ');copy.append(detail);}
   el.append(symbol,copy);el.hidden=false;
-  toastAnimation=motion(el,[{opacity:0,transform:'translate(-50%, 10px) scale(.97)'},{opacity:1,transform:'translate(-50%, 0) scale(1)'}],{duration:240,easing:'cubic-bezier(.22,.8,.25,1)'});
+  const tx=globalThis.matchMedia?.('(max-width:760px)')?.matches?'0':'-50%'; // the phone toast is not centered with a transform
+  toastAnimation=motion(el,[{opacity:0,transform:`translate(${tx}, 10px) scale(.97)`},{opacity:1,transform:`translate(${tx}, 0) scale(1)`}],{duration:240,easing:'cubic-bezier(.22,.8,.25,1)'});
   toastTimer=setTimeout(()=>{
     if(version!==toastVersion)return;
-    toastAnimation=motion(el,[{opacity:1,transform:'translate(-50%, 0)'},{opacity:0,transform:'translate(-50%, 6px)'}],{duration:180,easing:'ease-in',fill:'forwards'});
+    toastAnimation=motion(el,[{opacity:1,transform:`translate(${tx}, 0)`},{opacity:0,transform:`translate(${tx}, 6px)`}],{duration:180,easing:'ease-in',fill:'forwards'});
     const finish=()=>{if(version===toastVersion){el.hidden=true;toastAnimation?.cancel();toastAnimation=null;}};
     if(toastAnimation)toastAnimation.onfinish=finish;else finish();
   },3000);

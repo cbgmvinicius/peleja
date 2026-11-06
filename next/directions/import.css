@@ -30,7 +30,7 @@
 
 .import-sets{margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--soft)}
 .import-sets-title{margin:0 0 6px;font-size:12px;color:var(--muted)}
-.import-set{display:grid;grid-template-columns:minmax(0,1fr) auto 36px;align-items:center;gap:10px;font-size:13px}
+.import-set{display:grid;grid-template-columns:minmax(0,1fr) auto 36px 36px;align-items:center;gap:10px;font-size:13px}
 .import-set span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .import-set small{color:var(--muted)}
 .import-set .icon{width:36px;height:36px;color:var(--muted)}
