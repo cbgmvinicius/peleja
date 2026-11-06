@@ -46,7 +46,7 @@ globalThis.PELEJA_INSTALL_QUESTION_REVIEW=({client,allowed})=>{
  async function editSet(setId,focusIndex=null,suggestion=null){
   shell('EDITAR QUESTÕES','Carregando…',[el('p',{className:'qr-lead',textContent:'Carregando o conjunto…'})]);
   let set;try{const r=await client.rpc('question_set',{p_id:setId});if(r.error||!r.data)throw r.error||Error('Conjunto não encontrado');set=r.data;}catch(e){shell('EDITAR QUESTÕES','Não deu',[el('p',{className:'qr-error',textContent:message(e)})]);return;}
-  const listInfo=(await client.rpc('question_sets_list').catch(()=>({data:[]})))?.data?.find?.(s=>s.id===setId);
+  const listInfo=(await Promise.resolve(client.rpc('question_sets_list')).catch(()=>({data:[]})))?.data?.find?.(s=>s.id===setId);
   let pendingList=[];try{const r=await client.rpc('question_suggestions_review_list',{p_status:'pending'});pendingList=(r.data||[]).filter(s=>s.setId===setId);}catch{}
   const title=el('input',{value:listInfo?.title||set.title||'',maxLength:200,id:'qrSetTitle'});
   const original=JSON.stringify({t:title.value,q:set.questions});

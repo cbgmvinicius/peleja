@@ -50,7 +50,7 @@
   if(loading)return loading;if(loaded&&!force)return;
   loading=(async()=>{
    const from=addDays(startOfDay(now()),-371).toISOString();
-   const r=await P.rpc('pomodoro_blocks_mine',{p_from:from}).catch(()=>({error:{}}));
+   const r=await Promise.resolve(P.rpc('pomodoro_blocks_mine',{p_from:from})).catch(()=>({error:{}}));
    if(!r.error&&Array.isArray(r.data)&&owner===P.user()){blocks=r.data;loaded=true;}
    loading=null;redraw();
   })();
