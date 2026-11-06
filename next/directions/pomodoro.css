@@ -308,3 +308,40 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-slider input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 25%,transparent)}
 .pomo-slider input[type=range]:disabled{opacity:.45;cursor:default}
 .pomo-range-ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+/* Ranking view */
+.pomodoro[data-view=ranking]{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "ranking";max-width:760px}
+.pomodoro[data-view=ranking]>:not(.pomo-head):not(.pomo-ranking){display:none!important}
+.pomo-ranking{grid-area:ranking;display:flex;flex-direction:column;gap:16px}
+.pomo-ranking-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pomo-ranking-head h2{margin:0;font-size:24px;font-weight:600;letter-spacing:-.4px}
+.pomo-ranking-head p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.pomo-live{padding:14px 16px;border-radius:20px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.pomo-live h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:14px;font-weight:600}
+.pomo-live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pomo-pulse 1.6s ease-in-out infinite}
+.pomo-live-list{display:flex;flex-wrap:wrap;gap:10px 18px}
+.pomo-live-person{display:flex;align-items:center;gap:10px}
+.pomo-live-person>span:last-child{display:flex;flex-direction:column;line-height:1.25}.pomo-live-person b{font-size:14px;font-weight:600}.pomo-live-person small{font-size:12px;color:var(--muted)}
+.pomo-avatar{position:relative;width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--soft);color:var(--accent);font-weight:600;font-size:15px}
+.pomo-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.pomo-avatar[data-live]::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2.5px solid var(--accent)}
+.pomo-avatar[data-live=break]::after{border-color:#6d8fa3}
+.pomo-avatar[data-live=paused]::after{border-color:var(--line);border-style:dashed}
+.pomo-board{list-style:none;margin:0;padding:6px;border:1px solid var(--line);border-radius:22px;background:var(--surface);display:flex;flex-direction:column}
+.pomo-board li{display:grid;grid-template-columns:32px auto minmax(0,1fr) minmax(110px,32%);align-items:center;gap:12px;padding:12px 12px;border-radius:16px}
+.pomo-board li+li{border-top:1px solid var(--line)}
+.pomo-board li.is-me{background:color-mix(in srgb,var(--accent) 9%,var(--surface));border-top-color:transparent}
+.pomo-board li.is-me+li{border-top-color:transparent}
+.pomo-place{font-size:14px;font-weight:600;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.pomo-board li[data-place="1"] .pomo-place{color:#c98a1f}.pomo-board li[data-place="2"] .pomo-place{color:#8d969a}.pomo-board li[data-place="3"] .pomo-place{color:#b2734b}
+.pomo-board-name{display:flex;flex-direction:column;min-width:0}
+.pomo-board-name b{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pomo-board-name>small{font-size:12px;color:var(--muted)}
+.pomo-board li[data-live=true] .pomo-board-name>small{color:var(--accent);font-weight:600}
+.pomo-you{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--soft);font-size:11px;font-weight:600;color:var(--accent);vertical-align:2px}
+.pomo-board-total{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pomo-board-total strong{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pomo-board-bar{display:block;width:100%;height:6px;border-radius:999px;background:var(--soft);overflow:hidden}
+.pomo-board-bar i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .5s cubic-bezier(.22,1,.36,1)}
+.pomo-ranking-empty{padding:28px 20px;border:1px dashed var(--line);border-radius:22px;text-align:center;color:var(--muted);font-size:14px}
+.pomo-ranking-empty strong{display:block;color:var(--ink);font-size:15px}.pomo-ranking-empty p{margin:6px 0 0}
+@media (max-width:760px){.pomo-board li{grid-template-columns:26px auto minmax(0,1fr) auto;gap:10px;padding:10px 8px}.pomo-board-bar{width:72px}.pomo-board-total strong{font-size:15px}.pomo-ranking .pomo-period{width:100%;overflow-x:auto}.app .pomo-ranking .pomo-period button{flex:1;padding:6px 8px}}
