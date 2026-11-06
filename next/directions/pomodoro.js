@@ -79,7 +79,44 @@
  // Flow minimum reached: a short dip in the background and back, without leaving the focus.
  function wave(){if(!soundOn()||!ambient)return;fadeTo(.35,500);setTimeout(()=>{if(state.timer.mode==='focus'&&state.timer.status==='running')fadeTo(1,900);},700);}
  function chime(name,volume=.9){if(!state.prefs.effects)return;try{const a=new Audio(soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
- function notify(text){if(!state.prefs.notify||!document.hidden||typeof Notification==='undefined'||Notification.permission!=='granted')return;try{new Notification('Peleja · Pomodoro',{body:text,icon:'../assets/peleja-icon-192.png',tag:'peleja-pomodoro'});}catch{}}
+ // ---------- notifications ----------
+ // Through a small service worker: Android has no "new Notification()", and only a worker's
+ // notification can carry buttons (Pausar / Pular / Concluir) that come back to this page.
+ const ICON='../assets/peleja-icon-192.png',ONGOING='peleja-pomodoro-ongoing';
+ let swReg=null,swTried=false;
+ const allowed=()=>state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='granted';
+ async function worker(){
+  if(swReg||swTried||!navigator.serviceWorker?.register)return swReg;
+  swTried=true;
+  try{swReg=await navigator.serviceWorker.register('pomodoro-sw.js',{scope:'./'});}catch{swReg=null;}
+  return swReg;
+ }
+ navigator.serviceWorker?.addEventListener?.('message',e=>{
+  if(e.data?.type!=='pomodoro-action')return;
+  ({toggle:()=>actions.toggle(),skip:()=>actions.skip(),finish:()=>actions.stop()})[e.data.action]?.();
+ });
+ async function notify(text){
+  if(!allowed()||!document.hidden)return;
+  const reg=await worker();
+  try{if(reg)await reg.showNotification('Peleja · Pomodoro',{body:text,icon:ICON,badge:ICON,tag:'peleja-pomodoro-alert'});else new Notification('Peleja · Pomodoro',{body:text,icon:ICON,tag:'peleja-pomodoro-alert'});}catch{}
+ }
+ // While a session is on, one silent notification that stays: what phase, until when, and the buttons.
+ // A website cannot tick a countdown there, so it shows the end time, which stays right.
+ let ongoingSig='';
+ async function updateOngoing(){
+  const t=state.timer,c=state.config,on=allowed()&&t.status!=='idle';
+  const sig=on?[t.status,t.mode,t.setsDone,t.runningSince,Math.round(t.accMs/1000),state.task,c.flow,t.flowNotified].join('|'):'off';
+  if(sig===ongoingSig)return;ongoingSig=sig;
+  const reg=on?await worker():swReg;if(!reg)return;
+  if(!on){for(const n of await reg.getNotifications({tag:ONGOING}).catch(()=>[]))n.close();return;}
+  const left=Math.max(0,c.targetSets-t.setsDone),remaining=planned(t.mode)-elapsed(),end=new Date(now()+Math.max(0,remaining));
+  const hhmm=`${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}`;
+  const title=t.mode==='focus'?`Foco – ${left<=1?'última série':`faltam ${left} séries`}`:`${modeName[t.mode]} – ${left===1?'falta 1 série':`faltam ${left} séries`}`;
+  let body=t.status==='paused'?`Pausado · ${fmt(remaining)} restantes`:t.mode==='focus'&&c.flow&&remaining<=0?'Flow · tempo mínimo cumprido':`${t.mode==='focus'?'Foco':'Pausa'} até ${hhmm}`;
+  if(state.task)body+=' · '+state.task;
+  try{await reg.showNotification(title,{tag:ONGOING,body,icon:ICON,badge:ICON,silent:true,renotify:false,requireInteraction:true,timestamp:+end,
+   actions:[{action:'toggle',title:t.status==='running'?'Pausar':'Continuar'},{action:'skip',title:'Pular'},{action:'finish',title:'Concluir'}]});}catch{}
+ }
 
  // ---------- state machine ----------
  function startPhase(mode,at=now(),carry=0){Object.assign(state.timer,{mode,status:'running',accMs:carry,runningSince:at,phaseStartedAt:at-carry,flowNotified:false});}
@@ -242,6 +279,7 @@
   $('pomoSideRight').innerHTML=`<span class="pomo-side-btn">${icon(active?I2.check:I2.stack)}</span><span>${active?'Concluir':'Séries'}</span>`;$('pomoSideRight').dataset.kind=active?'finish':'sets';
   $('pomoPlay').innerHTML=icon(running?I.pause:I.play);$('pomoPlay').setAttribute('aria-label',running?'Pausar':t.status==='paused'?'Continuar':'Começar');
   draw();if(running&&!frame)frame=requestAnimationFrame(loop);
+  updateOngoing();
  }
 
  // ---------- sheets and dialogs ----------
@@ -387,12 +425,12 @@
  settingsPanel.innerHTML='<h2 class="settings-panel-title">Pomodoro</h2>';
  const card=el('div',{className:'settings-card'},el('h3',{textContent:'Avisos e sons'}));
  const effects=switchRow('Sons de efeito (apitos de início e fim)',state.prefs.effects,'pomoPrefEffects');effects.classList.add('settings-row');
- const notifyRow=switchRow('Avisar quando um foco ou pausa terminar (com o Peleja em segundo plano)',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
+ const notifyRow=switchRow('Notificações do Pomodoro: o timer em andamento, com Pausar, Pular e Concluir, e um aviso quando um foco ou pausa terminar',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
  card.append(effects,notifyRow);settingsPanel.append(card);
  effects.querySelector('input').onchange=e=>{state.prefs.effects=e.target.checked;save();};
  notifyRow.querySelector('input').onchange=async e=>{
   if(e.target.checked&&typeof Notification!=='undefined'&&Notification.permission!=='granted'){const p=await Notification.requestPermission().catch(()=>'denied');if(p!=='granted'){e.target.checked=false;globalThis.toast?.('O navegador não permitiu avisos','info');}}
-  state.prefs.notify=e.target.checked;save();
+  state.prefs.notify=e.target.checked;save();if(e.target.checked)await worker();updateOngoing();
  };
  globalThis.PELEJA_POMODORO_SETTINGS=settingsPanel;
 
