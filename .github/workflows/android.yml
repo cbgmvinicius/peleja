@@ -1,0 +1,66 @@
+name: App Android
+# Builds the Peleja Android app (android-app/). Pull requests and pushes that touch it get a debug build;
+# a tag android-vX.Y builds the signed release APK and publishes it on GitHub Releases.
+on:
+  pull_request:
+    paths: ['android-app/**', '.github/workflows/android.yml']
+  push:
+    branches: [main]
+    paths: ['android-app/**', '.github/workflows/android.yml']
+    tags: ['android-v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: android-app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - run: npm ci --ignore-scripts
+      - run: npx cap sync android
+      - name: Debug build
+        if: ${{ !startsWith(github.ref, 'refs/tags/android-v') }}
+        working-directory: android-app/android
+        run: ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/android-v') }}
+        with:
+          name: peleja-debug-apk
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+      - name: Signed release build
+        if: ${{ startsWith(github.ref, 'refs/tags/android-v') }}
+        working-directory: android-app/android
+        env:
+          KEYSTORE_B64: ${{ secrets.PELEJA_KEYSTORE_B64 }}
+          PELEJA_KEYSTORE_PASSWORD: ${{ secrets.PELEJA_KEYSTORE_PASSWORD }}
+          PELEJA_KEY_ALIAS: ${{ secrets.PELEJA_KEY_ALIAS }}
+          PELEJA_KEY_PASSWORD: ${{ secrets.PELEJA_KEY_PASSWORD }}
+          PELEJA_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "Faltam os segredos de assinatura (PELEJA_KEYSTORE_B64...)"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/peleja.jks"
+          export PELEJA_KEYSTORE="$RUNNER_TEMP/peleja.jks" PELEJA_VERSION_NAME="${GITHUB_REF_NAME#android-v}"
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Peleja-${PELEJA_VERSION_NAME}.apk"
+          rm -f "$RUNNER_TEMP/peleja.jks"
+      - name: Publish release
+        if: ${{ startsWith(github.ref, 'refs/tags/android-v') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/Peleja-*.apk --title "Peleja para Android ${GITHUB_REF_NAME#android-v}" --notes "Baixe o Peleja-*.apk no celular Android e abra para instalar (permita instalar de fontes desconhecidas quando o Android pedir)."
