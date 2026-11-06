@@ -1,0 +1,94 @@
+/* Pomodoro page: one centered column, ring in the middle, quiet controls around it. */
+#pomodoroPage[hidden],.pomodoro [hidden]{display:none!important}
+.pomodoro{max-width:560px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:22px;--pomo-ring:var(--accent)}
+.pomodoro[data-mode=short],.pomodoro[data-mode=long]{--pomo-ring:#6d8fa3}
+.app.dark .pomodoro[data-mode=short],.app.dark .pomodoro[data-mode=long]{--pomo-ring:#9dbccd}
+.pomodoro svg{width:18px;height:18px}
+.pomo-head{text-align:center}
+.pomo-head h2{margin:0;font-size:28px;font-weight:500;letter-spacing:-.6px}
+.pomo-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.pomo-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.pomo-chips>*{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--ink)}
+.app .pomo-chips button:hover{background:var(--soft)}
+.pomo-task{max-width:260px}.pomo-task span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pomo-task.is-empty{color:var(--muted)!important;border-style:dashed}
+.pomo-status i{width:8px;height:8px;border-radius:50%;background:var(--muted);opacity:.6}
+.pomo-status[data-on=true] i{background:var(--accent);opacity:1;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent);animation:pomo-pulse 2s ease-in-out infinite}
+.pomo-sound-chip[data-muted=true]{color:var(--muted)!important}
+@keyframes pomo-pulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 8%,transparent)}}
+.pomo-ring-wrap{position:relative;width:min(320px,78vw);aspect-ratio:1}
+.pomodoro .pomo-ring{width:100%;height:100%}
+.pomo-track{fill:none;stroke:var(--soft);stroke-width:10}
+.pomo-progress{fill:none;stroke:var(--pomo-ring);stroke-width:9;stroke-linecap:round;stroke-linejoin:round;transition:stroke .4s}
+.pomo-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.pomo-center strong{font-size:clamp(46px,14vw,64px);font-weight:500;letter-spacing:-2px;font-variant-numeric:tabular-nums;line-height:1}
+.pomodoro[data-over=true] .pomo-center strong{color:var(--pomo-ring)}
+.pomo-mode{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px}
+.app .pomo-flow-break{margin-top:10px;padding:8px 16px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
+.pomo-durations{display:flex;gap:10px}
+.pomo-durations button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:118px;padding:10px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);transition:background .18s,opacity .18s}
+.pomo-durations span{font-size:11px;color:var(--muted)}.pomo-durations b{font-size:16px;font-weight:500}
+.app .pomo-durations button:not(:disabled):hover{background:var(--soft)}
+.pomo-durations button:disabled{opacity:.55}
+.pomo-controls{display:flex;align-items:center;gap:22px}
+.app .pomo-side{width:52px;height:52px;display:grid;place-items:center;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+.app .pomo-side:hover{background:var(--soft);color:var(--accent)}
+.app .pomo-play{width:76px;height:76px;display:grid;place-items:center;border-radius:26px;background:var(--button);color:var(--onbutton);box-shadow:0 10px 26px color-mix(in srgb,var(--button) 30%,transparent);transition:transform .15s,border-radius .3s}
+.app .pomo-play:hover{background:var(--button);transform:scale(1.04)}
+.pomodoro[data-status=running] .pomo-play{border-radius:50%}
+.pomodoro .pomo-play svg{width:28px;height:28px}
+.pomo-goal{width:100%;padding:18px 20px;border-radius:24px;background:var(--surface);border:1px solid var(--line)}
+.pomo-goal-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.pomo-goal-top>span{display:inline-flex;align-items:center;gap:7px}
+.pomo-long-pill{padding:4px 10px;border-radius:999px;background:var(--soft);font-size:12px}
+.pomodoro .pomo-goal-top svg,.pomodoro .pomo-skip svg{width:15px;height:15px}
+.pomo-goal-mid{display:flex;align-items:center;gap:8px;margin:12px 0 14px}
+.pomo-count{display:flex;align-items:baseline;gap:2px;margin-right:auto}
+.pomo-count b{font-size:34px;font-weight:500;letter-spacing:-1px;font-variant-numeric:tabular-nums}.pomo-count span{color:var(--muted)}
+.app .pomo-skip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:transparent;color:var(--muted);font-size:12px}
+.app .pomo-skip:not(:disabled):hover{background:var(--soft);color:var(--ink)}
+.pomo-skip:disabled{opacity:.4}
+.pomo-left{display:flex;flex-direction:column;align-items:flex-end;margin-left:8px;text-align:right}
+.pomo-left b{font-size:14px;font-weight:500}.pomo-left small{font-size:11px;color:var(--muted)}
+.pomo-segments{display:flex;align-items:center;gap:5px}
+.pomo-segments span{flex:1;height:8px;border-radius:999px;background:var(--soft);transition:background .3s}
+.pomo-segments span[data-state=done]{background:var(--accent)}
+.pomo-segments span[data-state=current]{background:color-mix(in srgb,var(--accent) 45%,var(--soft));animation:pomo-current 1.8s ease-in-out infinite}
+.pomo-segments i{width:4px;height:4px;border-radius:50%;background:var(--muted);opacity:.5}
+@keyframes pomo-current{50%{opacity:.55}}
+html[data-peleja-motion=off] .pomodoro *{animation:none!important}
+/* dialogs */
+.pomo-dialog{width:min(440px,calc(100vw - 24px));padding:26px;border:1px solid var(--line);border-radius:26px;background:var(--surface);color:var(--ink);box-shadow:0 24px 80px #0004}
+.pomo-dialog::backdrop{background:#171d1866;backdrop-filter:blur(3px)}
+.pomo-dialog h2{margin:0;font-size:22px;font-weight:500}
+.pomo-lead{margin:6px 0 18px;color:var(--muted);font-size:13px;line-height:1.5}
+.pomo-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+.app .pomo-dialog .editor-cancel{padding:10px 16px;border-radius:24px;background:transparent;color:var(--muted)}
+.pomo-switch{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;cursor:pointer;font-size:14px}
+.pomo-switch input{position:absolute;opacity:0;pointer-events:none}
+.pomo-switch input:focus-visible+.switch-visual{outline:2px solid var(--accent);outline-offset:3px}
+.pomo-stepper{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;font-size:14px}
+.pomo-stepper>div{display:flex;align-items:center;gap:6px}
+.pomo-stepper b{min-width:30px;text-align:center;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+.pomo-stepper small{color:var(--muted);font-size:12px;min-width:38px}
+.app .pomo-stepper button{width:34px;height:34px;border-radius:50%;background:var(--soft);font-size:18px;line-height:1}
+.pomo-long{padding:2px 14px;border-radius:16px;background:color-mix(in srgb,var(--soft) 55%,transparent);margin-bottom:6px}
+.pomo-hint{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+.pomo-recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.app .pomo-recent button{padding:6px 12px;border-radius:999px;background:var(--soft);font-size:12px}
+.pomo-sound-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+.app .pomo-sound-list button{padding:14px;border-radius:16px;border:1px solid var(--line);background:transparent;text-align:left;font-size:14px}
+.app .pomo-sound-list button[aria-pressed=true]{border-color:var(--accent);background:var(--soft);color:var(--accent);font-weight:600}
+@container (max-width:560px){
+ .pomodoro{gap:18px}
+ .pomo-head h2{font-size:24px}
+ .pomo-durations button{min-width:0;flex:1}
+ .pomo-durations{width:100%}
+ .pomo-controls{gap:18px}
+ .pomo-goal-mid{flex-wrap:wrap}
+ .pomo-left{order:5;width:100%;flex-direction:row;justify-content:space-between;margin:4px 0 0;align-items:baseline}
+}
+.app .pomo-play,.app .pomo-play:hover{background:var(--button)!important;color:var(--onbutton)!important}
+#pomodoroSettingsPanel{border-top:0!important;margin-top:0!important;padding-top:0!important}
+/* Phone: the floating "+" would sit on top of the timer controls. */
+@media (max-width:760px){.app:has(#pomodoroPage:not([hidden])) #new{display:none!important}}

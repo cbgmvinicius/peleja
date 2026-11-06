@@ -166,7 +166,7 @@
   const accountProfile=PELEJA_INSTALL_PROFILE({client,getSession:()=>currentSession,getName:()=>profileName,onName:name=>{profileName=name;},onReload:()=>{simulations.load();dashboard.load();}});
   importer=PELEJA_INSTALL_IMPORT({client,allowed:()=>isAdmin});
   solver=PELEJA_INSTALL_SOLVER({client,saveChange});globalThis.PELEJA_REFRESH_SOLVER=()=>solver.ready();
-  const pageRoutes={painel:['dashboardPage',showDashboard],biblioteca:['libraryPage',showLibraryPage],provas:['facultyPage',showFacultyPage],simulados:['mockPage',showMocks],ranking:['performancePage',showGeneralRanking],cursos:['extraPage',showExtraCourses]};
+  const pageRoutes={painel:['dashboardPage',showDashboard],biblioteca:['libraryPage',showLibraryPage],provas:['facultyPage',showFacultyPage],pomodoro:['pomodoroPage',showPomodoro],simulados:['mockPage',showMocks],ranking:['performancePage',showGeneralRanking],cursos:['extraPage',showExtraCourses]};
   function restoreRoute(hash){
    let parts;try{parts=hash.replace(/^#/,'').split('/').map(decodeURIComponent);}catch{parts=[];}
    const route=Object.hasOwn(pageRoutes,parts[0])?parts[0]:'painel';pageRoutes[route][1]();
@@ -181,7 +181,7 @@
   let lastSynced=0;
   async function refresh(session,manual=false,silent=false){
    const requestedRoute=location.hash;
-   const view=['dashboardPage','extraPage','mockPage','performancePage','facultyPage'].find(id=>$(id)&&!$(id).hidden);
+   const view=['pomodoroPage','dashboardPage','extraPage','mockPage','performancePage','facultyPage'].find(id=>$(id)&&!$(id).hidden);
    const course=extraActive;
    const button=$('refresh');if(manual){button.classList.add('is-syncing');button.disabled=true;button.setAttribute('aria-busy','true');}
    const ticket=++version;if(recoveryDraft&&recoveryDraft.owner!==session?.user?.id)clearDraft();currentSession=session;if(pendingConflict?.owner!==session?.user?.id)pendingConflict=null;if(!manual)lockContent();loading=true;
@@ -201,9 +201,9 @@
     const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
     if(!manual)restoreRoute(requestedRoute);
-    importer.ready();solver.ready();
+    importer.ready();solver.ready();globalThis.PELEJA_POMODORO?.attach({client,getUser:()=>currentSession?.user?.id});
     document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;
-    if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
+    if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();else if(view==='pomodoroPage')showPomodoro({quiet:true});if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     lastSynced=Date.now();
     return true;
    }catch(error){if(manual){if(ticket===version&&!silent)toast('Não foi possível sincronizar. Tente novamente.','info');}else if(ticket===version)fail(error.message==='Sua conta ainda não está autorizada.'?error.message:'Não foi possível carregar os dados. Volte ao acesso e tente novamente.');}
