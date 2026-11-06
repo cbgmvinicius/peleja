@@ -66,6 +66,7 @@
   "directions/notebooklm-dark.svg",
   "directions/notebooklm-light.svg",
   "directions/pomodoro-insights.js",
+  "directions/pomodoro-ranking.js",
   "directions/pomodoro.css",
   "directions/pomodoro.js",
   "directions/questions.js",

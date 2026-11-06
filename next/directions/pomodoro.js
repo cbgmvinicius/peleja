@@ -399,7 +399,7 @@
   attach(options){client=options.client;getUser=options.getUser;flush();},
   detach(){client=null;getUser=()=>null;},
   state:()=>state,elapsed,actions,advance,render,outbox,
-  rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),user:()=>getUser(),page,
+  rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,
   reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};save();render();}
  };
  advance();render();

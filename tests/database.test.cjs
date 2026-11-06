@@ -254,5 +254,36 @@ await user(C);assert.equal((await rpc('pomodoro_blocks_mine',[null],['timestampt
 await rpc('pomodoro_block_delete',[blockId],['uuid']);assert.equal((await rpc('pomodoro_blocks_mine',[null],['timestamptz'])).length,0);
 await user(B);await assert.rejects(()=>rpc('pomodoro_blocks_mine',[null],['timestamptz']),/Acesso negado/);
 console.log('PASS Pomodoro blocks: idempotent save, trimmed task, wall-time and minimum checks, privacy, owner delete, inactive denial');
+
+// Pomodoro ranking and live status.
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-ranking.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-ranking.sql'),'utf8'));
+const lCasts=['text','boolean','timestamptz','integer','timestamptz'];
+await user(C);
+await rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b010','Cardio',ago(120),ago(70),50*60000,50*60000,0],pCasts);
+await rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b011','Cardio',ago(60),ago(35),25*60000,25*60000,0],pCasts);
+await rpc('pomodoro_live_set',['focus',true,ago(10),0,ago(10)],lCasts);
+await user(A);
+await rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b012','Hemato',ago(60*30),ago(60*30-25),25*60000,25*60000,0],pCasts);
+let rank=await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz']);
+const byName=Object.fromEntries(rank.map(r=>[r.userId,r]));
+assert.equal(rank[0].userId,C,'most focus first');assert.equal(byName[C].totalMs,75*60000);assert.equal(byName[C].sessions,2);
+assert.equal(byName[C].live.mode,'focus');assert.equal(byName[C].live.running,true);assert.equal(byName[C].me,false);
+assert.equal(byName[A].totalMs,0,'a block before the period does not count');assert.equal(byName[A].me,true);assert.equal(byName[A].live,null);
+assert.ok(!rank.some(r=>r.userId===B),'inactive members stay out');
+assert.ok(!JSON.stringify(rank).includes('Cardio'),'tasks stay private');
+assert.equal((await rpc('pomodoro_ranking',[ago(60*24*40)],['timestamptz'])).find(r=>r.userId===A).totalMs,25*60000);
+await assert.rejects(()=>rpc('pomodoro_live_set',['nap',true,ago(1),0,ago(1)],lCasts),/check/);
+await assert.rejects(()=>rpc('pomodoro_live_set',['focus',true,ago(60*30),0,ago(60*30)],lCasts),/Horário/);
+await assert.rejects(()=>db.query('select * from public.pomodoro_live'),/permission denied/);
+// A stale live row (app closed) no longer shows; clearing removes it.
+await db.exec('reset role');await db.query(`update public.pomodoro_live set updated_at=now()-interval '4 minutes' where user_id=$1`,[C]);
+await user(A);assert.equal((await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz'])).find(r=>r.userId===C).live,null);
+await user(C);await rpc('pomodoro_live_set',['short',false,ago(2),60000,ago(3)],lCasts);
+assert.equal((await rpc('pomodoro_ranking',[ago(60)],['timestamptz'])).find(r=>r.userId===C).live.running,false);
+await rpc('pomodoro_live_set',[null,null,null,null,null],lCasts);assert.equal((await rpc('pomodoro_ranking',[ago(60)],['timestamptz'])).find(r=>r.userId===C).live,null);
+await user(B);await assert.rejects(()=>rpc('pomodoro_ranking',[ago(60)],['timestamptz']),/Acesso negado/);
+console.log('PASS Pomodoro ranking: period totals, order, live status with 3-minute expiry, private tasks, inactive members and denial');
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});
