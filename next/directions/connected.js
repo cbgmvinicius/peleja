@@ -197,13 +197,18 @@
     profileName=profile.data?.display_name||'Conta';isAdmin=profile.data?.role==='admin';app.dataset.previewRole=isAdmin?'admin':'participant';
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
-    writer.load(remote.data,session.user.id);showLibraryPage();render();renderFacultyPage();syncFilterControls();
+    writer.load(remote.data,session.user.id);if(!manual)showLibraryPage();render(); // a sync never changes the tab you are on
+    renderFacultyPage();syncFilterControls();
     const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
     if(!manual)restoreRoute(requestedRoute);
     importer.ready();solver.ready();review.ready();globalThis.PELEJA_POMODORO?.attach({client,getUser:()=>currentSession?.user?.id});
     document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;
-    if(manual){if(view==='dashboardPage')showDashboard();else if(view==='extraPage'){showExtraCourses();if(course)openExtraCourse(course);}else if(view==='facultyPage')showFacultyPage();else if(view==='mockPage')showMocks();else if(view==='performancePage')showGeneralRanking();else if(view==='pomodoroPage')showPomodoro({quiet:true});if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
+    if(manual){
+     // Redraw whatever is on screen now, in place (the person may have changed tabs while it synced).
+     const now=['dashboardPage','extraPage','mockPage','performancePage'].find(id=>$(id)&&!$(id).hidden);
+     if(now==='dashboardPage')renderDashboard();else if(now==='mockPage')renderMocks();else if(now==='performancePage')renderGeneralRanking();else if(now==='extraPage'&&view==='extraPage'&&course&&extraActive===course)openExtraCourse(course);
+     if(!silent)toast(results.every(Boolean)?'Sincronizado':'Dados atualizados parcialmente · tente sincronizar novamente',results.every(Boolean)?'refresh':'info');}
     lastSynced=Date.now();
     return true;
    }catch(error){if(manual){if(ticket===version&&!silent)toast('Não foi possível sincronizar. Tente novamente.','info');}else if(ticket===version)fail(error.message==='Sua conta ainda não está autorizada.'?error.message:'Não foi possível carregar os dados. Volte ao acesso e tente novamente.');}
