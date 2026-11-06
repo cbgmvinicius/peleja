@@ -37,6 +37,7 @@ async function app(){
   {userId:'friend',name:'Wilton',me:false,totalMs:40*MIN,sessions:1,live:{mode:'focus',running:true,since:iso(T0-20*MIN),accMs:0,phaseStartedAt:iso(T0-20*MIN)}},
   {userId:'u3',name:'Ulisses',me:false,totalMs:0,sessions:0,live:{mode:'short',running:true,since:iso(T0-2*MIN),accMs:0,phaseStartedAt:iso(T0-2*MIN)}},
   {userId:'u4',name:'Danillo',me:false,totalMs:0,sessions:0,live:null}];
+const saved0=structuredClone(board.rows);
  $('navPomodoro').click();await tick();
  // Third tab: Ranking.
  $('pomoViewRanking').click();await tick(120);
@@ -44,13 +45,20 @@ async function app(){
  const from=new Date(rankCalls.at(-1).p_from);assert.equal(from.getHours(),0);assert.equal(from.getMinutes(),0);
  // The focus in progress counts: Wilton 40 + 20 = 60 min passes Vinícius (50).
  const names=()=>[...w.document.querySelectorAll('.pomo-board li .pomo-board-name b')].map(b=>b.firstChild.textContent);
- assert.deepEqual(names(),['Wilton','Vinícius','Danillo','Ulisses']);
+ assert.deepEqual(names(),['Wilton','Vinícius'],'only who focused in the period');assert.ok(!$('pomoRanking').textContent.includes('null'));
  const first=w.document.querySelector('.pomo-board li');assert.match(first.textContent,/1h/);assert.equal(first.dataset.live,'true');assert.match(first.textContent,/focando agora/);assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/focando há 20 min/);
  assert.ok(first.querySelector('.pomo-avatar img'),'friend photo');
  assert.match(w.document.querySelector('.pomo-board li.is-me').textContent,/Você/);
  assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/Estudando agora/);assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/na pausa/);
- // Ties share the place.
- assert.deepEqual([...w.document.querySelectorAll('.pomo-board li')].map(li=>li.dataset.place),['1','2','3','3']);
+ // Compact board: top 3, the one above you, you and the one below; "Ver todos" opens the rest; ties share the place.
+ board.rows=[...'ABCDEFGH'].map((c,i)=>({userId:'p'+c,name:'Pessoa '+c,me:false,totalMs:(100-i*10)*MIN,sessions:1,live:null}));
+ board.rows.push({userId:'student',name:'Vinícius',me:true,totalMs:35*MIN,sessions:1,live:null},{userId:'pZ',name:'Pessoa Z',me:false,totalMs:35*MIN,sessions:1,live:null});
+ w.PELEJA_POMODORO_RANKING.setPeriod('day');await tick(120);
+ const shown=()=>[...w.document.querySelectorAll('.pomo-board li:not(.pomo-board-gap)')].map(li=>li.dataset.place+':'+li.querySelector('.pomo-board-name b').firstChild.textContent);
+ assert.deepEqual(shown(),['1:Pessoa A','2:Pessoa B','3:Pessoa C','8:Pessoa Z','8:Vinícius','10:Pessoa H']);
+ assert.equal(w.document.querySelectorAll('.pomo-board-gap').length,1);
+ $('pomoBoardMore').click();assert.equal(shown().length,10);assert.equal($('pomoBoardMore').textContent,'Mostrar menos');$('pomoBoardMore').click();
+ board.rows=structuredClone(saved0);w.PELEJA_POMODORO_RANKING.setPeriod('day');await tick(120);
  // Periods: week starts on Monday (2026-11-02), month on the 1st.
  [...$('pomoRanking').querySelectorAll('.pomo-period button')].find(b=>b.textContent==='Semana').click();await tick(80);
  assert.equal(new Date(rankCalls.at(-1).p_from).getDate(),2);

@@ -346,3 +346,6 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-ranking-empty strong{display:block;color:var(--ink);font-size:15px}.pomo-ranking-empty p{margin:6px 0 0}
 @media (max-width:760px){.pomo-board li{grid-template-columns:26px auto minmax(0,1fr) auto;gap:10px;padding:10px 8px}.pomo-board-bar{width:72px}.pomo-board-total strong{font-size:15px}.pomo-ranking .pomo-period{width:100%;overflow-x:auto}.app .pomo-ranking .pomo-period button{flex:1;padding:6px 8px}}
 .pomo-ranking-note{margin:0;padding:10px 14px;border-radius:14px;background:var(--soft);font-size:13px;color:var(--muted)}
+.pomo-board-gap{display:block!important;padding:2px 0!important;text-align:center;color:var(--muted);letter-spacing:2px;border-top:0!important}
+.pomo-board-gap+li{border-top-color:transparent!important}
+.app .pomo-board-more{display:block;margin:10px auto 0;padding:8px 16px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
