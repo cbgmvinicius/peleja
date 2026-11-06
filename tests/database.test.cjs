@@ -297,7 +297,7 @@ await user(C);assert.equal((await rpc('pomodoro_ranking',[ago(60*24)],['timestam
 await rpc('ranking_privacy_set',['hidden'],['text']);
 await user(A);assert.ok(!(await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz'])).some(r=>r.totalMs===75*60000),'hidden members do not appear');
 assert.deepEqual(await rpc('ranking_privacy_list',[],[]),[{userId:C,mode:'hidden'}]);
-await user(C);const self=(await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz'])).find(r=>r.me);assert.equal(self.hidden,true,'hidden members still see their own row');
+await user(C);const seenByHidden=await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz']);assert.equal(seenByHidden.length,1,'hidden members see nobody else');const self=seenByHidden[0];assert.equal(self.me,true);assert.equal(self.hidden,true,'hidden members still see their own row');
 await assert.rejects(()=>rpc('ranking_privacy_set',['ghost'],['text']),/Opção inválida/);
 await rpc('ranking_privacy_set',['visible'],['text']);assert.deepEqual(await rpc('ranking_privacy_list',[],[]),[]);
 await assert.rejects(()=>db.query('select * from public.ranking_privacy'),/permission denied/);

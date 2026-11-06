@@ -78,6 +78,11 @@ const saved0=structuredClone(board.rows);
  $('pomoPrefFriends').click();assert.equal(P.state().prefs.friends,false);
  board.rows[2].live={mode:'focus',running:true,since:iso(p.now()),accMs:0,phaseStartedAt:iso(p.now())};
  await R.watchFriends();assert.equal(toasts.length,1);
+ // "Não participar": no board, no live box, no heads-up.
+ w.PELEJA_MY_PRIVACY='hidden';R.draw();
+ assert.match($('pomoRanking').textContent,/não está participando dos rankings/);assert.equal($('pomoRanking').querySelector('.pomo-board'),null);assert.equal($('pomoRanking').querySelector('.pomo-live'),null);
+ $('pomoPrefFriends').click();const before2=toasts.length;board.rows[3].live=null;await R.watchFriends();board.rows[3].live={mode:'focus',running:true,since:iso(p.now()),accMs:0,phaseStartedAt:iso(p.now())};await R.watchFriends();assert.equal(toasts.length,before2,'no heads-up while not taking part');
+ w.PELEJA_MY_PRIVACY='visible';
  console.log('PASS pomodoro ranking: tab, periods (day/week from Monday/month), live focus counted, ties, live strip, photos, my live state published, friend heads-up once, setting');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));

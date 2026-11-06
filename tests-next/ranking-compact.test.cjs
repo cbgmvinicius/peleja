@@ -19,5 +19,10 @@ setTimeout(()=>{
  v.PELEJA_MY_PRIVACY='anonymous';v.PELEJA_MARK_PRIVACY();assert.equal(v.document.querySelector('.rank-privacy').dataset.mode,'anonymous');assert.match(v.document.querySelector('.rank-privacy').title,/Anônimo/);
  v.PELEJA_MY_PRIVACY='visible';v.PELEJA_MARK_PRIVACY();assert.equal(v.document.querySelector('.rank-privacy'),null);
  v.PELEJA_MY_PRIVACY='hidden';v.PELEJA_MARK_PRIVACY();v.PELEJA_MARK_PRIVACY();assert.equal(v.document.querySelectorAll('.rank-privacy').length,1);
- console.log('PASS privacy mark on your own row (anonymous / hidden / none)');v.close();
+ // "Não participar": the comparison card and the Ranking page lists give way to a notice.
+ v.document.querySelector('.app main').insertAdjacentHTML('beforeend','<section class="dashboard-comparison"></section><div id="rankingContent"><table class="ranking-table"><tbody><tr><td>1º</td></tr></tbody></table></div>');
+ v.PELEJA_MY_PRIVACY='hidden';v.PELEJA_MARK_PRIVACY();
+ assert.ok(v.document.querySelector('.dashboard-comparison').hasAttribute('data-abstained'));assert.match(v.document.getElementById('rankingContent').textContent,/não está participando/);
+ v.PELEJA_MY_PRIVACY='visible';v.PELEJA_MARK_PRIVACY();assert.ok(!v.document.querySelector('.dashboard-comparison').hasAttribute('data-abstained'));
+ console.log('PASS privacy mark on your own row (anonymous / hidden / none) and abstaining hides the rankings');v.close();
 },200);
