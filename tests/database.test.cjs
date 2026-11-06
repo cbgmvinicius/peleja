@@ -285,5 +285,59 @@ assert.equal((await rpc('pomodoro_ranking',[ago(60)],['timestamptz'])).find(r=>r
 await rpc('pomodoro_live_set',[null,null,null,null,null],lCasts);assert.equal((await rpc('pomodoro_ranking',[ago(60)],['timestamptz'])).find(r=>r.userId===C).live,null);
 await user(B);await assert.rejects(()=>rpc('pomodoro_ranking',[ago(60)],['timestamptz']),/Acesso negado/);
 console.log('PASS Pomodoro ranking: period totals, order, live status with 3-minute expiry, private tasks, inactive members and denial');
+
+// Ranking privacy: anonymous and hidden.
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-ranking-privacy.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-ranking-privacy.sql'),'utf8'));
+await user(C);await rpc('ranking_privacy_set',['anonymous'],['text']);
+await user(A);rank=await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz']);
+const anon=rank.find(r=>r.anonymous);assert.equal(anon.name,'Anônimo');assert.notEqual(anon.userId,C);assert.equal(anon.totalMs,75*60000);assert.ok(!JSON.stringify(rank).includes(C),'the anonymous id never leaks');
+await user(C);assert.equal((await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz'])).find(r=>r.me).name!=='Anônimo',true,'you see yourself by name');
+await rpc('ranking_privacy_set',['hidden'],['text']);
+await user(A);assert.ok(!(await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz'])).some(r=>r.totalMs===75*60000),'hidden members do not appear');
+assert.deepEqual(await rpc('ranking_privacy_list',[],[]),[{userId:C,mode:'hidden'}]);
+await user(C);const self=(await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz'])).find(r=>r.me);assert.equal(self.hidden,true,'hidden members still see their own row');
+await assert.rejects(()=>rpc('ranking_privacy_set',['ghost'],['text']),/Opção inválida/);
+await rpc('ranking_privacy_set',['visible'],['text']);assert.deepEqual(await rpc('ranking_privacy_list',[],[]),[]);
+await assert.rejects(()=>db.query('select * from public.ranking_privacy'),/permission denied/);
+await user(B);await assert.rejects(()=>rpc('ranking_privacy_list',[],[]),/Acesso negado/);
+console.log('PASS Ranking privacy: anonymous name and id, hidden out of others\' ranking but visible to self, list, validation, denial');
+
+// Question editing (admin) and change suggestions (members).
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions.sql'),'utf8'));
+await user(A);const sgSet=await rpc('save_question_set',qbArgs(qbQuestions,'qb-material','b'.repeat(64)),qbCasts);
+const sgCasts=['uuid','integer','text','text'];
+await user(C);
+const sg1=await rpc('question_suggestion_submit',[sgSet,0,'answer','  O gabarito certo é Candida, segundo o Sampaio.  '],sgCasts);
+await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,1,'answer','x'],sgCasts),/Questão não encontrada/);
+await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'answer','x'.repeat(501)],sgCasts),/500 caracteres/);
+await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'nope','x'],sgCasts),/check/);
+await assert.rejects(()=>rpc('question_suggestions_review_list',[null],['text']),/Acesso negado/);
+await assert.rejects(()=>rpc('question_set_update',[sgSet,'Novo',null],['uuid','text','jsonb']),/Acesso negado/);
+const myTips=await rpc('question_suggestions_mine',[],[]);assert.equal(myTips.length,1);assert.equal(myTips[0].status,'pending');assert.equal(myTips[0].note,'O gabarito certo é Candida, segundo o Sampaio.');
+await assert.rejects(()=>db.query('select * from public.question_suggestions'),/permission denied/);
+await user(A);
+const queue=await rpc('question_suggestions_review_list',['pending'],['text']);
+assert.equal(queue.length,1);assert.ok(queue[0].author);assert.equal(queue[0].question.question,'Agente da pitiríase versicolor?');assert.equal(queue[0].kind,'answer');
+// Edit: title and text change; count of questions and alternatives must stay.
+const fixed=[{...qbQuestions[0],question:'Qual o agente da pitiríase versicolor?'}];
+await rpc('question_set_update',[sgSet,'  Micoses revisado  ',JSON.stringify(fixed)],['uuid','text','jsonb']);
+const after=await rpc('question_set',[sgSet],['uuid']);assert.equal(after.questions[0].question,'Qual o agente da pitiríase versicolor?');
+assert.equal((await rpc('question_sets_list',[],[])).find(s=>s.id===sgSet).title,'Micoses revisado');
+await assert.rejects(()=>rpc('question_set_update',[sgSet,null,JSON.stringify([...fixed,...fixed])],['uuid','text','jsonb']),/quantidade de questões/);
+await assert.rejects(()=>rpc('question_set_update',[sgSet,null,JSON.stringify([{...fixed[0],answerOptions:[...fixed[0].answerOptions,opt('Tinea',false)]}])],['uuid','text','jsonb']),/quantidade de alternativas/);
+await assert.rejects(()=>rpc('question_set_update',[sgSet,null,JSON.stringify([{...fixed[0],answerOptions:[opt('A',true),opt('B',true)]}])],['uuid','text','jsonb']),/gabarito ambíguo/);
+await rpc('question_set_update',[sgSet,'Só o título',null],['uuid','text','jsonb']);assert.equal((await rpc('question_set',[sgSet],['uuid'])).questions[0].question,'Qual o agente da pitiríase versicolor?');
+await rpc('question_suggestion_review',[sg1,true],['uuid','boolean']);
+await assert.rejects(()=>rpc('question_suggestion_review',[sg1,false],['uuid','boolean']),/já revisada/);
+assert.equal((await rpc('question_suggestions_review_list',['pending'],['text'])).length,0);assert.equal((await rpc('question_suggestions_review_list',[null],['text']))[0].status,'accepted');
+await user(C);assert.equal((await rpc('question_suggestions_mine',[],[]))[0].status,'accepted');
+await user(B);await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'other','x'],sgCasts),/Acesso negado/);
+await user(A);await rpc('delete_question_set',[sgSet],['uuid']);await db.exec('reset role');
+assert.equal(Number((await db.query('select count(*) n from public.question_suggestions')).rows[0].n),0,'deleting a set removes its suggestions');
+console.log('PASS Question suggestions: member submit with kind and 500-char note, admin queue with question and author, review once, outcome for the author, admin edit keeps counts, cascade');
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -16,7 +16,7 @@ globalThis.PELEJA_INSTALL_DASHBOARD=({client,getUser,getName})=>{
   if(!list.some(r=>r.total))return '<p class="dashboard-empty">Nenhuma pendência neste recorte.</p>';
   return `<ol class="dashboard-ranking">${list.map(r=>{
    const me=r.user_id===getUser(),rank=list.findIndex(x=>x.ratio===r.ratio&&x.done===r.done)+1,pct=Math.round(r.ratio*100);
-   const person={name:r.name,userId:r.user_id,me,photo:mockExams.flatMap(e=>e.participants||[]).find(p=>p.userId===r.user_id)?.photo};
+   const person={name:r.name,userId:r.user_id,me,photo:r.anonymous?null:mockExams.flatMap(e=>e.participants||[]).find(p=>p.userId===r.user_id)?.photo};
    return `<li data-person="${escapeHtml(r.user_id)}" class="${me?'is-me':''}"><span class="dashboard-place">${rank}º</span><span class="ranking-person">${mockPersonAvatar(person)}<span>${escapeHtml(r.name)}${me?'<small>Você</small>':''}</span></span><span class="dashboard-completion"><strong><b data-count="${r.done}">${r.done}</b><span> / <b data-count="${r.total}">${r.total}</b></span></strong><span class="dashboard-track" role="img" aria-label="${pct}% concluído"><i style="transform:scaleX(${pct/100})"></i></span></span></li>`;
   }).join('')}</ol>`;
  };
@@ -24,6 +24,6 @@ globalThis.PELEJA_INSTALL_DASHBOARD=({client,getUser,getName})=>{
  renderDashboard=()=>{originalRender();$('dashboardPage').querySelector('.dashboard-comparison-context>span:last-child')?.remove();};
  return {
   reset(){generation++;rows=null;failed=false;$('dashboardPage').replaceChildren();},
-  async load(){const ticket=++generation,owner=getUser();try{const result=await client.rpc('study_progress_next',{p_day:localQuestionDate()});if(ticket!==generation||owner!==getUser())return;if(result.error||!Array.isArray(result.data))throw Error('Comparativo indisponível');rows=result.data;failed=false;}catch{if(ticket!==generation||owner!==getUser())return;rows=null;failed=true;}renderDashboard();return !failed;}
+  async load(){const ticket=++generation,owner=getUser();try{const [result,privacy]=await Promise.all([client.rpc('study_progress_next',{p_day:localQuestionDate()}),client.rpc('ranking_privacy_list').catch(()=>({data:[]}))]);if(ticket!==generation||owner!==getUser())return;if(result.error||!Array.isArray(result.data))throw Error('Comparativo indisponível');const mode=new Map((Array.isArray(privacy?.data)?privacy.data:[]).map(p=>[p.userId,p.mode]));rows=result.data.filter(r=>r.user_id===owner||mode.get(r.user_id)!=='hidden').map(r=>r.user_id!==owner&&mode.get(r.user_id)==='anonymous'?{...r,name:'Anônimo',anonymous:true}:r);failed=false;}catch{if(ticket!==generation||owner!==getUser())return;rows=null;failed=true;}renderDashboard();return !failed;}
  };
 };

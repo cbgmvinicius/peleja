@@ -345,3 +345,4 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-ranking-empty{padding:28px 20px;border:1px dashed var(--line);border-radius:22px;text-align:center;color:var(--muted);font-size:14px}
 .pomo-ranking-empty strong{display:block;color:var(--ink);font-size:15px}.pomo-ranking-empty p{margin:6px 0 0}
 @media (max-width:760px){.pomo-board li{grid-template-columns:26px auto minmax(0,1fr) auto;gap:10px;padding:10px 8px}.pomo-board-bar{width:72px}.pomo-board-total strong{font-size:15px}.pomo-ranking .pomo-period{width:100%;overflow-x:auto}.app .pomo-ranking .pomo-period button{flex:1;padding:6px 8px}}
+.pomo-ranking-note{margin:0;padding:10px 14px;border-radius:14px;background:var(--soft);font-size:13px;color:var(--muted)}

@@ -50,7 +50,7 @@ async function app({role='admin',search='',delivery=null}={}){
  assert.equal($('importDialog').open,true);assert.equal($('importEntry').hidden,true);assert.equal($('importReview').hidden,false);
  assert.equal(w.document.querySelectorAll('#importQuestions details').length,2);
  assert.equal(w.document.querySelector('#importQuestions img'),null,'question text never becomes markup');assert.equal(w.pwned,undefined);
- assert.equal(w.document.getElementById('importTitle').textContent,'Importar questões');assert.equal(w.document.querySelector('#importDialog input:not([type=file])'),null,'no title field');
+ assert.equal(w.document.getElementById('importTitle').textContent,'Importar questões');assert.equal(w.document.getElementById('importSetTitle').value,'Micoses','title comes from the extension and can be edited');w.document.getElementById('importSetTitle').value='  Micoses  ';
  // Suggested by the NotebookLM link, following the discipline > exam > material order.
  assert.equal($('importSubject').value,'Dermatologia');assert.equal($('importExam').value,'pending');assert.equal($('importMaterial').selectedOptions[0].textContent,'D09 Micoses');
  assert.deepEqual(opts('importExam'),['Selecione a prova','Próxima prova','Provas pendentes','PR1.1','PR2.1']);

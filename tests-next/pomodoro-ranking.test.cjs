@@ -73,3 +73,12 @@ async function app(){
  console.log('PASS pomodoro ranking: tab, periods (day/week from Monday/month), live focus counted, ties, live strip, photos, my live state published, friend heads-up once, setting');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
+// Ranking page privacy (applied to the loaded data).
+{
+ const {applyRankingPrivacy}=require('../next/access/simulations.js');
+ const src={profiles:[{id:'me',display_name:'Eu'},{id:'a',display_name:'Ana'},{id:'h',display_name:'Hugo'}],photos:[{user_id:'a',image_data:'x'},{user_id:'h',image_data:'y'}],results:[{user_id:'a'},{user_id:'h'},{user_id:'me'}],university:[{user_id:'h'}],materials:[{user_id:'a'}],materialExams:{types:[],rows:[{user_id:'h'},{user_id:'a'}]}};
+ const out=applyRankingPrivacy(src,'me',[{userId:'a',mode:'anonymous'},{userId:'h',mode:'hidden'},{userId:'me',mode:'hidden'}]);
+ assert.deepEqual(out.profiles.map(p=>p.display_name),['Eu','Anônimo']);assert.equal(out.photos.length,0);
+ assert.deepEqual(out.results.map(r=>r.user_id),['a','me']);assert.equal(out.university.length,0);assert.deepEqual(out.materialExams.rows.map(r=>r.user_id),['a']);
+ console.log('PASS ranking page privacy: anonymous loses name and photo, hidden leaves every list, you always keep your row');
+}

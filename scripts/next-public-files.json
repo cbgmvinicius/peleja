@@ -69,6 +69,8 @@
   "directions/pomodoro-ranking.js",
   "directions/pomodoro.css",
   "directions/pomodoro.js",
+  "directions/question-review.css",
+  "directions/question-review.js",
   "directions/questions.js",
   "directions/quiz-format.js",
   "directions/solver.css",

@@ -21,3 +21,5 @@
  .mobile-sheet-panel button:active{background:var(--soft)}
  .mobile-sheet-panel hr{width:100%;margin:6px 0;border:0;border-top:1px solid var(--line)}
 }
+/* Phone: toasts sit above the tab bar and beside the "+" button instead of under them. */
+@media(max-width:760px){.app .toast{left:12px;right:84px;bottom:calc(86px + env(safe-area-inset-bottom));transform:none;min-width:0;max-width:none;z-index:45}.app .toast-copy{min-width:0}.app .toast-title,.app .toast-detail{overflow-wrap:anywhere}}
