@@ -1,5 +1,5 @@
 .connected-loading .viewport{visibility:hidden}.connected-mode .review-bar,.connected-mode .direction-note,.connected-mode .review-footer{display:none!important}
-.connected-mode body{background:#f5f4ef}.connected-mode body.review-dark{background:#1b1b1a}.connected-mode .viewport{max-width:1600px;padding:16px}.connected-mode .app{min-height:calc(100vh - 32px)}
+.connected-mode body{background:#f5f4ef}.connected-mode body.review-dark{background:#1b1b1a}/* The app fills the window: no preview frame around it. */.connected-mode .viewport{max-width:none;padding:0}.connected-mode .app{min-height:100vh;min-height:100dvh;border:0;border-radius:0;box-shadow:none}
 .connection-notice{padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--soft);color:var(--muted);font-size:12px}.connection-notice a{color:inherit}
 .connected-mode #facultyDemo{display:none!important}
 .connected-mode .app[data-preview-role=participant] [data-exam-menu],.connected-mode .app[data-preview-role=participant] #facultyCreate{display:none!important}

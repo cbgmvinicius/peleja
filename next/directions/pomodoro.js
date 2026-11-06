@@ -1,7 +1,7 @@
-// Pomodoro (inspired by the Sessions app): task, wavy progress ring, focus / short break / long break,
-// target sets, optional Flowmodoro (focus keeps counting past the minimum until you start the break),
-// ambient sounds loud while focusing, low during breaks, silent when paused or idle, and a chime at each
-// change. Each focus block is queued and saved to Supabase (pomodoro_blocks) once the app is connected.
+// Pomodoro: task, wavy progress ring, focus / short break / long break, a plan of series, optional flow
+// (focus keeps counting past the minimum until you start the break), ambient sound loud while focusing,
+// low during breaks, silent when paused or idle, and a chime at each change. Each focus block is queued
+// and saved to Supabase (pomodoro_blocks) once the app is connected.
 (()=>{
  const $=id=>document.getElementById(id);
  const now=()=>globalThis.PELEJA_NOW?.()??Date.now();
@@ -24,7 +24,7 @@
  const KEY='peleja-pomodoro-v1',OUTBOX='peleja-pomodoro-outbox-v1';
  const read=(key,fallback)=>{try{return {...fallback,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{return {...fallback};}};
  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
- const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:false},task:'',recentTasks:[],
+ const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:false},task:'',templates:[],
   timer:{status:'idle',mode:'focus',accMs:0,runningSince:0,phaseStartedAt:0,setsDone:0,flowNotified:false}};
  let state=read(KEY,DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k],...state[k]};
  const save=()=>write(KEY,state);
@@ -36,16 +36,25 @@
  // ---------- saving blocks (outbox survives reloads and offline) ----------
  let client=null,getUser=()=>null;
  const outbox=()=>{try{return JSON.parse(localStorage.getItem(OUTBOX)||'[]');}catch{return [];}};
- async function flush(){
-  if(!client||!getUser())return;
-  const pending=outbox();if(!pending.length)return;
-  const kept=[];
-  for(const b of pending){
-   if(b.user&&b.user!==getUser()){kept.push(b);continue;}
-   try{const r=await client.rpc('pomodoro_block_save',{p_id:b.id,p_task:b.task,p_started:b.startedAt,p_ended:b.endedAt,p_focus_ms:b.focusMs,p_planned_ms:b.plannedMs,p_flow_extra_ms:b.flowExtraMs});if(r.error&&!/check|Horário/.test(r.error.message||''))kept.push(b);}
-   catch{kept.push(b);}
-  }
-  write(OUTBOX,kept);globalThis.PELEJA_POMODORO_SAVED?.();
+ // One flush at a time; blocks added meanwhile wait for the next round and are never dropped.
+ let flushing=null,again=false;
+ function flush(){
+  if(flushing){again=true;return flushing;}
+  flushing=(async()=>{
+   await null; // let flushing be assigned before the body can finish
+   try{do{
+    again=false;
+    if(!client||!getUser())break;
+    const sent=new Set();
+    for(const b of outbox()){
+     if(b.user&&b.user!==getUser())continue;
+     try{const r=await client.rpc('pomodoro_block_save',{p_id:b.id,p_task:b.task,p_started:b.startedAt,p_ended:b.endedAt,p_focus_ms:b.focusMs,p_planned_ms:b.plannedMs,p_flow_extra_ms:b.flowExtraMs});if(!r.error||/check|Horário/.test(r.error.message||''))sent.add(b.id);}
+     catch{}
+    }
+    if(sent.size){write(OUTBOX,outbox().filter(b=>!sent.has(b.id)));globalThis.PELEJA_POMODORO_SAVED?.();}
+   }while(again);}catch(e){console.error(e);}finally{flushing=null;}
+  })();
+  return flushing;
  }
  function recordBlock(focusMs,endedAt){
   if(focusMs<60000)return; // under a minute is not a block
@@ -80,7 +89,7 @@
   state.timer.setsDone++;
   if(state.timer.setsDone>=state.config.targetSets){
    Object.assign(state.timer,{status:'idle',mode:'focus',accMs:0,runningSince:0,flowNotified:false});chime('session_end');notify('Meta da sessão concluída!');
-   save();render();syncSound();globalThis.toast?.('Meta da sessão concluída','check');return;
+   save();render();syncSound();openGoalReached();return;
   }
   const isLong=state.config.longEnabled&&state.timer.setsDone%state.config.longEvery===0;
   const carry=!state.config.flow&&!manual?Math.max(0,e-planned('focus')):0;
@@ -101,35 +110,76 @@
    }else{if(e<p)break;completeBreak({at:state.timer.runningSince+(p-state.timer.accMs)});}
   }
  }
+ // Session controls: play/pause in the middle; while a session is on, the side buttons reset or end it.
+ let flash='',flashTimer=0;
+ function showFlash(text){flash=text;clearTimeout(flashTimer);flashTimer=setTimeout(()=>{flash='';render();},3500);}
+ function resetTimer(){Object.assign(state.timer,{status:'idle',mode:'focus',accMs:0,runningSince:0,setsDone:0,flowNotified:false});}
+ function finishSession(celebrate){
+  const t=state.timer;if(t.mode==='focus'&&t.status!=='idle')recordBlock(elapsed(),now());
+  resetTimer();chime(celebrate?'session_end':'session_stop',.8);save();render();syncSound(600);
+  if(celebrate)openGoalReached();
+ }
  const actions={
   toggle(){
    const t=state.timer;
    if(t.status==='running'){t.accMs=elapsed();t.status='paused';t.runningSince=0;}
    else if(t.status==='paused'){t.status='running';t.runningSince=now();}
-   else{startPhase('focus');t.setsDone=0;chime('session_start',.7);}
+   else{flash='';startPhase('focus');t.setsDone=0;chime('session_start',.7);}
    save();render();syncSound(t.status==='running'?1500:600);
   },
   // Flow: "Começar pausa" ends the focus with the extra time counted.
   startBreak(){if(state.timer.mode!=='focus'||state.timer.status==='idle')return;completeFocus({manual:true});render();syncSound();},
-  skip(){if(state.timer.status==='idle')return;if(state.timer.mode==='focus')completeFocus({manual:true});else completeBreak();render();syncSound();},
-  stop(){
-   const t=state.timer;if(t.status==='idle')return;
-   if(t.mode==='focus')recordBlock(elapsed(),now());
-   Object.assign(t,{status:'idle',mode:'focus',accMs:0,runningSince:0,setsDone:0,flowNotified:false});chime('session_stop',.7);save();render();syncSound(600);
-  }
+  // Skip ends the current phase now (a focus counts as a set), only while running.
+  skip(){if(state.timer.status!=='running')return;if(state.timer.mode==='focus')completeFocus({manual:true});else completeBreak();render();syncSound();},
+  // Discard: back to the start, the focus in progress is not kept.
+  discard(){if(state.timer.status==='idle')return;resetTimer();chime('session_stop',.6);save();render();syncSound(600);},
+  // Finish: keeps what was focused; under a minute nothing counts; with sets left it asks first.
+  finish(){
+   const t=state.timer,c=state.config;if(t.status==='idle')return;
+   if(t.mode==='focus'&&elapsed()<60000){showFlash('Menos de 1 minuto não conta.\nBora de novo?');resetTimer();chime('session_stop',.6);save();render();syncSound(600);return;}
+   const left=Math.max(0,t.mode==='focus'?c.targetSets-(t.setsDone+1):c.targetSets-t.setsDone);
+   if(!left){finishSession(true);return;}
+   const text=`${left===1?'Ainda falta 1 série':`Ainda faltam ${left} séries`} do plano. O que você já focou fica salvo.`;
+   if(typeof confirmPeleja==='function')confirmPeleja('Concluir a sessão?',()=>finishSession(false),{description:text,accept:'Concluir'});else finishSession(false);
+  },
+  stop(){if(state.timer.status!=='idle')finishSession(false);}
  };
 
  // ---------- page ----------
+ const I2={
+  pencil:'<path d="M4.5 19.5l1-4.2L15.8 5a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.7 18.5Z"/><path d="M13.8 7l3.2 3.2"/>',
+  headphones:'<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6" rx="1.6"/><rect x="16.5" y="14" width="4" height="6" rx="1.6"/>',
+  routine:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 9h8M8 12.5h8M8 16h5"/>',
+  check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  reset:'<path d="M5 12a7 7 0 1 0 2.2-5.1"/><path d="M5 4.5v4h4"/>',
+  end:'<rect x="6.5" y="6.5" width="11" height="11" rx="3" fill="currentColor" stroke="none"/>',
+  cup:'<path d="M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 9.5h1.5a2.5 2.5 0 0 1 0 5H16"/>',
+  stopwatch:'<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.6M9.5 2.8h5"/>',
+  stack:'<path d="M4 8h16M4 12h16M4 16h16"/>',
+  trash:'<path d="M5 7h14M10 7V5h4v2M7 7l1 12.5h8L17 7"/>',
+  close:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  tree:'<path d="M12 3 6 11h3l-4 6h14l-4-6h3Z"/><path d="M12 17v4"/>',
+  drop:'<path d="M12 3.5c3.4 4.4 6 7.6 6 10.8a6 6 0 0 1-12 0c0-3.2 2.6-6.4 6-10.8Z"/>',
+  noise:'<path d="M3 12h2l2-6 3 12 3-9 2 6 2-3h4"/>',
+  fire:'<path d="M12 3c.6 3 3.6 4.6 5 7.4 1.5 3 .8 6.6-1.7 8.4A6.5 6.5 0 0 1 6 15c0-2.6 1.3-4.4 2.6-5.6.2 1.7 1 2.8 2.2 3.3C10.2 9 10.8 5.8 12 3Z"/>',
+  book:'<path d="M4 5.5c3-1 5.5-.5 8 1.5 2.5-2 5-2.5 8-1.5V19c-3-1-5.5-.5-8 1.5-2.5-2-5-2.5-8-1.5Z"/><path d="M12 7v13"/>',
+  waves:'<path d="M3 9c3-2 6 2 9 0s6 2 9 0M3 14c3-2 6 2 9 0s6 2 9 0"/>',
+  trophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7"/>'
+ };
+ const SOUND_ICONS={forest:I2.tree,rain:I2.drop,brown_noise:I2.noise,fireplace:I2.fire,library:I2.book,riverside:I2.waves};
+ const SOUND_NOTES={forest:'Pássaros e folhas',rain:'Chuva constante',brown_noise:'Grave e contínuo',fireplace:'Estalos de lenha',library:'Murmúrio baixinho',riverside:'Água correndo'};
  const page=el('section',{id:'pomodoroPage',className:'pomodoro',hidden:true});page.setAttribute('aria-label','Pomodoro');
- page.innerHTML=`<div class="pomo-head"><div><h2 id="pomoHeadline">Pronto para focar</h2><p id="pomoSub">Escolha a tarefa e dê play.</p></div></div>
- <div class="pomo-chips"><button type="button" class="pomo-task" id="pomoTask">${icon(I.task)}<span id="pomoTaskName"></span></button><span class="pomo-status" id="pomoStatus"><i></i><span></span></span><button type="button" class="pomo-sound-chip" id="pomoSoundChip"></button></div>
+ page.innerHTML=`<div class="pomo-head"></div>
+ <div class="pomo-taskline" id="pomoTaskLine"><button type="button" class="pomo-task" id="pomoTask"><span id="pomoTaskName"></span><span class="pomo-task-edit">${icon(I2.pencil)}</span></button>
+  <div class="pomo-meta"><span class="pomo-status" id="pomoStatus"><i></i><span></span></span><button type="button" class="pomo-sound-chip" id="pomoSoundChip"></button></div></div>
  <div class="pomo-ring-wrap"><svg class="pomo-ring" id="pomoRing" viewBox="0 0 300 300" aria-hidden="true"><circle class="pomo-track" cx="150" cy="150" r="128"/><path class="pomo-progress" id="pomoProgress" d=""/></svg>
- <div class="pomo-center"><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-mode" id="pomoMode">Foco</span><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden>Começar pausa</button></div></div>
- <div class="pomo-durations"><button type="button" data-duration="focus"><span>Foco</span><b id="pomoFocusMin"></b></button><button type="button" data-duration="short"><span>Pausa curta</span><b id="pomoShortMin"></b></button></div>
- <div class="pomo-controls"><button type="button" class="pomo-side" id="pomoSoundBtn" aria-label="Sons de fundo">${icon(I.sound)}</button><button type="button" class="pomo-play" id="pomoPlay"></button><button type="button" class="pomo-side" id="pomoSetsBtn" aria-label="Séries">${icon(I.sets)}</button></div>
- <div class="pomo-goal"><div class="pomo-goal-top"><span>${icon(I.flag)}Meta da sessão</span><span class="pomo-long-pill" id="pomoLongPill"></span></div>
- <div class="pomo-goal-mid"><div class="pomo-count"><b id="pomoDone">0</b><span id="pomoTarget">/4</span></div><button type="button" class="pomo-skip" id="pomoSkip">${icon(I.skip)}Pular</button><button type="button" class="pomo-skip" id="pomoStop">${icon(I.stop)}Encerrar</button><div class="pomo-left"><b id="pomoLeft"></b><small id="pomoNudge"></small></div></div>
- <div class="pomo-segments" id="pomoSegments"></div></div>`;
+ <div class="pomo-center"><span class="pomo-mode" id="pomoMode">Foco</span><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-set-line" id="pomoSetLine"></span><p class="pomo-flash" id="pomoIdleLabel" hidden></p><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden>Começar pausa</button></div></div>
+ <div class="pomo-swap">
+  <div class="pomo-plan" id="pomoConfig" role="group" aria-label="Plano da sessão"><button type="button" data-duration="focus"><span class="pomo-plan-icon">${icon(I2.stopwatch)}</span><span><b id="pomoFocusMin"></b><small>foco</small></span></button><button type="button" data-duration="short"><span class="pomo-plan-icon">${icon(I2.cup)}</span><span><b id="pomoShortMin"></b><small>pausa</small></span></button><button type="button" id="pomoPlanSets"><span class="pomo-plan-icon">${icon(I2.stack)}</span><span><b id="pomoSetsCount"></b><small id="pomoSetsWord">séries</small></span></button></div>
+  <div class="pomo-goal" id="pomoGoal" hidden><div class="pomo-goal-top"><span class="pomo-count" id="pomoGoalTitle"><span>Série </span><b id="pomoDone">1</b><span id="pomoTarget"> de 4</span></span><span class="pomo-long-pill" id="pomoLongPill"></span><button type="button" class="pomo-skip" id="pomoSkip">Pular ${icon(I.skip)}</button></div>
+  <div class="pomo-segments" id="pomoSegments"></div><p class="pomo-left"><b id="pomoLeft"></b> · <span id="pomoNudge"></span></p></div>
+ </div>
+ <div class="pomo-controls"><button type="button" class="pomo-side" id="pomoSideLeft"></button><button type="button" class="pomo-play" id="pomoPlay"></button><button type="button" class="pomo-side" id="pomoSideRight"></button></div>`;
  (document.querySelector('.app main')||document.body).append(page);
 
  // ring: wavy progress around a plain track (the wave travels slowly while running)
@@ -145,84 +195,171 @@
   $('pomoProgress').setAttribute('d',ringPath(progress,wavePhase));
   $('pomoTime').textContent=over?'+'+fmt(e-p):fmt(t.status==='idle'?planned('focus'):p-e);
   page.dataset.over=String(over);
+  const cur=page.querySelector('.pomo-segments span[data-state=current] i');if(cur)cur.style.width=(Math.min(1,e/p)*100)+'%';
  }
  function loop(){draw();if(state.timer.status==='running'&&!document.hidden){if(!(typeof reduceMotion==='function'&&reduceMotion()))wavePhase+=.025;frame=requestAnimationFrame(loop);}else frame=0;}
+ // Peleja's own voice for the session line.
+ const FOCUS_LINES=['segura firme','cabeça no lugar','um bloco por vez','tá rendendo','foco no que importa','constância vence','sem pressa, sem pausa','tu consegue','mais um pouquinho','vai que vai'];
+ const BREAK_LINES=['bebe uma água','estica as costas','respira fundo','olha pra longe','descansa a vista','levanta um pouco','deixa o celular quieto','só respira'];
+ function goalMessages(){
+  const t=state.timer,c=state.config,left=Math.max(0,c.targetSets-t.setsDone),pick=list=>list[(t.setsDone*7+3)%list.length];
+  if(t.mode==='long')return ['Pausa longa','você mereceu'];
+  if(t.mode==='short')return ['Pausa',pick(BREAK_LINES)];
+  if(left<=1)return [c.targetSets===1?'Série única':'Última série','fecha com chave de ouro'];
+  return [`Faltam ${left}`,pick(FOCUS_LINES)];
+ }
  function render(){
-  const t=state.timer,c=state.config;
-  page.dataset.mode=t.mode;page.dataset.status=t.status;
-  $('pomoHeadline').textContent=t.status==='running'?(t.mode==='focus'?'Concentrado!':'Respira um pouco'):t.status==='paused'?'Pausado':'Pronto para focar';
-  $('pomoSub').textContent=t.status==='idle'?'Escolha a tarefa e dê play.':t.mode==='focus'?(c.flow?'Flowmodoro: siga enquanto render.':'Foco até o fim do tempo.'):'A próxima série começa sozinha.';
-  $('pomoTaskName').textContent=state.task||'Definir tarefa';$('pomoTask').classList.toggle('is-empty',!state.task);
-  $('pomoStatus').dataset.on=String(t.status==='running');$('pomoStatus').lastElementChild.textContent=t.status==='running'?'Ativo':t.status==='paused'?'Pausado':'Parado';
-  const name=SOUNDS.find(s=>s[0]===state.sound.id)?.[1]||'Sem som';
-  $('pomoSoundChip').innerHTML=icon(state.sound.muted||!state.sound.enabled?I.mute:I.sound)+`<span>${state.sound.enabled?name:'Sem som'}</span>`;$('pomoSoundChip').setAttribute('aria-label',state.sound.muted?'Ativar som':'Silenciar som');
-  $('pomoSoundChip').dataset.muted=String(state.sound.muted||!state.sound.enabled);
-  $('pomoMode').textContent=t.mode==='focus'&&c.flow?'Foco · Flow':modeName[t.mode];
-  $('pomoFlowBreak').hidden=!(t.mode==='focus'&&c.flow&&t.status!=='idle');
-  $('pomoFocusMin').textContent=c.focusMin+' min';$('pomoShortMin').textContent=c.shortMin+' min';
-  for(const b of page.querySelectorAll('[data-duration]'))b.disabled=t.status!=='idle';
-  $('pomoPlay').innerHTML=icon(t.status==='running'?I.pause:I.play);$('pomoPlay').setAttribute('aria-label',t.status==='running'?'Pausar':t.status==='paused'?'Continuar':'Começar foco');
-  $('pomoLongPill').innerHTML=c.longEnabled?icon(I.clock)+`<span>Pausa longa ${c.longMin} min</span>`:'';$('pomoLongPill').hidden=!c.longEnabled;
-  $('pomoDone').textContent=t.setsDone;$('pomoTarget').textContent='/'+c.targetSets;
-  const left=c.targetSets-t.setsDone;$('pomoLeft').textContent=left<=0?'Meta concluída':left===1?'Falta 1 série':`Faltam ${left} séries`;
-  $('pomoNudge').textContent=t.setsDone===0?'Bora começar':left===1?'Última, capricha':'Pequenas vitórias somam';
-  $('pomoSkip').disabled=$('pomoStop').disabled=t.status==='idle';
+  const t=state.timer,c=state.config,active=t.status!=='idle',running=t.status==='running';
+  page.dataset.mode=t.mode;page.dataset.status=t.status;page.dataset.active=String(active);
+  $('pomoTaskName').textContent=state.task||'No que você vai focar?';$('pomoTask').classList.toggle('is-empty',!state.task);$('pomoTask').disabled=active;
+  $('pomoTask').setAttribute('aria-label',active?'Tarefa: '+(state.task||'sem nome'):'Escolher a tarefa');
+  $('pomoStatus').dataset.on=String(running);$('pomoStatus').lastElementChild.textContent=running?'Ativo':'Parado';
+  const none=!state.sound.enabled,muted=!none&&state.sound.muted,name=SOUNDS.find(s=>s[0]===state.sound.id)?.[1]||'Sem som';
+  $('pomoSoundChip').innerHTML=icon(none||muted?I.mute:I.sound)+`<span>${none?'Sem som':muted?'Mudo':name}</span>`;
+  $('pomoSoundChip').disabled=none;$('pomoSoundChip').dataset.state=none?'none':muted?'muted':running?'playing':'on';
+  $('pomoSoundChip').setAttribute('aria-label',none?'Sem som de fundo':muted?'Ligar o som':'Silenciar o som');
+  // ring: the planned time when idle, the countdown while active; notices replace the set line
+  $('pomoMode').textContent=t.mode==='focus'?(c.flow&&active?'Foco · flow':'Foco'):modeName[t.mode];
+  $('pomoSetLine').textContent=active?(t.mode==='focus'?`série ${Math.min(t.setsDone+1,c.targetSets)} de ${c.targetSets}`:'próxima série já já'):'Aperte o play para começar';
+  $('pomoIdleLabel').textContent=flash;$('pomoIdleLabel').hidden=!flash;$('pomoSetLine').hidden=!!flash;
+  $('pomoFlowBreak').hidden=!(t.mode==='focus'&&c.flow&&active);
+  // below the ring: the plan bar when idle, the series track while active
+  $('pomoConfig').hidden=active;$('pomoGoal').hidden=!active;
+  $('pomoFocusMin').textContent=c.focusMin+' min';$('pomoShortMin').textContent=c.shortMin+' min';$('pomoSetsCount').textContent=String(c.targetSets);$('pomoSetsWord').textContent=c.targetSets===1?'série':'séries';
+  const badge=c.longEnabled&&c.longEvery<c.targetSets;$('pomoLongPill').hidden=!badge;$('pomoLongPill').textContent=badge?`longa de ${c.longMin} min`:'';
+  $('pomoDone').textContent=String(Math.min(t.setsDone+(t.mode==='focus'?1:0),c.targetSets)||1);$('pomoTarget').textContent=' de '+c.targetSets;
+  $('pomoGoalTitle').firstElementChild.textContent=t.mode==='focus'?'Série ':'Feitas ';
+  if(t.mode!=='focus')$('pomoDone').textContent=String(t.setsDone);
+  $('pomoSkip').hidden=c.targetSets<=1;$('pomoSkip').disabled=!running;
+  const [main,sub]=goalMessages();$('pomoLeft').textContent=main;$('pomoNudge').textContent=sub;
   const seg=$('pomoSegments');seg.replaceChildren();
-  for(let i=0;i<c.targetSets;i++){const s=el('span');s.dataset.state=i<t.setsDone?'done':i===t.setsDone&&t.status!=='idle'&&t.mode==='focus'?'current':'todo';seg.append(s);if(c.longEnabled&&(i+1)%c.longEvery===0&&i<c.targetSets-1)seg.append(el('i'));}
-  draw();if(t.status==='running'&&!frame)frame=requestAnimationFrame(loop);
+  for(let i=1;i<=c.targetSets;i++){
+   const s=el('span',{},el('i'));s.dataset.state=i<=t.setsDone?'done':i===t.setsDone+1&&t.mode==='focus'?'current':'todo';seg.append(s);
+   if(i<c.targetSets&&c.longEnabled&&i%c.longEvery===0){const b=el('em');b.dataset.state=i<t.setsDone||(i===t.setsDone&&t.mode==='focus')?'done':i===t.setsDone?'current':'todo';seg.append(b);}
+  }
+  // controls in the same places and with the same names as Sessions: Som | play | Séries, then Descartar | pause | Concluir
+  $('pomoSideLeft').innerHTML=`<span class="pomo-side-btn">${icon(active?I2.reset:I2.headphones)}</span><span>${active?'Descartar':'Som'}</span>`;$('pomoSideLeft').dataset.kind=active?'discard':'sound';
+  $('pomoSideRight').innerHTML=`<span class="pomo-side-btn">${icon(active?I2.check:I2.stack)}</span><span>${active?'Concluir':'Séries'}</span>`;$('pomoSideRight').dataset.kind=active?'finish':'sets';
+  $('pomoPlay').innerHTML=icon(running?I.pause:I.play);$('pomoPlay').setAttribute('aria-label',running?'Pausar':t.status==='paused'?'Continuar':'Começar');
+  draw();if(running&&!frame)frame=requestAnimationFrame(loop);
  }
 
- // ---------- dialogs ----------
- const dialog=el('dialog',{id:'pomoDialog',className:'pomo-dialog'});page.append(dialog);
- function openDialog(title,lead,body,onSave){
-  dialog.replaceChildren(el('h2',{textContent:title}),el('p',{className:'pomo-lead',textContent:lead}),body,el('div',{className:'pomo-dialog-actions'},el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:()=>dialog.close()}),el('button',{type:'button',className:'primary',textContent:'Salvar',onclick:()=>{onSave();save();render();syncSound();dialog.close();}})));
+ // ---------- sheets and dialogs ----------
+ // A panel from the bottom on the phone, a centered window on larger screens.
+ const dialog=el('dialog',{id:'pomoDialog',className:'pomo-dialog'});(document.querySelector('.app')||document.body).append(dialog);
+ let onClose=null;
+ dialog.addEventListener('close',()=>{const f=onClose;onClose=null;f?.();});
+ dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
+ const closeButton=()=>{const b=el('button',{type:'button',className:'pomo-dialog-close',innerHTML:icon(I2.close),onclick:()=>dialog.close()});b.setAttribute('aria-label','Fechar');return b;};
+ function openSheet(kind,title,lead,...body){
+  dialog.className='pomo-dialog pomo-sheet';dialog.dataset.kind=kind;
+  dialog.replaceChildren(el('div',{className:'pomo-sheet-head'},el('div',{},el('h2',{textContent:title}),lead?el('p',{className:'pomo-lead',textContent:lead}):''),closeButton()),...body);
   dialog.showModal();
-  if(typeof motion==='function')motion(dialog,[{opacity:0,transform:'translateY(10px) scale(.98)'},{opacity:1,transform:'none'}],{duration:220,easing:'cubic-bezier(.22,1,.36,1)'});
+  if(typeof motion==='function')motion(dialog,globalThis.matchMedia?.('(max-width:760px)')?.matches?[{transform:'translateY(100%)'},{transform:'none'}]:[{opacity:0,transform:'translateY(10px) scale(.98)'},{opacity:1,transform:'none'}],{duration:260,easing:'cubic-bezier(.22,1,.36,1)'});
  }
- const switchRow=(label,checked,id)=>{const input=el('input',{type:'checkbox',checked,id});input.setAttribute('role','switch');return el('label',{className:'pomo-switch switch-option'},el('span',{textContent:label}),input,el('span',{className:'switch-visual','aria-hidden':'true'}));};
- const stepper=(label,value,min,max,step,unit,id)=>{const out=el('b',{id,textContent:value});const row=el('div',{className:'pomo-stepper'},el('span',{textContent:label}),el('div',{},el('button',{type:'button',textContent:'−','aria-label':'Diminuir '+label,onclick:()=>{out.textContent=Math.max(min,+out.textContent-step);}}),out,el('small',{textContent:unit}),el('button',{type:'button',textContent:'+','aria-label':'Aumentar '+label,onclick:()=>{out.textContent=Math.min(max,+out.textContent+step);}})));return row;};
+ function openSmall(kind,...body){
+  dialog.className='pomo-dialog pomo-small';dialog.dataset.kind=kind;dialog.replaceChildren(...body);dialog.showModal();
+  if(typeof motion==='function')motion(dialog,[{opacity:0,transform:'scale(.96)'},{opacity:1,transform:'none'}],{duration:200});
+ }
+ const applied=()=>{save();render();syncSound();};
+ const switchRow=(label,checked,id,note)=>{const input=el('input',{type:'checkbox',checked,id});input.setAttribute('role','switch');return el('label',{className:'pomo-switch switch-option'},el('span',{className:'pomo-switch-text'},el('span',{textContent:label}),note?el('small',{textContent:note}):''),input,el('span',{className:'switch-visual','aria-hidden':'true'}));};
+ const saveButton=(label,onclick)=>el('button',{type:'button',className:'primary pomo-sheet-save',textContent:label,onclick});
+ // Slider you drag, with the value on the right and the limits below (same gesture as Sessions).
+ function slider(label,value,min,max,step,format,id,ends=true){
+  const out=el('b',{className:'pomo-slider-value'}),input=el('input',{type:'range',min,max,step,value,id});
+  const paint=()=>{const lo=+input.min,hi=+input.max;out.textContent=format(+input.value);input.style.setProperty('--fill',(hi>lo?(input.value-lo)/(hi-lo)*100:100)+'%');input.setAttribute('aria-valuetext',format(+input.value));};
+  input.addEventListener('input',paint);input.setAttribute('aria-label',label);
+  const lo=el('span'),hi=el('span'),box=el('div',{className:'pomo-slider'},el('div',{className:'pomo-slider-head'},el('span',{textContent:label}),out),input,ends?el('div',{className:'pomo-range-ends'},lo,hi):'');
+  box.setRange=(a,b)=>{input.min=a;input.max=b;if(+input.value>b)input.value=b;if(+input.value<a)input.value=a;lo.textContent=format(a);hi.textContent=format(b);input.disabled=a===b;paint();};
+  box.setRange(min,max);return box;
+ }
+ // Time: drag to choose, 5 by 5 minutes.
+ function openDuration(kind){
+  const focus=kind==='focus',c=state.config,max=focus?120:30;
+  const s=slider(focus?'Foco':'Pausa',focus?c.focusMin:c.shortMin,5,max,5,v=>v+' min','pomoDurationValue');
+  openSmall('duration',el('div',{className:'pomo-sheet-head'},el('div',{},el('h2',{textContent:focus?'Tempo de foco':'Tempo de pausa'}),el('p',{className:'pomo-lead',textContent:focus?(c.flow?'No flow, é o mínimo de cada foco.':'Quanto dura cada série.'):'O respiro entre uma série e outra.'})),closeButton()),s,
+   el('div',{className:'pomo-dialog-actions'},el('button',{type:'button',className:'primary',textContent:'Usar este tempo',onclick:()=>{const v=+$('pomoDurationValue').value;if(focus)c.focusMin=v;else c.shortMin=v;applied();dialog.close();}})));
+ }
+ // Task and routines: name what you will focus on, or pick a saved routine (task + times + series).
+ const describe=t=>`${t.focusMin} + ${t.shortMin} min · ${t.targetSets}×`;
+ const configOf=()=>{const c=state.config;return {focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:c.longEnabled,longMin:c.longMin,longEvery:c.longEvery};};
  function openTask(){
   const input=el('input',{type:'text',maxLength:80,value:state.task,placeholder:'Ex.: Hematologia, PR2.2, Revisão…',id:'pomoTaskInput',autocomplete:'off'});
-  const recent=el('div',{className:'pomo-recent'},...state.recentTasks.slice(0,6).map(t=>el('button',{type:'button',textContent:t,onclick:()=>{input.value=t;}})));
-  openDialog('Tarefa','Digite no que você vai focar. Ela aparece nos seus Insights.',el('div',{className:'pomo-task-body'},el('label',{className:'editor-field'},el('span',{textContent:'Tarefa'}),input),state.recentTasks.length?recent:''),()=>{state.task=input.value.trim().slice(0,80);if(state.task)state.recentTasks=[state.task,...state.recentTasks.filter(x=>x!==state.task)].slice(0,8);});
-  setTimeout(()=>input.focus(),50);input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();dialog.querySelector('.primary').click();}};
+  const clear=el('button',{type:'button',className:'pomo-input-clear',innerHTML:icon(I2.close),onclick:()=>{input.value='';input.focus();sync();}});clear.setAttribute('aria-label','Limpar');
+  const setTask=el('button',{type:'button',className:'pomo-input-go',id:'pomoSetTask',textContent:'Ok',onclick:()=>{state.task=input.value.trim().slice(0,80);applied();dialog.close();}});
+  const list=el('div',{className:'pomo-routines'}),action=el('button',{type:'button',className:'pomo-routine-save',id:'pomoTemplateSave'});
+  const same=(a,b)=>['focusMin','shortMin','targetSets','longEnabled','longMin','longEvery'].every(k=>a[k]===b[k]);
+  function drawList(){
+   list.replaceChildren();
+   if(!state.templates.length)list.append(el('p',{className:'pomo-routines-empty',textContent:'Nenhuma rotina ainda. Ajuste o plano, dê um nome e salve aqui embaixo.'}));
+   for(const t of state.templates){
+    const del=el('button',{type:'button',className:'pomo-template-delete',innerHTML:icon(I2.trash),onclick:e=>{e.stopPropagation();const go=()=>{state.templates=state.templates.filter(x=>x.id!==t.id);save();drawList();sync();};if(typeof confirmPeleja==='function')confirmPeleja('Apagar rotina?',go,{description:`“${t.name}” sai da sua lista.`,accept:'Apagar',destructive:true});else go();}});
+    del.setAttribute('aria-label','Apagar rotina '+t.name);
+    const pick=el('button',{type:'button',className:'pomo-template',onclick:()=>{state.task=t.name;Object.assign(state.config,{focusMin:t.focusMin,shortMin:t.shortMin,targetSets:t.targetSets,longEnabled:t.longEnabled,longMin:t.longMin,longEvery:t.longEvery});applied();dialog.close();}},el('b',{textContent:t.name}),el('small',{textContent:describe(t)}));
+    list.append(el('div',{className:'pomo-routine'},pick,del));
+   }
+  }
+  function sync(){
+   const name=input.value.trim(),match=name?state.templates.find(t=>t.name.toLowerCase()===name.toLowerCase()):null,changed=match&&!same(match,configOf());
+   clear.hidden=!input.value;
+   const c=state.config,plan=`${c.focusMin} + ${c.shortMin} min · ${c.targetSets}×`;
+   action.replaceChildren(el('span',{textContent:match?(changed?'Atualizar rotina':'Rotina salva'):'Salvar como rotina'}),el('small',{textContent:name?`“${name}” · ${plan}`:`Dê um nome acima · ${plan}`}));
+   action.disabled=!name||(match&&!changed);
+   action.onclick=()=>{
+    if(!name||(match&&!changed))return;
+    if(match)Object.assign(match,configOf());else state.templates=[{id:crypto.randomUUID(),name:name.slice(0,80),...configOf()},...state.templates].slice(0,20);
+    save();drawList();sync();globalThis.toast?.(match?'Rotina atualizada':'Rotina salva','check');
+   };
+  }
+  input.oninput=sync;input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();setTask.click();}};
+  drawList();sync();
+  openSheet('task','No que você vai focar?','',el('div',{className:'pomo-input'},input,clear,setTask),el('h3',{className:'pomo-sheet-sub',textContent:'Suas rotinas'}),list,action);
+  setTimeout(()=>input.focus(),60);
  }
+ // Ambient sound: a list with a short description; the chosen sound plays while the panel is open.
  let preview=null;
+ const stopPreview=()=>{preview?.pause();preview=null;};
+ function playPreview(id){stopPreview();if(!id)return;preview=new Audio(soundUrl(id));preview.loop=true;preview.volume=.7;preview.play?.()?.catch?.(()=>{});}
  function openSound(){
-  let pick=state.sound.id;
-  const list=el('div',{className:'pomo-sound-list'});
-  const select=id=>{pick=id;for(const b of list.children)b.setAttribute('aria-pressed',String(b.dataset.sound===id));preview?.pause();if($('pomoSoundOn').checked){preview=new Audio(soundUrl(id));preview.volume=.7;preview.play?.()?.catch?.(()=>{});setTimeout(()=>preview?.pause(),2200);}};
-  for(const [id,label] of SOUNDS){const b=el('button',{type:'button',textContent:label,onclick:()=>select(id)});b.dataset.sound=id;b.setAttribute('aria-pressed',String(id===pick));list.append(b);}
-  const toggle=switchRow('Ligar sons',state.sound.enabled,'pomoSoundOn');
-  openDialog('Sons de fundo','Um ambiente para manter o foco. Alto durante o foco, baixinho nas pausas.',el('div',{},toggle,list),()=>{state.sound.enabled=$('pomoSoundOn').checked;state.sound.id=pick;state.sound.muted=false;preview?.pause();});
-  dialog.addEventListener('close',()=>preview?.pause(),{once:true});
+  let pick=state.sound.id||'rain';
+  const toggle=switchRow('Som ambiente',state.sound.enabled,'pomoSoundOn','Alto no foco, baixinho na pausa, mudo quando pausar'),on=toggle.querySelector('input');
+  const list=el('div',{className:'pomo-sound-list',role:'radiogroup'});list.setAttribute('aria-label','Sons');
+  const paint=()=>{list.classList.toggle('is-off',!on.checked);for(const b of list.children){b.setAttribute('aria-checked',String(b.dataset.sound===pick));b.disabled=!on.checked;}};
+  for(const [id,label] of SOUNDS){const b=el('button',{type:'button',role:'radio'},el('span',{className:'pomo-sound-icon',innerHTML:icon(SOUND_ICONS[id])}),el('span',{className:'pomo-sound-text'},el('b',{textContent:label}),el('small',{textContent:SOUND_NOTES[id]})),el('span',{className:'pomo-eq','aria-hidden':'true'},el('i'),el('i'),el('i')));b.dataset.sound=id;b.onclick=()=>{pick=id;paint();playPreview(id);};list.append(b);}
+  on.onchange=()=>{paint();playPreview(on.checked?pick:null);};
+  paint();onClose=stopPreview;
+  openSheet('sound','Som','Um som de fundo para ajudar a focar.',toggle,list,saveButton('Salvar',()=>{
+   const was=state.sound.id;state.sound.enabled=on.checked;state.sound.id=pick;if(on.checked&&(was!==pick||state.sound.muted))state.sound.muted=false;applied();dialog.close();
+  }));
  }
+ // Series: how many, the long break (length and how often) and the flow switch, all by dragging.
  function openSets(){
   const c=state.config;
-  const body=el('div',{className:'pomo-sets'},
-   stepper('Meta de séries',c.targetSets,1,12,1,'séries','pomoTargetSets'),
-   switchRow('Pausa longa',c.longEnabled,'pomoLongOn'),
-   el('div',{className:'pomo-long',id:'pomoLongFields'},stepper('Duração',c.longMin,15,45,5,'min','pomoLongMin'),stepper('A cada',c.longEvery,1,11,1,'séries','pomoLongEvery')),
-   switchRow('Flowmodoro',c.flow,'pomoFlowOn'),
-   el('p',{className:'pomo-hint',textContent:'Com o Flowmodoro, o foco tem um tempo mínimo: ao chegar nele, um aviso suave, e o relógio segue contando o tempo extra até você tocar em “Começar pausa”.'}));
-  openDialog('Séries','Defina a meta e as pausas da sessão.',body,()=>{
-   c.targetSets=+$('pomoTargetSets').textContent;c.longEnabled=$('pomoLongOn').checked;c.longMin=+$('pomoLongMin').textContent;c.longEvery=Math.min(+$('pomoLongEvery').textContent,Math.max(1,c.targetSets-1));c.flow=$('pomoFlowOn').checked;
-   if(state.timer.setsDone>=c.targetSets&&state.timer.status!=='idle')state.timer.setsDone=c.targetSets-1;
-  });
-  const sync=()=>{$('pomoLongFields').hidden=!$('pomoLongOn').checked;};$('pomoLongOn').onchange=sync;sync();
+  const sets=slider('Séries',c.targetSets,1,12,1,v=>String(v),'pomoTargetSets');
+  const longOn=switchRow('Pausa longa',c.longEnabled,'pomoLongOn','Um descanso maior de tempos em tempos');
+  const duration=slider('Duração',c.longMin,15,45,5,v=>v+' min','pomoLongMin');
+  const every=slider('A cada',Math.min(c.longEvery,Math.max(1,c.targetSets-1)),1,Math.max(1,c.targetSets-1),1,v=>v===1?'1 série':v+' séries','pomoLongEvery');
+  const longFields=el('div',{className:'pomo-long',id:'pomoLongFields'},duration,every);
+  const flow=switchRow('Flow',c.flow,'pomoFlowOn','O tempo de foco vira um mínimo. Passou dele, o relógio segue contando até você tocar em “Começar pausa”.');
+  openSheet('sets','Séries','Quantas séries fazer e quando ter a pausa longa.',sets,el('div',{className:'pomo-sheet-group'},longOn,longFields),flow,saveButton('Salvar',()=>{
+   c.targetSets=+$('pomoTargetSets').value;c.longEnabled=$('pomoLongOn').checked;c.longMin=+$('pomoLongMin').value;c.longEvery=Math.min(+$('pomoLongEvery').value,Math.max(1,c.targetSets-1));c.flow=$('pomoFlowOn').checked;applied();dialog.close();
+  }));
+  $('pomoTargetSets').addEventListener('input',()=>every.setRange(1,Math.max(1,+$('pomoTargetSets').value-1)));
+  const syncLong=()=>{longFields.hidden=!$('pomoLongOn').checked;};$('pomoLongOn').onchange=syncLong;syncLong();
  }
- function openDuration(kind){
-  const c=state.config,focus=kind==='focus';
-  openDialog(focus?'Tempo de foco':'Pausa curta',focus?(c.flow?'No Flowmodoro, é o tempo mínimo de cada foco.':'Quanto dura cada série de foco.'):'Quanto dura a pausa entre as séries.',stepper(focus?'Foco':'Pausa',focus?c.focusMin:c.shortMin,focus?5:1,focus?120:30,focus?5:1,'min','pomoDurationValue'),()=>{const v=+$('pomoDurationValue').textContent;if(focus)c.focusMin=v;else c.shortMin=v;});
+ function openGoalReached(){
+  openSmall('goal',el('span',{className:'pomo-goal-icon',innerHTML:icon(I2.trophy)}),el('h2',{textContent:'Plano cumprido!'}),el('p',{className:'pomo-lead',textContent:'Todas as séries feitas. O fogo de hoje tá garantido. Descansa que tu merece.'}),saveButton('Valeu!',()=>dialog.close()));
  }
 
  // ---------- wiring ----------
  $('pomoPlay').onclick=()=>actions.toggle();
  $('pomoSkip').onclick=()=>actions.skip();
- $('pomoStop').onclick=()=>{if(typeof confirmPeleja==='function'&&state.timer.mode==='focus'&&elapsed()>=60000)confirmPeleja('Encerrar a sessão?',()=>actions.stop(),{description:'O foco feito até agora fica registrado.',accept:'Encerrar'});else actions.stop();};
+ $('pomoSideLeft').onclick=()=>state.timer.status==='idle'?openSound():actions.discard();
+ $('pomoSideRight').onclick=()=>state.timer.status==='idle'?openSets():actions.finish();
+ $('pomoPlanSets').onclick=openSets;
  $('pomoFlowBreak').onclick=()=>actions.startBreak();
- $('pomoTask').onclick=openTask;$('pomoSoundBtn').onclick=openSound;$('pomoSetsBtn').onclick=openSets;
- $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled){openSound();return;}state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
+ $('pomoTask').onclick=()=>{if(state.timer.status==='idle')openTask();};
+ $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled)return;state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
  for(const b of page.querySelectorAll('[data-duration]'))b.onclick=()=>openDuration(b.dataset.duration);
  setInterval(()=>{if(state.timer.status==='running'){const before=state.timer.mode+state.timer.setsDone+state.timer.status;advance();if(before!==state.timer.mode+state.timer.setsDone+state.timer.status){render();syncSound();}else if(document.hidden)draw();}},500);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden){advance();render();}});

@@ -28,10 +28,11 @@
  const tabs=el('div',{className:'pomo-views',role:'tablist'});tabs.setAttribute('aria-label','Pomodoro');
  for(const [view,label] of [['timer','Timer'],['insights','Insights']]){const b=el('button',{type:'button',textContent:label,id:'pomoView'+label});b.dataset.view=view;b.setAttribute('role','tab');b.setAttribute('aria-selected',String(view==='timer'));tabs.append(b);}
  const panel=el('section',{className:'pomo-insights',id:'pomoInsights'});panel.setAttribute('aria-label','Insights');panel.hidden=true;
- page.prepend(tabs);page.append(panel);page.dataset.view='timer';
+ // Top row: Timer | Insights on the left, the fire on the right.
+ page.querySelector('.pomo-head').prepend(tabs);page.append(panel);page.dataset.view='timer';
  // Streak on the timer screen too: always in sight while studying.
  const chip=el('button',{type:'button',className:'pomo-streak-chip',id:'pomoStreakChip',onclick:()=>setView('insights')});
- page.querySelector('.pomo-chips')?.prepend(chip);
+ page.querySelector('.pomo-head')?.append(chip);
  let period='week',blocks=[],loaded=false,loading=null,selectedDay=null,owner=null;
  // Another account on this device: forget the previous member's blocks.
  const checkOwner=()=>{if(owner!==P.user()){owner=P.user();blocks=[];loaded=false;selectedDay=null;}};
