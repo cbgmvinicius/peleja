@@ -57,9 +57,19 @@ mine=[block('a',[11,5],9,50,'Hematologia',25),block('b',[11,5],10,25,'Hematologi
  assert.match($('pomoInsights').textContent,/Você já passou de ontem [(][+]50 min[)]/);
  assert.match(w.document.querySelector('.pomo-tasks').textContent,/Hematologia1h 55min · 70%/);
  assert.match($('pomoInsights').textContent,/Principal: Hematologia/);
- // year: today selected with its total; clicking another day shows it
- assert.match($('pomoDayDetail').textContent,/5 nov · 1h 15min de foco em 2 sessões/);
- w.document.querySelector('[data-day="2026-09-12"]').click();assert.match($('pomoDayDetail').textContent,/12 set · 30 min de foco em 1 sessão/);
+ // year: weeks from the first focus (September) to now, each square with its day; a tap shows the day for 3 s
+ const grid=w.document.querySelector('.pomo-year-grid'),weeks=grid.children.length/7;
+ assert.ok(weeks>=9&&weeks<=11,'only the weeks since the first focus: '+weeks);assert.equal(grid.style.getPropertyValue('--weeks'),String(weeks));
+ assert.equal(w.document.querySelector('[data-day="2026-11-05"]').textContent,'5');assert.equal(w.document.querySelector('[data-day="2026-11-05"]').dataset.today,'true');
+ assert.equal($('pomoDayTip').hidden,true,'no balloon until a square is touched');
+ w.document.querySelector('[data-day="2026-09-12"]').click();
+ assert.equal($('pomoDayTip').hidden,false);assert.match($('pomoDayTip').textContent,/Sáb, 12 set30 min1 sessão/);
+ w.document.querySelector('[data-day="2026-11-05"]').click();assert.match($('pomoDayTip').textContent,/Qui, 5 nov1h 15min2 sessões/);
+ await new Promise(r=>setTimeout(r,3100));assert.equal($('pomoDayTip').hidden,true,'gone after 3 s');
+ // a mouse shows it while hovering and hides it on leaving
+ const PE=w.PointerEvent||w.MouseEvent,over=(type,target)=>{const ev=new PE(type,{bubbles:type!=='pointerleave'});Object.defineProperty(ev,'pointerType',{value:'mouse'});target.dispatchEvent(ev);};
+ over('pointerover',w.document.querySelector('[data-day="2026-09-12"]'));assert.equal($('pomoDayTip').hidden,false);assert.match($('pomoDayTip').textContent,/12 set/);
+ over('pointerleave',grid);assert.equal($('pomoDayTip').hidden,true);
  assert.equal(w.document.querySelector('[data-day="2026-11-05"]').dataset.level,'3');
  // Period: year includes September.
  [...w.document.querySelectorAll('.pomo-period button')].find(b=>b.textContent==='Ano').click();

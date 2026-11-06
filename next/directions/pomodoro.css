@@ -184,19 +184,29 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomodoro [data-level="3"]{background:color-mix(in srgb,var(--accent) 76%,var(--soft))}
 .pomodoro [data-level="4"]{background:var(--accent)}
 .pomodoro [data-level=future]{background:transparent}
-.pomo-year-scroll{overflow-x:auto;padding:10px 0 4px;scrollbar-width:thin}
-.pomo-year{display:grid;grid-template-columns:28px auto;grid-template-rows:auto auto;gap:4px 6px;width:max-content}
-.pomo-year-months{display:grid;grid-template-columns:repeat(53,11px);column-gap:3px;font-size:10px;color:var(--muted);height:14px}
+/* Seu ano: one column per week, squares sized to the card (28-40px) with the day's number; scrolls when long */
+.pomo-year-card{position:relative;container-type:inline-size}
+.pomo-year-scroll{overflow-x:auto;padding:12px 0 6px;scrollbar-width:thin;--gap:5px;--cell:clamp(28px,calc((100cqw - 26px - 6px) / var(--weeks,10) - var(--gap)),40px)}
+.pomo-year{display:grid;grid-template-columns:20px auto;grid-template-rows:auto auto;gap:6px;width:max-content;margin:0 auto}
+.pomo-year-months{display:grid;grid-template-columns:repeat(var(--weeks,10),var(--cell));column-gap:var(--gap);font-size:12px;font-weight:600;color:var(--accent);height:16px}
 .pomo-year-months span{white-space:nowrap}
-.pomo-year-days{display:grid;grid-template-rows:repeat(7,11px);row-gap:3px;font-size:9px;color:var(--muted);line-height:11px}
-.pomo-year-grid{display:grid;grid-template-rows:repeat(7,11px);grid-auto-flow:column;grid-auto-columns:11px;gap:3px}
-.pomo-year-grid span{border-radius:3px;cursor:pointer}
-.pomo-year-grid span[data-level=future]{cursor:default}
-.pomo-year-grid span[aria-current]{outline:2px solid var(--ink);outline-offset:1px}
-.pomo-year-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px}
-.pomo-day-detail{margin:0;font-size:13px;color:var(--muted)}.pomo-day-detail strong{color:var(--ink);font-weight:600}
-.pomo-legend{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)}
-.pomo-legend span{width:11px;height:11px;border-radius:3px}
+.pomo-year-days{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:6px 0 0 var(--surface);display:grid;grid-template-rows:repeat(7,var(--cell));row-gap:var(--gap);font-size:11px;font-weight:600;color:var(--muted);align-items:center;justify-items:center}
+.pomo-year-grid{display:grid;grid-template-rows:repeat(7,var(--cell));grid-auto-flow:column;grid-auto-columns:var(--cell);gap:var(--gap)}
+.pomo-year-grid span{display:grid;place-items:center;border-radius:calc(var(--cell) * .3);cursor:pointer;font-size:calc(var(--cell) * .37);font-variant-numeric:tabular-nums;color:var(--muted);transition:transform .15s}
+.pomo-year-grid span[data-level="1"],.pomo-year-grid span[data-level="2"]{color:var(--ink)}
+.pomo-year-grid span[data-level="3"],.pomo-year-grid span[data-level="4"]{color:var(--surface);font-weight:600}
+.pomo-year-grid span[data-level=future]{cursor:default;opacity:.35;box-shadow:inset 0 0 0 1px var(--line)}
+.pomo-year-grid span[data-today]{box-shadow:inset 0 0 0 2px var(--ink)}
+.pomo-year-grid span[aria-current]{transform:scale(1.08);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.pomo-year-foot{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin-top:8px}
+.pomo-day-tip{position:absolute;z-index:5;transform:translate(-50%,-100%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 12px;border-radius:14px;background:var(--ink);color:var(--surface);font-size:12px;line-height:1.25;white-space:nowrap;box-shadow:0 6px 18px rgb(0 0 0 / .18);animation:pomo-tip .16s ease-out}
+.pomo-day-tip strong{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.pomo-day-tip small{font-size:11px;opacity:.75}
+.pomo-day-tip::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:2px}
+@keyframes pomo-tip{from{opacity:0;transform:translate(-50%,calc(-100% + 4px))}}
+@media (prefers-reduced-motion:reduce){.pomo-day-tip{animation:none}.pomo-year-grid span{transition:none}}
+.pomo-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.pomo-legend span{width:14px;height:14px;border-radius:4px}
 .pomo-legend span:first-of-type{margin-left:4px}.pomo-legend span:last-of-type{margin-right:4px}
 .pomo-tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
 .pomo-tasks li>div{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:6px}
