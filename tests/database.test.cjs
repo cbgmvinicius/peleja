@@ -339,5 +339,24 @@ await user(B);await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0
 await user(A);await rpc('delete_question_set',[sgSet],['uuid']);await db.exec('reset role');
 assert.equal(Number((await db.query('select count(*) n from public.question_suggestions')).rows[0].n),0,'deleting a set removes its suggestions');
 console.log('PASS Question suggestions: member submit with kind and 500-char note, admin queue with question and author, review once, outcome for the author, admin edit keeps counts, cascade');
+
+// Which attempt counts: only the first finished attempt that covers the whole set.
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-counted.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-counted.sql'),'utf8'));
+await user(A);const twoQ=[qbQuestions[0],{...qbQuestions[0],question:'Segunda?'}];const cSet=await rpc('save_question_set',qbArgs(twoQ,'qb-material','c'.repeat(64)),qbCasts);
+await user(C);const saveCasts=['uuid','jsonb','bigint','boolean'];
+const part=await rpc('quiz_session_start',[cSet,'treino','stopwatch',null,JSON.stringify({questions:[1],options:{'1':[0,1]}})],qsCasts);
+assert.equal((await rpc('quiz_session_save',[part,JSON.stringify({'1':{o:0}}),100,true],saveCasts)).counted,false,'a partial attempt (Refazer erradas) never counts');
+const full=await rpc('quiz_session_start',[cSet,'treino','stopwatch',null,JSON.stringify({questions:[0,1],options:{'0':[1,0],'1':[0,1]}})],qsCasts);
+assert.equal((await rpc('quiz_session_save',[full,JSON.stringify({'0':{o:0},'1':{o:1}}),100,true],saveCasts)).counted,true,'the first whole attempt counts');
+const counted=await rpc('quiz_sessions_counted',[],[]);assert.equal(counted.length,1);assert.equal(counted[0].id,full);assert.equal(counted[0].materialId,'qb-material');assert.equal(counted[0].answered,2);assert.equal(counted[0].correct,1);
+await rpc('quiz_session_delete',[full],['uuid']);
+const redo2=await rpc('quiz_session_start',[cSet,'treino','stopwatch',null,JSON.stringify({questions:[1],options:{'1':[0,1]}})],qsCasts);
+assert.equal((await rpc('quiz_session_save',[redo2,JSON.stringify({'1':{o:0}}),100,true],saveCasts)).counted,false,'even after the counted one is deleted');
+await user(A);assert.equal((await rpc('quiz_sessions_counted',[],[])).length,0,'private');
+await user(B);await assert.rejects(()=>rpc('quiz_sessions_counted',[],[]),/Acesso negado/);
+await user(A);await rpc('delete_question_set',[cSet],['uuid']);
+console.log('PASS Counted attempts: partial attempts never count (also after deleting), first whole attempt counts, counted list, privacy');
 await db.close();
 })().catch(e=>{console.error(e);process.exitCode=1;});

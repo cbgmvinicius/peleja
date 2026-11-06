@@ -10,6 +10,16 @@ function preparePersonalChange(remote,change,now=new Date().toISOString()){
   const prefs=change.preferences;if(typeof prefs?.dark!=='boolean'||typeof prefs?.motion!=='boolean')throw Error('Preferências inválidas');
   payload.preferences={...payload.preferences,pelejaNext:{dark:prefs.dark,motion:prefs.motion,navigation:'top'}};return payload;
  }
+ if(change.kind==='pomodoro-routines'){
+  // Saved Pomodoro routines (task + times + series), so they follow the account to every device.
+  const list=change.routines,int=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi;
+  if(!Array.isArray(list)||list.length>20)throw Error('Rotinas inválidas');
+  payload.preferences.pomodoroRoutines=list.map(r=>{
+   if(typeof r?.id!=='string'||!r.id||r.id.length>60||typeof r.name!=='string'||!r.name.trim()||r.name.length>80||!int(r.focusMin,5,120)||!int(r.shortMin,1,60)||!int(r.targetSets,1,12)||typeof r.longEnabled!=='boolean'||!int(r.longMin,5,60)||!int(r.longEvery,1,12))throw Error('Rotina inválida');
+   return {id:r.id,name:r.name.trim(),focusMin:r.focusMin,shortMin:r.shortMin,targetSets:r.targetSets,longEnabled:r.longEnabled,longMin:r.longMin,longEvery:r.longEvery};
+  });
+  return payload;
+ }
  if(change.kind==='course-enrollment'){
   if(!Array.isArray(change.ids)||change.ids.length>100||change.ids.some(id=>typeof id!=='string'||!id||id.length>100))throw Error('Cursos inválidos');
   payload.preferences.extraCourseEnrollments=[...new Set(change.ids)];return payload;

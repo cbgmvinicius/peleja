@@ -193,20 +193,20 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    list.append(li);
   });
   const content=el('div',{className:'solver-question'},el('p',{className:'solver-stem',textContent:item.question}),list);
-  // "Ver mais" > "Sugerir mudança": a member reports a problem with this question (kind + explanation).
-  const more=el('div',{className:'solver-more'}),moreBtn=el('button',{type:'button',className:'solver-more-toggle',textContent:'Ver mais'}),moreMenu=el('div',{className:'solver-more-menu',hidden:true});
-  moreBtn.setAttribute('aria-expanded','false');moreBtn.onclick=()=>{moreMenu.hidden=!moreMenu.hidden;moreBtn.setAttribute('aria-expanded',String(!moreMenu.hidden));};
-  moreMenu.append(el('button',{type:'button',textContent:'Sugerir mudança',onclick:()=>{moreMenu.hidden=true;moreBtn.setAttribute('aria-expanded','false');globalThis.PELEJA_SUGGEST?.(setInfo.id,q,`${setInfo.title} · Questão ${q+1}`);}}));
-  if(globalThis.PELEJA_SUGGEST)more.append(moreBtn,moreMenu);
+  // One row under the alternatives: the hint toggle (lamp + "Dica") on the left, "Sugerir alteração" on the right.
+  const tools=el('div',{className:'solver-tools-row'});let hintPanel=null;
   if(item.hint){
    // The hint stays hidden until asked for, and stays open for that question once asked.
-   const open=hintOpen.has(q),panel=el('div',{className:'solver-hint',hidden:!open},el('span',{innerHTML:ICON.hint}),el('p',{textContent:item.hint}));
-   const toggle=el('button',{type:'button',className:'solver-hint-toggle'},open?'Ocultar dica':'Ver dica');toggle.setAttribute('aria-expanded',String(open));
-   toggle.onclick=()=>{const show=panel.hidden;panel.hidden=!show;show?hintOpen.add(q):hintOpen.delete(q);toggle.textContent=show?'Ocultar dica':'Ver dica';toggle.setAttribute('aria-expanded',String(show));if(show)animateIn(panel,-6);};
-   content.append(toggle,panel);
+   const open=hintOpen.has(q);hintPanel=el('div',{className:'solver-hint',hidden:!open},el('span',{innerHTML:ICON.hint}),el('p',{textContent:item.hint}));
+   const toggle=el('button',{type:'button',className:'solver-hint-toggle',innerHTML:ICON.hint+'<span>Dica</span>'});toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Ocultar dica':'Ver dica');
+   toggle.onclick=()=>{const showHint=hintPanel.hidden;hintPanel.hidden=!showHint;showHint?hintOpen.add(q):hintOpen.delete(q);toggle.setAttribute('aria-expanded',String(showHint));toggle.setAttribute('aria-label',showHint?'Ocultar dica':'Ver dica');if(showHint)animateIn(hintPanel,-6);};
+   tools.append(toggle);
   }
+  // A member reports a problem with this question (kind + explanation).
+  if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(setInfo.id,q,`${setInfo.title} · Questão ${q+1}`)}));
+  if(tools.childElementCount)content.append(tools);
+  if(hintPanel)content.append(hintPanel);
   if(show&&session.mode==='treino'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
-  if(more.childElementCount)content.append(more);
   body.replaceChildren(content);body.scrollTop=0;
   if(dir)motion(content,[{opacity:0,transform:`translateX(${dir*14}px)`},{opacity:1,transform:'none'}],{duration:240,easing:EASE});
   renderQuestionFoot();
@@ -263,14 +263,33 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   }catch(error){startClock();toast(message(error),'info');}
   finally{busy=false;}
  }
- // The first finished session of a set becomes one round of the material (idempotent by id).
- function recordRound({answered,correct}){
-  const m=roundsHost();if(!m||!saveChange)return;
-  const round={id:'quiz-'+session.id,date:today(),q:answered,c:correct,w:answered-correct,...(material.kind==='exam'?{subject:material.subject,specialty:''}:{})};
-  const before=structuredClone({q:m.q,c:m.c,w:m.w,questionRounds:m.questionRounds});
-  m.questionRounds=[...(m.questionRounds||[]).filter(r=>r.id!==round.id),round];
-  Object.assign(m,m.questionRounds.reduce((a,r)=>({q:a.q+r.q,c:a.c+r.c,w:a.w+r.w}),{q:0,c:0,w:0}));render();
-  saveChange(material.kind==='exam'?{kind:'session',round}:{kind:'round',id:m.sourceId,round},()=>{},null,()=>{Object.assign(m,before);render();toast('O resultado não entrou nas estatísticas. Sincronize e tente de novo.','info');});
+ // The counted attempt of a set becomes one round of the material (or of the exam's "Questões externas"),
+ // idempotent by id, so it can be written again safely.
+ function addRound({kind,sourceId,subject,sessionId,answered,correct,date}){
+  const host=kind==='exam'?(typeof standaloneQuestions==='object'?standaloneQuestions:null):data.find(x=>x.sourceId===sourceId);
+  if(!host||!saveChange||!answered||(kind==='exam'&&!subject))return false;
+  const round={id:'quiz-'+sessionId,date,q:answered,c:correct,w:answered-correct,...(kind==='exam'?{subject,specialty:''}:{})};
+  if((host.questionRounds||[]).some(r=>r.id===round.id))return false;
+  const before=structuredClone({q:host.q,c:host.c,w:host.w,questionRounds:host.questionRounds});
+  host.questionRounds=[...(host.questionRounds||[]),round];
+  Object.assign(host,host.questionRounds.reduce((a,r)=>({q:a.q+r.q,c:a.c+r.c,w:a.w+r.w}),{q:0,c:0,w:0}));render();
+  saveChange(kind==='exam'?{kind:'session',round}:{kind:'round',id:sourceId,round},()=>{},null,()=>{Object.assign(host,before);render();toast('O resultado não entrou nas estatísticas. Sincronize e tente de novo.','info');});
+  return true;
+ }
+ function recordRound({answered,correct}){addRound({kind:material.kind,sourceId:material.sourceId,subject:material.subject,sessionId:session.id,answered,correct,date:today()});}
+ // On each load: every attempt the server counted must be in the statistics (e.g. a save that never
+ // reached the account, a phone that closed right after finishing). Missing ones are added now.
+ let reconciling=false;
+ async function reconcile(){
+  if(reconciling||!saveChange)return;reconciling=true;
+  try{
+   const r=await client.rpc('quiz_sessions_counted');if(r.error||!Array.isArray(r.data))return;
+   for(const c of r.data){
+    const d=new Date(c.finishedAt),date=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const exam=c.examId?facultyRecords.find(e=>e.sourceId===c.examId):null;
+    addRound(c.examId?{kind:'exam',subject:exam?.subject,sessionId:c.id,answered:c.answered,correct:c.correct,date}:{kind:'material',sourceId:c.materialId,sessionId:c.id,answered:c.answered,correct:c.correct,date});
+   }
+  }catch{}finally{reconciling=false;}
  }
 
  // ---------- result ----------
@@ -334,7 +353,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  addEventListener('pagehide',()=>{if(session?.status==='active'){clockBase=elapsed();clockStart=clockStart&&Date.now();flush().catch(()=>{});}});
 
  return {
-  async ready(){try{await loadSets();}catch{sets=[];}decorate();},
+  async ready(){try{await loadSets();}catch{sets=[];}decorate();reconcile();},
   reset(){sets=[];if(dialog.open){stopClock();dialog.close();}session=null;},
   _debug:{get session(){return session;},get questions(){return questions;}}
  };

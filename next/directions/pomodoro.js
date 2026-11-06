@@ -34,7 +34,7 @@
  const modeName={focus:'Foco',short:'Pausa curta',long:'Pausa longa'};
 
  // ---------- saving blocks (outbox survives reloads and offline) ----------
- let client=null,getUser=()=>null;
+ let client=null,getUser=()=>null,saveRoutines=null;
  const outbox=()=>{try{return JSON.parse(localStorage.getItem(OUTBOX)||'[]');}catch{return [];}};
  // One flush at a time; blocks added meanwhile wait for the next round and are never dropped.
  let flushing=null,again=false;
@@ -281,6 +281,7 @@
    el('div',{className:'pomo-dialog-actions'},el('button',{type:'button',className:'primary',textContent:'Usar este tempo',onclick:()=>{const v=+$('pomoDurationValue').value;if(focus)c.focusMin=v;else c.shortMin=v;applied();dialog.close();}})));
  }
  // Task and routines: name what you will focus on, or pick a saved routine (task + times + series).
+ function syncRoutines(){saveRoutines?.(state.templates.map(t=>({id:String(t.id).slice(0,60),name:t.name,focusMin:t.focusMin,shortMin:Math.max(1,t.shortMin),targetSets:t.targetSets,longEnabled:!!t.longEnabled,longMin:t.longMin,longEvery:Math.max(1,t.longEvery)})));}
  const describe=t=>`${t.focusMin} + ${t.shortMin} min · ${t.targetSets}×`;
  const configOf=()=>{const c=state.config;return {focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:c.longEnabled,longMin:c.longMin,longEvery:c.longEvery};};
  function openTask(){
@@ -293,7 +294,7 @@
    list.replaceChildren();
    if(!state.templates.length)list.append(el('p',{className:'pomo-routines-empty',textContent:'Nenhuma rotina ainda. Ajuste o plano, dê um nome e salve aqui embaixo.'}));
    for(const t of state.templates){
-    const del=el('button',{type:'button',className:'pomo-template-delete',innerHTML:icon(I2.trash),onclick:e=>{e.stopPropagation();const go=()=>{state.templates=state.templates.filter(x=>x.id!==t.id);save();drawList();sync();};if(typeof confirmPeleja==='function')confirmPeleja('Apagar rotina?',go,{description:`“${t.name}” sai da sua lista.`,accept:'Apagar',destructive:true});else go();}});
+    const del=el('button',{type:'button',className:'pomo-template-delete',innerHTML:icon(I2.trash),onclick:e=>{e.stopPropagation();const go=()=>{state.templates=state.templates.filter(x=>x.id!==t.id);save();syncRoutines();drawList();sync();};if(typeof confirmPeleja==='function')confirmPeleja('Apagar rotina?',go,{description:`“${t.name}” sai da sua lista.`,accept:'Apagar',destructive:true});else go();}});
     del.setAttribute('aria-label','Apagar rotina '+t.name);
     const pick=el('button',{type:'button',className:'pomo-template',onclick:()=>{state.task=t.name;Object.assign(state.config,{focusMin:t.focusMin,shortMin:t.shortMin,targetSets:t.targetSets,longEnabled:t.longEnabled,longMin:t.longMin,longEvery:t.longEvery});applied();dialog.close();}},el('b',{textContent:t.name}),el('small',{textContent:describe(t)}));
     list.append(el('div',{className:'pomo-routine'},pick,del));
@@ -308,7 +309,7 @@
    action.onclick=()=>{
     if(!name||(match&&!changed))return;
     if(match)Object.assign(match,configOf());else state.templates=[{id:crypto.randomUUID(),name:name.slice(0,80),...configOf()},...state.templates].slice(0,20);
-    save();drawList();sync();globalThis.toast?.(match?'Rotina atualizada':'Rotina salva','check');
+    save();syncRoutines();drawList();sync();globalThis.toast?.(match?'Rotina atualizada':'Rotina salva','check');
    };
   }
   input.oninput=sync;input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();setTask.click();}};
@@ -396,7 +397,15 @@
  globalThis.PELEJA_POMODORO_SETTINGS=settingsPanel;
 
  globalThis.PELEJA_POMODORO={
-  attach(options){client=options.client;getUser=options.getUser;flush();},
+  attach(options){
+   client=options.client;getUser=options.getUser;saveRoutines=options.saveChange?list=>options.saveChange({kind:'pomodoro-routines',routines:list},()=>{},null,()=>{}):null;
+   // Routines live in the account: the account's list wins; routines only on this device are sent up once.
+   if(Array.isArray(options.routines)){
+    const remote=options.routines,local=(state.templates||[]).filter(t=>!remote.some(x=>x.id===t.id||x.name.toLowerCase()===t.name.toLowerCase()));
+    state.templates=[...remote,...local].slice(0,20);save();if(local.length)syncRoutines();
+   }
+   flush();
+  },
   detach(){client=null;getUser=()=>null;},
   state:()=>state,elapsed,actions,advance,render,outbox,
   rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,

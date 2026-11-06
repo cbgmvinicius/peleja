@@ -11,10 +11,11 @@ async function app(){
  // Audio stub: records every sound created, its volume and whether it is playing.
  const sounds=[];w.Audio=class{constructor(src){this.src=src;this.volume=1;this.paused=true;this.loop=false;sounds.push(this);}play(){this.paused=false;return Promise.resolve();}pause(){this.paused=true;}};
  const remote={revision:1,catalog_revision:1,catalog:{materials:[],simulations:[],exams:[]},payload:{materials:[],exams:[],simulations:[],courses:[]}};
- const saved=[];let failSave=false;
+ const saved=[],wsSaves=[];let failSave=false;
  const client={auth:{onAuthStateChange:fn=>fn('INITIAL_SESSION',{user:{id:'student'}}),signOut:async()=>({})},rpc:async(name,args)=>{
   if(name==='get_workspace')return {data:remote};if(name==='extra_course_catalog')return {data:[]};if(name==='material_exam_results')return {data:{types:[],rows:[]}};if(name==='simulation_results_next')return {data:[]};if(name==='simulation_bases')return {data:{}};
   if(name==='question_sets_list'||name==='quiz_sessions_mine'||name==='pomodoro_blocks_mine')return {data:[]};
+  if(name==='save_workspace'){remote.payload=structuredClone(args.p_payload);remote.revision++;wsSaves.push(args.p_payload);return {data:{revision:remote.revision,catalog_revision:1}};}
   if(name==='pomodoro_block_save'){if(failSave)throw Error('offline');saved.push(args);return {data:null};}
   return {data:true};},
   from:()=>{const b={select:()=>b,eq:()=>b,order:()=>b,range:async()=>({data:[]}),maybeSingle:async()=>({data:{display_name:'Aluno',role:'participant'}})};return b;}};
@@ -22,7 +23,7 @@ async function app(){
  w.document.head.append=el=>{append(el);if(el.tagName==='SCRIPT')setTimeout(()=>{try{if(el.src.startsWith('https:'))w.supabase={createClient:()=>client};else w.eval(fs.readFileSync(path.join(root,'..',new URL(el.src).pathname.replace(/^\//,'')),'utf8'));el.onload();}catch(e){console.error(e);el.onerror()}},0)};
  w.eval([...html.matchAll(/<script src="([^"?]+)[^"]*"/g)].map(m=>fs.readFileSync(path.join(root,m[1]),'utf8')).join('\n'));
  await tick(300);
- return {w,$:id=>w.document.getElementById(id),sounds,saved,setFail:v=>{failSave=v;},advance:ms=>{clock+=ms;},now:()=>clock};
+ return {wsSaves,remote,w,$:id=>w.document.getElementById(id),sounds,saved,setFail:v=>{failSave=v;},advance:ms=>{clock+=ms;},now:()=>clock};
 }
 
 (async()=>{
@@ -54,6 +55,7 @@ async function app(){
  $('pomoTask').click();$('pomoTaskInput').value='Hematologia';$('pomoTaskInput').dispatchEvent(new w.Event('input'));
  assert.match($('pomoTemplateSave').textContent,/^Salvar como rotina/);$('pomoTemplateSave').click();
  assert.equal(P.state().templates.length,1);assert.match($('pomoTemplateSave').textContent,/^Rotina salva/);
+ await tick(120);assert.equal(p.wsSaves.at(-1)?.preferences?.pomodoroRoutines?.[0]?.name,'Hematologia','routines are saved to the account');
  $('pomoSetTask').click();assert.equal($('pomoTaskName').textContent,'Hematologia');
  P.state().config.shortMin=10;$('pomoTask').click();$('pomoTaskInput').dispatchEvent(new w.Event('input'));assert.match($('pomoTemplateSave').textContent,/^Atualizar rotina/);
  $('pomoTemplateSave').click();assert.equal(P.state().templates[0].shortMin,10);$('pomoDialog').close();
