@@ -48,6 +48,7 @@ async function app(){
  // A slow phone: the show still in flight when the session ends must not leave the notification behind.
  P.state().prefs.notify=true;P.actions.stop();await tick(40);p.setSlow(150);$('pomoPlay').click();await tick(5);P.actions.stop();await tick(400);p.setSlow(0);
  assert.equal(last(),undefined,'no notification left after a fast start and finish');
+ assert.equal(w.PELEJA_POMODORO_SETTINGS.querySelector('#pomoBlockCard'),null,'no app blocking on the website');
  console.log('PASS pomodoro notification: ongoing while on (phase, end time, task), Pausar/Continuar/Pular/Concluir from the notification, closed when idle, off when disabled');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));

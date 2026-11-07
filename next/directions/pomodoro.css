@@ -359,3 +359,18 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-board-gap{display:block!important;padding:2px 0!important;text-align:center;color:var(--muted);letter-spacing:2px;border-top:0!important}
 .pomo-board-gap+li{border-top-color:transparent!important}
 .app .pomo-board-more{display:block;margin:10px auto 0;padding:8px 16px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
+/* Android app: blocking other apps during focus (Configurações › Pomodoro) */
+.pomo-block-note{margin:4px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
+.pomo-block-perms{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--soft)}
+.pomo-perm{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}
+.pomo-perm+.pomo-perm{border-top:1px solid var(--line)}
+.pomo-perm-text{display:flex;flex-direction:column;gap:2px;min-width:0}.pomo-perm-text small{font-size:12px;color:var(--muted)}
+.app .pomo-perm-btn{flex:none;padding:8px 16px;border-radius:999px;background:var(--accent);color:var(--surface);font-weight:600}
+.pomo-perm-ok{flex:none;font-size:13px;font-weight:600;color:var(--accent)}
+.app .pomo-block-apps{margin-top:12px;width:100%;padding:12px 16px;border-radius:14px;background:var(--soft);color:var(--ink);font-weight:600;text-align:left}
+.pomo-app-search{width:100%;box-sizing:border-box;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:inherit;margin-bottom:10px}
+.pomo-app-list{display:flex;flex-direction:column;max-height:min(52dvh,420px);overflow:auto;margin:0 -4px 14px}
+.pomo-app{display:flex;align-items:center;gap:12px;padding:8px 4px;border-radius:12px;cursor:pointer}
+.pomo-app img,.pomo-app-icon{width:32px;height:32px;border-radius:8px;flex:none;background:var(--soft)}
+.pomo-app-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pomo-app input{width:20px;height:20px;accent-color:var(--accent);flex:none}

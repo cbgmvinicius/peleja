@@ -10,7 +10,10 @@ async function app(){
  let clock=Date.parse('2026-11-05T12:00:00Z');w.PELEJA_NOW=()=>clock;
  // Capacitor shell with the PelejaTimer plugin (android-app/): no web Notification, no service worker.
  const calls=[],queue=[],listeners={};
+ const perms={usage:false,overlay:false};
  const plugin={update:async plan=>{calls.push(['update',JSON.parse(JSON.stringify(plan))]);},stop:async()=>{calls.push(['stop']);},
+  blockStatus:async()=>({...perms}),openBlockSettings:async o=>{calls.push(['openBlockSettings',o.which]);},
+  listApps:async()=>({apps:[{id:'com.whatsapp',label:'WhatsApp',icon:''},{id:'com.android.chrome',label:'Chrome',icon:''},{id:'com.spotify.music',label:'Spotify',icon:''}]}),
   drain:async()=>({actions:queue.splice(0)}),addListener:(name,fn)=>{(listeners[name]||=[]).push(fn);return {remove(){}};}};
  w.Capacitor={isNativePlatform:()=>true,isPluginAvailable:name=>name==='PelejaTimer',
   nativePromise:(name,method,options)=>{assert.equal(name,'PelejaTimer');return plugin[method](options);},
@@ -31,7 +34,7 @@ async function app(){
  w.document.head.append=el=>{append(el);if(el.tagName==='SCRIPT')setTimeout(()=>{try{if(el.src.startsWith('https:'))w.supabase={createClient:()=>client};else w.eval(fs.readFileSync(path.join(root,'..',new URL(el.src).pathname.replace(/^\//,'')),'utf8'));el.onload();}catch(e){console.error(e);el.onerror()}},0)};
  w.eval([...html.matchAll(/<script src="([^"?]+)[^"]*"/g)].map(m=>fs.readFileSync(path.join(root,m[1]),'utf8')).join('\n'));
  await tick(300);
- return {calls,press:(action,at)=>{queue.push({action,at});(listeners.action||[]).forEach(fn=>fn({}));},wsSaves,remote,w,$:id=>w.document.getElementById(id),sounds,saved,setFail:v=>{failSave=v;},advance:ms=>{clock+=ms;},now:()=>clock};
+ return {perms,calls,press:(action,at)=>{queue.push({action,at});(listeners.action||[]).forEach(fn=>fn({}));},wsSaves,remote,w,$:id=>w.document.getElementById(id),sounds,saved,setFail:v=>{failSave=v;},advance:ms=>{clock+=ms;},now:()=>clock};
 }
 (async()=>{
  const p=await app(),{w,$}=p,P=w.PELEJA_POMODORO,t0=p.now();
@@ -71,6 +74,35 @@ async function app(){
  assert.equal(lastPlan().segments[0].open,true);assert.equal(lastPlan().segments[1].open,false);
  // Notifications off in Configurações: the native one goes away.
  P.state().prefs.notify=false;P.render();await tick();assert.deepEqual(p.calls.at(-1),['stop']);
+ // Blocking other apps during focus (Android app only): off by default, in the plan, with the allowed apps.
+ const S=w.PELEJA_POMODORO_SETTINGS,card=S.querySelector('#pomoBlockCard');
+ assert.ok(card,'card in Configurações inside the app');
+ P.state().prefs.notify=true;P.state().config.flow=false;P.actions.stop();await tick();$('pomoPlay').click();await tick(60);
+ assert.deepEqual(lastPlan().block,{on:false,allow:[]},'off by default');
+ assert.equal(S.querySelector('#pomoBlockApps').hidden,true);
+ const sw=S.querySelector('#pomoBlockOn');sw.checked=true;sw.dispatchEvent(new w.Event('change'));await tick(40);
+ assert.equal(lastPlan().block.on,true,'the plan carries the switch');
+ // without the two permissions it shows how to grant them
+ assert.equal(S.querySelector('#pomoBlockPerms').hidden,false);
+ const btns=[...S.querySelectorAll('.pomo-perm-btn')];assert.equal(btns.length,2);
+ btns[0].click();await tick();assert.deepEqual(p.calls.at(-1),['openBlockSettings','usage']);
+ btns[1].click();await tick();assert.deepEqual(p.calls.at(-1),['openBlockSettings','overlay']);
+ // granted, back to the app: the steps go away
+ p.perms.usage=p.perms.overlay=true;w.document.dispatchEvent(new w.Event('visibilitychange'));await tick(40);
+ assert.equal(S.querySelector('#pomoBlockPerms').hidden,true);
+ // pick the allowed apps
+ const apps=S.querySelector('#pomoBlockApps');assert.equal(apps.hidden,false);assert.equal(apps.textContent,'Apps liberados (0)');
+ apps.click();await tick(40);
+ const rows=[...w.document.querySelectorAll('#pomoAppList .pomo-app')];assert.deepEqual(rows.map(r=>r.dataset.app).join(),'com.whatsapp,com.android.chrome,com.spotify.music');
+ const search=$('pomoAppSearch');search.value='spot';search.dispatchEvent(new w.Event('input'));
+ assert.equal(w.document.querySelectorAll('#pomoAppList .pomo-app').length,1);
+ const box=w.document.querySelector('#pomoAppList [data-app="com.spotify.music"] input');box.checked=true;box.dispatchEvent(new w.Event('change'));
+ $('pomoDialog').querySelector('.pomo-sheet-save').click();await tick(40);
+ assert.deepEqual(lastPlan().block,{on:true,allow:['com.spotify.music']});assert.equal(apps.textContent,'Apps liberados (1)');
+ // pausing does not touch the block in the plan: the app decides (focus running only)
+ $('pomoPlay').click();await tick(40);assert.equal(lastPlan().paused,true);assert.equal(lastPlan().block.on,true);
+ // saved on this device
+ assert.deepEqual(JSON.parse(w.localStorage.getItem('peleja-pomodoro-v1')).prefs.block,{on:true,allow:['com.spotify.music']});
  console.log('pomodoro native timer ok');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});

@@ -57,6 +57,7 @@ public class TimerService extends Service {
     private int idx;
     private long segStart, pausedElapsed;
     private boolean paused, flowNotified;
+    private AppBlocker blocker;
 
     // ---------- called from the plugin ----------
     static void apply(Context ctx, String planJson) {
@@ -109,8 +110,8 @@ public class TimerService extends Service {
     }
 
     // ---------- lifecycle ----------
-    @Override public void onCreate() { super.onCreate(); instance = this; channels(this); }
-    @Override public void onDestroy() { if (instance == this) instance = null; super.onDestroy(); }
+    @Override public void onCreate() { super.onCreate(); instance = this; channels(this); blocker = new AppBlocker(this); }
+    @Override public void onDestroy() { blocker.stop(); if (instance == this) instance = null; super.onDestroy(); }
     @Override public IBinder onBind(Intent intent) { return null; }
 
     @Override
@@ -218,9 +219,14 @@ public class TimerService extends Service {
         NotificationManagerCompat nm = NotificationManagerCompat.from(this);
         if (canNotify()) nm.notify(ID_TIMER, build());
         schedule();
+        blocker.update(plan, seg(), paused, segStart, dur());
     }
 
+    /** "Pausar o foco" on the block screen: the same as the notification's button. */
+    void pressFromBlocker(String action) { press(action); refresh(); }
+
     private void finishLocal() {
+        if (blocker != null) blocker.stop();
         plan = null; segments = null;
         prefs(this).edit().remove("state").apply();
         alarms().cancel(tick());
