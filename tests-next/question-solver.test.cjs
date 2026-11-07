@@ -54,6 +54,7 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  // ---- Treino ----
  row1.click();await tick(80);
  assert.equal($('solverDialog').open,true);assert.equal($('solverTitle').textContent,'D09 Micoses');
+ assert.equal(q('.solver-rename'),null,'members cannot rename');
  $('solverStart').click();await tick(80);
  const start=calls.find(([n])=>n==='quiz_session_start')[1];
  assert.deepEqual(start.p_layout.questions,[0,1,2],'training keeps question order');
@@ -154,7 +155,8 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  const examSolve=examButtons.find(b=>b.getAttribute('aria-disabled')==='false');assert.ok(examSolve,'exam with a set is ready');
  assert.equal(examSolve.parentElement.className,'faculty-actions');assert.ok(examSolve.previousElementSibling.matches('[data-exam-menu]'),'below Mais ações');assert.ok(examSolve.nextElementSibling.matches('[data-exam-result]'),'above the result target');
  examSolve.click();await tick(120);assert.equal($('solverTitle').textContent,'Prova inteira · PR2.1 · Dermatologia');
- const before=state.sessions.length;$('solverStart').click();await tick(80);
+ // the last choice (Prova) is remembered; this one goes back to Treino
+ assert.equal(q('input[name=solverMode][value=prova]').checked,true,'last mode remembered');radio(p,'solverMode','treino'); const before=state.sessions.length;$('solverStart').click();await tick(80);
  assert.equal(calls.filter(([n])=>n==='quiz_session_start').at(-1)[1].p_set,'set-exam');
  qa('.solver-option').find(li=>optionText(li)==='Malassezia').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
  qa('#solverFoot button').find(b=>b.textContent==='Finalizar').click();await tick();$('confirmAccept').click();await tick(150);

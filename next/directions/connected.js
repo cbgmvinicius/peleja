@@ -165,7 +165,7 @@
   simulations=PELEJA_INSTALL_SIMULATIONS({client,writer,getUser:()=>currentSession?.user?.id,allowed:()=>isAdmin,saveChange,setSaving,refreshAccount:()=>refresh(currentSession)});
   const accountProfile=PELEJA_INSTALL_PROFILE({client,getSession:()=>currentSession,getName:()=>profileName,onName:name=>{profileName=name;},onReload:()=>{simulations.load();dashboard.load();}});
   importer=PELEJA_INSTALL_IMPORT({client,allowed:()=>isAdmin});review=PELEJA_INSTALL_QUESTION_REVIEW({client,allowed:()=>isAdmin});
-  solver=PELEJA_INSTALL_SOLVER({client,saveChange});globalThis.PELEJA_REFRESH_SOLVER=()=>solver.ready();
+  solver=PELEJA_INSTALL_SOLVER({client,saveChange,allowed:()=>isAdmin});globalThis.PELEJA_REFRESH_SOLVER=()=>solver.ready();
   const pageRoutes={painel:['dashboardPage',showDashboard],biblioteca:['libraryPage',showLibraryPage],provas:['facultyPage',showFacultyPage],pomodoro:['pomodoroPage',showPomodoro],simulados:['mockPage',showMocks],ranking:['performancePage',showGeneralRanking],cursos:['extraPage',showExtraCourses]};
   function restoreRoute(hash){
    let parts;try{parts=hash.replace(/^#/,'').split('/').map(decodeURIComponent);}catch{parts=[];}
