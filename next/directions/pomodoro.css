@@ -374,3 +374,6 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-app img,.pomo-app-icon{width:32px;height:32px;border-radius:8px;flex:none;background:var(--soft)}
 .pomo-app-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pomo-app input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+/* the side buttons light up only their rounded square, never the whole column */
+.app button.pomo-side:not(:disabled):not([aria-disabled=true]):is(:hover,:focus-visible){background:transparent}
+.app button.pomo-side:not(:disabled):not([aria-disabled=true]):focus-visible{outline:none}.app .pomo-side:focus-visible .pomo-side-btn{outline:2px solid var(--accent);outline-offset:3px}
