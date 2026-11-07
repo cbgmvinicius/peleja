@@ -186,7 +186,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomodoro [data-level=future]{background:transparent}
 /* Seu ano: one column per week, squares sized to the card (28-40px) with the day's number; scrolls when long */
 .pomo-year-card{position:relative;container-type:inline-size}
-.pomo-year-scroll{overflow-x:auto;padding:12px 0 6px;scrollbar-width:thin;--gap:5px;--cell:clamp(28px,calc((100cqw - 26px - 6px) / var(--weeks,10) - var(--gap)),40px)}
+.pomo-year-scroll{overflow-x:auto;padding:12px 8px 8px;margin:0 -8px;scroll-padding:0 8px;scrollbar-width:thin;--gap:5px;--cell:clamp(28px,calc((100cqw - 26px - 6px) / var(--weeks,10) - var(--gap)),40px)}
 .pomo-year{display:grid;grid-template-columns:20px auto;grid-template-rows:auto auto;gap:6px;width:max-content;margin:0 auto}
 .pomo-year-months{display:grid;grid-template-columns:repeat(var(--weeks,10),var(--cell));column-gap:var(--gap);font-size:12px;font-weight:600;color:var(--accent);height:16px}
 .pomo-year-months span{white-space:nowrap}

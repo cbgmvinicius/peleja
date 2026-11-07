@@ -5,7 +5,10 @@ const demoExams={'Clínica Médica III':examChoices,'Pediatria':examChoices};
 let editingCode=null,editorOpener=null,editorInitial='',rowMenuCode=null;
 const editorSnapshot=()=>JSON.stringify([...$('subjectForm').elements].filter(el=>el.name||el.id).map(el=>[el.id,el.type==='checkbox'?el.checked:el.value]));
 function closeMenus(){ $('eventMenu').hidden=true;$('rowMenu').hidden=true;$('new').setAttribute('aria-expanded','false');document.querySelectorAll('[data-edit-menu]').forEach(el=>el.setAttribute('aria-expanded','false')); }
-function positionMenu(menu,button){const a=app.getBoundingClientRect(),b=button.getBoundingClientRect();menu.style.top=`${b.bottom-a.top+8}px`;menu.style.right=`${Math.max(12,a.right-b.right)}px`;}
+function positionMenu(menu,button){const a=app.getBoundingClientRect(),b=button.getBoundingClientRect();menu.style.top=`${b.bottom-a.top+8}px`;menu.style.right=`${Math.max(12,a.right-b.right)}px`;
+ // near the bottom (or behind the phone's tab bar) it opens upward instead of getting cut
+ const h=menu.getBoundingClientRect().height,bar=document.querySelector('.mobile-tabs');const floor=innerHeight-(bar&&bar.offsetParent?bar.getBoundingClientRect().height:0)-8;
+ if(h&&b.bottom+8+h>floor&&b.top-8-h>=8)menu.style.top=`${b.top-a.top-8-h}px`;}
 function fillSpecialties(value=''){
   const subject=$('editorSubject').value,values=[...new Set([...(editorCurriculum[subject]||[]),...data.filter(m=>m.subject===subject).map(m=>m.specialty),value].filter(Boolean))];
   $('editorSpecialty').replaceChildren(new Option(subject?'Sem especialidade':'Escolha a disciplina primeiro',''),...values.map(v=>new Option(v,v)));

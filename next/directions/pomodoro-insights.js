@@ -177,13 +177,16 @@
   const box=card('Seu ano',scroll,el('div',{className:'pomo-year-foot'},legend));box.classList.add('pomo-year-card');
   // The day's total in a small balloon over the square: hover with a mouse, a tap shows it for 3 s.
   const tip=el('div',{className:'pomo-day-tip',id:'pomoDayTip',hidden:true,role:'status'});box.append(tip);
-  let tipTimer=0,lastPointer='';
+  let tipTimer=0,lastPointer='',selfScroll=0;
   const hide=()=>{clearTimeout(tipTimer);tip.hidden=true;grid.querySelector('[aria-current]')?.removeAttribute('aria-current');};
   const show=(c,ms)=>{
    const k=c.dataset.day,info=byDay.get(k),d=new Date(k+'T12:00');
    tip.replaceChildren(el('span',{textContent:`${WEEKDAYS[d.getDay()]}, ${dateLabel(d)}`}),el('strong',{textContent:info?dur(info.ms):'sem foco'}),info?el('small',{textContent:sessions(info.n)}):'');
    grid.querySelector('[aria-current]')?.removeAttribute('aria-current');c.setAttribute('aria-current','true');
    tip.hidden=false;
+   // a day at the edge: scroll just enough to see it whole (ring included) before placing the balloon
+   const sr=scroll.getBoundingClientRect(),cr=c.getBoundingClientRect();
+   selfScroll=Date.now()+400;if(cr.right+8>sr.right)scroll.scrollLeft+=cr.right+8-sr.right;else if(cr.left-8<sr.left+26)scroll.scrollLeft-=sr.left+26-(cr.left-8);
    const r=c.getBoundingClientRect(),b=box.getBoundingClientRect(),half=(tip.offsetWidth||120)/2;
    tip.style.left=Math.max(half+8,Math.min(b.width-half-8,r.left-b.left+r.width/2))+'px';tip.style.top=(r.top-b.top-8)+'px';
    clearTimeout(tipTimer);if(ms)tipTimer=setTimeout(hide,ms);
@@ -192,7 +195,7 @@
   grid.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const c=e.target.closest('[data-day]');if(c)show(c,0);});
   grid.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')hide();});
   grid.onclick=e=>{const c=e.target.closest('[data-day]');if(c&&lastPointer!=='mouse')show(c,3000);lastPointer='';};
-  scroll.addEventListener('scroll',hide,{passive:true});
+  scroll.addEventListener('scroll',()=>{if(Date.now()>selfScroll)hide();},{passive:true});
   return box;
  }
  function tasksCard(s){
