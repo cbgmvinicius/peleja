@@ -434,10 +434,10 @@
   const paint=()=>{list.classList.toggle('is-off',!on.checked);for(const b of list.children){b.setAttribute('aria-checked',String(b.dataset.sound===pick));b.disabled=!on.checked;}};
   for(const [id,label] of SOUNDS){const b=el('button',{type:'button',role:'radio'},el('span',{className:'pomo-sound-icon',innerHTML:icon(SOUND_ICONS[id])}),el('span',{className:'pomo-sound-text'},el('b',{textContent:label}),el('small',{textContent:SOUND_NOTES[id]})),el('span',{className:'pomo-eq','aria-hidden':'true'},el('i'),el('i'),el('i')));b.dataset.sound=id;b.onclick=()=>{pick=id;paint();playPreview(id);};list.append(b);}
   on.onchange=()=>{paint();playPreview(on.checked?pick:null);};
-  paint();onClose=stopPreview;
-  openSheet('sound','Som','Um som de fundo para ajudar a focar.',toggle,list,saveButton('Salvar',()=>{
-   const was=state.sound.id;state.sound.enabled=on.checked;state.sound.id=pick;if(on.checked&&(was!==pick||state.sound.muted))state.sound.muted=false;applied();dialog.close();
-  }));
+  // What is on screen is kept however the sheet closes (Salvar, X, outside or back): it stays until changed.
+  const commit=()=>{const was=state.sound.id,turnedOn=on.checked&&!state.sound.enabled;state.sound.enabled=on.checked;state.sound.id=pick;if(on.checked&&(was!==pick||turnedOn||state.sound.muted))state.sound.muted=false;applied();};
+  paint();onClose=()=>{stopPreview();commit();};
+  openSheet('sound','Som','Um som de fundo para ajudar a focar.',toggle,list,saveButton('Salvar',()=>{commit();dialog.close();}));
  }
  // Series: how many, the long break (length and how often) and the flow switch, all by dragging.
  function openSets(){
@@ -448,9 +448,9 @@
   const every=slider('A cada',Math.min(c.longEvery,Math.max(1,c.targetSets-1)),1,Math.max(1,c.targetSets-1),1,v=>v===1?'1 série':v+' séries','pomoLongEvery');
   const longFields=el('div',{className:'pomo-long',id:'pomoLongFields'},duration,every);
   const flow=switchRow('Flow',c.flow,'pomoFlowOn','O tempo de foco vira um mínimo. Passou dele, o relógio segue contando até você tocar em “Começar pausa”.');
-  openSheet('sets','Séries','Quantas séries fazer e quando ter a pausa longa.',sets,el('div',{className:'pomo-sheet-group'},longOn,longFields),flow,saveButton('Salvar',()=>{
-   c.targetSets=+$('pomoTargetSets').value;c.longEnabled=$('pomoLongOn').checked;c.longMin=+$('pomoLongMin').value;c.longEvery=Math.min(+$('pomoLongEvery').value,Math.max(1,c.targetSets-1));c.flow=$('pomoFlowOn').checked;applied();dialog.close();
-  }));
+  const commit=()=>{if(!$('pomoTargetSets'))return;c.targetSets=+$('pomoTargetSets').value;c.longEnabled=$('pomoLongOn').checked;c.longMin=+$('pomoLongMin').value;c.longEvery=Math.min(+$('pomoLongEvery').value,Math.max(1,c.targetSets-1));c.flow=$('pomoFlowOn').checked;applied();};
+  openSheet('sets','Séries','Quantas séries fazer e quando ter a pausa longa.',sets,el('div',{className:'pomo-sheet-group'},longOn,longFields),flow,saveButton('Salvar',()=>{commit();dialog.close();}));
+  onClose=commit; // closing without Salvar keeps the changes too
   $('pomoTargetSets').addEventListener('input',()=>every.setRange(1,Math.max(1,+$('pomoTargetSets').value-1)));
   const syncLong=()=>{longFields.hidden=!$('pomoLongOn').checked;};$('pomoLongOn').onchange=syncLong;syncLong();
  }

@@ -135,6 +135,12 @@ async function app(){
  // Settings: a Pomodoro section under Peleja.
  assert.ok($('pomodoroSettingsEdit'));$('pomodoroSettingsEdit').click();assert.equal($('pomodoroSettingsPanel').hidden,false);
  $('pomoPrefEffects').click();assert.equal(P.state().prefs.effects,false);
+ // Closing the Som / Séries sheets by the X keeps what is on screen (it stays until changed).
+ {const P2=w.PELEJA_POMODORO;P2.actions.stop();await settle();P2.state().sound.enabled=false;P2.state().config.flow=false;P2.save();P2.render();
+  $('pomoSideLeft').click();await settle();const sw=$('pomoSoundOn');sw.checked=true;sw.dispatchEvent(new w.Event('change'));$('pomoDialog').querySelector('.pomo-dialog-close').click();await settle();
+  assert.equal(P2.state().sound.enabled,true,'sound kept after closing by X');assert.equal(JSON.parse(w.localStorage.getItem('peleja-pomodoro-v1')).sound.enabled,true);
+  $('pomoPlanSets').click();await settle();$('pomoFlowOn').checked=true;$('pomoDialog').querySelector('.pomo-dialog-close').click();await settle();
+  assert.equal(P2.state().config.flow,true,'flow kept after closing by X');assert.equal(JSON.parse(w.localStorage.getItem('peleja-pomodoro-v1')).config.flow,true);}
  console.log('PASS pomodoro: idle plan bar and time picker, task routines, sound sheet preview, play/pause/mute, auto break, skip, discard, finish (too short / confirm), flow, long break, goal reached, outbox, catch-up, settings');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
