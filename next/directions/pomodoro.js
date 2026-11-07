@@ -75,7 +75,40 @@
  let ambient=null,ambientId='',fadeTimer=0,currentVolume=0;
  const soundOn=()=>state.sound.enabled&&!state.sound.muted&&!!state.sound.id;
  const targetVolume=()=>!soundOn()||state.timer.status!=='running'?0:state.timer.mode==='focus'?1:.1;
+ // Seamless loops: <audio loop> leaves an audible seam (encoder silence + restart). With Web Audio each lap
+ // overlaps the next by a few seconds with an equal-power crossfade, so the turn cannot be heard.
+ const AC=globalThis.AudioContext||globalThis.webkitAudioContext;let actx=null,ambientNode=null;const buffers=new Map();
+ const audio=()=>{if(!AC)return null;try{actx||=new AC();if(actx.state==='suspended')actx.resume().catch(()=>{});}catch{actx=null;}return actx;};
+ if(AC)addEventListener('pointerdown',()=>{if(actx?.state==='suspended')actx.resume().catch(()=>{});},{passive:true});
+ function bufferOf(id){
+  if(!buffers.has(id))buffers.set(id,fetch(soundUrl(id)).then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>actx.decodeAudioData(b,ok,no))).catch(e=>{buffers.delete(id);throw e;}));
+  return buffers.get(id);
+ }
+ const N=48,UP=new Float32Array(N),DOWN=new Float32Array(N);for(let i=0;i<N;i++){const t=i/(N-1);UP[i]=Math.sin(t*Math.PI/2);DOWN[i]=Math.cos(t*Math.PI/2);}
+ function looper(id,level=0){
+  const ctx=audio(),out=ctx.createGain();out.gain.value=level;out.connect(ctx.destination);
+  let alive=true,timer=0,sources=[];const TRIM=.06;
+  bufferOf(id).then(buf=>{
+   if(!alive)return;const len=buf.duration-2*TRIM,x=Math.min(4,len/4);
+   const lap=at=>{
+    const g=ctx.createGain(),s=ctx.createBufferSource();s.buffer=buf;s.connect(g);g.connect(out);
+    g.gain.setValueCurveAtTime(UP,at,x);g.gain.setValueCurveAtTime(DOWN,at+len-x,x);
+    s.start(at,TRIM,len);sources.push(s);s.onended=()=>{sources=sources.filter(v=>v!==s);try{g.disconnect();}catch{}};
+    const next=at+len-x;timer=setTimeout(()=>{if(alive)lap(next);},Math.max(0,(next-ctx.currentTime-1.5)*1000));
+   };
+   lap(ctx.currentTime+.05);
+  }).catch(()=>{});
+  return {gain:out.gain,stop(){alive=false;clearTimeout(timer);for(const s of sources)try{s.stop();}catch{}sources=[];setTimeout(()=>{try{out.disconnect();}catch{}},80);}};
+ }
  function fadeTo(target,ms=1500){
+  if(audio()){
+   clearTimeout(fadeTimer);
+   if(target>0&&(!ambientNode||ambientId!==state.sound.id)){ambientNode?.stop();ambientNode=looper(state.sound.id);ambientId=state.sound.id;}
+   if(!ambientNode)return;
+   const g=ambientNode.gain,t=actx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(target,t+ms/1000);
+   if(target===0){const node=ambientNode;fadeTimer=setTimeout(()=>{if(ambientNode===node&&targetVolume()===0){node.stop();ambientNode=null;ambientId='';}},ms+150);}
+   return;
+  }
   clearInterval(fadeTimer);
   if(target>0&&(!ambient||ambientId!==state.sound.id)){ambient?.pause();ambient=new Audio(soundUrl(state.sound.id));ambient.loop=true;ambientId=state.sound.id;ambient.volume=currentVolume=0;}
   if(!ambient)return;
@@ -85,7 +118,7 @@
  }
  const syncSound=ms=>fadeTo(targetVolume(),ms);
  // Flow minimum reached: a short dip in the background and back, without leaving the focus.
- function wave(){if(!soundOn()||!ambient)return;fadeTo(.35,500);setTimeout(()=>{if(state.timer.mode==='focus'&&state.timer.status==='running')fadeTo(1,900);},700);}
+ function wave(){if(!soundOn()||!(ambient||ambientNode))return;fadeTo(.35,500);setTimeout(()=>{if(state.timer.mode==='focus'&&state.timer.status==='running')fadeTo(1,900);},700);}
  // Chimes are fetched once and kept in memory, so they sound the moment they are called (from the network a
  // phone could take seconds, e.g. when the cached copy has expired).
  const chimeUrls={};
@@ -432,8 +465,8 @@
  }
  // Ambient sound: a list with a short description; the chosen sound plays while the panel is open.
  let preview=null;
- const stopPreview=()=>{preview?.pause();preview=null;};
- function playPreview(id){stopPreview();if(!id)return;preview=new Audio(soundUrl(id));preview.loop=true;preview.volume=.7;preview.play?.()?.catch?.(()=>{});}
+ const stopPreview=()=>{if(preview?.stop)preview.stop();else preview?.pause();preview=null;};
+ function playPreview(id){stopPreview();if(!id)return;if(audio()){preview=looper(id,.7);return;}preview=new Audio(soundUrl(id));preview.loop=true;preview.volume=.7;preview.play?.()?.catch?.(()=>{});}
  function openSound(){
   let pick=state.sound.id||'rain';
   const toggle=switchRow('Som ambiente',state.sound.enabled,'pomoSoundOn','Alto no foco, baixinho na pausa, mudo quando pausar'),on=toggle.querySelector('input');
