@@ -202,7 +202,7 @@
     const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
     if(!manual)restoreRoute(requestedRoute);
-    importer.ready();solver.ready();review.ready();globalThis.PELEJA_POMODORO?.attach({client,getUser:()=>currentSession?.user?.id,saveChange,routines:Array.isArray(remote.data.payload?.preferences?.pomodoroRoutines)?remote.data.payload.preferences.pomodoroRoutines:[]});
+    importer.ready();solver.ready();review.ready();globalThis.PELEJA_POMODORO?.attach({client,getUser:()=>currentSession?.user?.id,saveChange,settings:remote.data.payload?.preferences?.pomodoroSettings,routines:Array.isArray(remote.data.payload?.preferences?.pomodoroRoutines)?remote.data.payload.preferences.pomodoroRoutines:[]});
     document.documentElement.classList.remove('connected-loading');if(!manual&&gate.animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const exit=gate.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease-out'});exit.onfinish=()=>{if(ticket===version)gate.hidden=true;};}else gate.hidden=true;
     if(manual){
      // Redraw whatever is on screen now, in place (the person may have changed tabs while it synced).

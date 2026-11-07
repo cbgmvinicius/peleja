@@ -10,6 +10,14 @@ function preparePersonalChange(remote,change,now=new Date().toISOString()){
   const prefs=change.preferences;if(typeof prefs?.dark!=='boolean'||typeof prefs?.motion!=='boolean')throw Error('Preferências inválidas');
   payload.preferences={...payload.preferences,pelejaNext:{dark:prefs.dark,motion:prefs.motion,navigation:'top'}};return payload;
  }
+ if(change.kind==='pomodoro-settings'){
+  // Pomodoro settings (times, series, flow, sound, effects): the same on every device and in the app.
+  const s=change.settings,int=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi,bool=v=>typeof v==='boolean',c=s?.config,so=s?.sound,pr=s?.prefs;
+  if(!c||!so||!pr||!int(c.focusMin,5,120)||!int(c.shortMin,1,60)||!int(c.targetSets,1,12)||!bool(c.longEnabled)||!int(c.longMin,5,60)||!int(c.longEvery,1,12)||!bool(c.flow)
+   ||!bool(so.enabled)||!['forest','rain','brown_noise','fireplace','library','riverside'].includes(so.id)||!bool(so.muted)||!bool(pr.effects)||!bool(pr.notify))throw Error('Preferências do Pomodoro inválidas');
+  payload.preferences.pomodoroSettings={config:{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:c.flow},sound:{enabled:so.enabled,id:so.id,muted:so.muted},prefs:{effects:pr.effects,notify:pr.notify}};
+  return payload;
+ }
  if(change.kind==='pomodoro-routines'){
   // Saved Pomodoro routines (task + times + series), so they follow the account to every device.
   const list=change.routines,int=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi;
