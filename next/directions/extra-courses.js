@@ -22,7 +22,8 @@ function englishModules(view){
  return stages.flatMap(stage=>stage.modules.map(module=>({id:module.id,title:module.title,stage:view==='simple'?stage.title.replace('04 - Monolingual','05 - Monolingual').replace('05 - Output Practice','06 - Output Practice'):stage.title,lessons:module.lessons.map(id=>lookup.get(id)).filter(Boolean)})));
 }
 const extraCatalog={
- cardio:{title:'CardioPapers ECG',subtitle:'ECG',modules:PELEJA_COURSES.modules.map((m,i)=>({...m,title:`${String(i+1).padStart(2,'0')} · ${m.title}`,lessons:m.lessons.map((l,j)=>({...l,title:`${String(j+1).padStart(2,'0')} · ${l.title}`}))}))},
+ // lessons count 1..128 through the whole course; modules keep their own numbers
+ cardio:{title:'CardioPapers ECG',subtitle:'ECG',modules:PELEJA_COURSES.modules.map((m,i,all)=>{const before=all.slice(0,i).reduce((n,x)=>n+x.lessons.length,0);return {...m,title:`${String(i+1).padStart(2,'0')} · ${m.title}`,lessons:m.lessons.map((l,j)=>({...l,title:`${String(before+j+1).padStart(3,'0')} · ${l.title}`}))};})},
  english:{title:'Mairo Vergara',subtitle:'Inglês',modules:englishModules(extraEnglishView)}
 };
 extraCatalog.yokubi=PELEJA_YOKUBI;

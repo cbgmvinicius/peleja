@@ -31,7 +31,11 @@
  if(!state.prefs.notifyDefault){state.prefs.notify=true;state.prefs.notifyDefault=1;}
  // Android app: block other apps during focus (off by default) and the apps that stay allowed.
  const fixBlock=()=>{state.prefs.block={on:false,...(state.prefs.block||{})};state.prefs.block.allow=[...(state.prefs.block.allow||[])];};fixBlock();
- const save=()=>write(KEY,state);
+ const save=()=>{write(KEY,state);syncSettings();};
+ // Settings follow the account (site and Android app keep separate storage): sent a second after a change.
+ const snapshot=()=>{const c=state.config,s=state.sound;return {config:{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow},sound:{enabled:!!s.enabled,id:s.id,muted:!!s.muted},prefs:{effects:!!state.prefs.effects,notify:!!state.prefs.notify}};};
+ let saveSettings=null,settingsTimer=0,lastSent='';
+ function syncSettings(){if(!saveSettings)return;clearTimeout(settingsTimer);settingsTimer=setTimeout(()=>{const s=snapshot(),k=JSON.stringify(s);if(k===lastSent)return;lastSent=k;saveSettings(s);},1000);}
  const planned=mode=>(mode==='focus'?state.config.focusMin:mode==='short'?state.config.shortMin:state.config.longMin)*60000;
  const elapsed=()=>state.timer.accMs+(state.timer.status==='running'?Math.max(0,now()-state.timer.runningSince):0);
  const fmt=ms=>{const t=Math.max(0,Math.floor(ms/1000)),h=Math.floor(t/3600),m=Math.floor(t/60)%60,s=t%60;return (h?h+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0'))+':'+String(s).padStart(2,'0');};
@@ -374,9 +378,12 @@
  function slider(label,value,min,max,step,format,id,ends=true){
   const out=el('b',{className:'pomo-slider-value'}),input=el('input',{type:'range',min,max,step,value,id});
   const paint=()=>{const lo=+input.min,hi=+input.max;out.textContent=format(+input.value);input.style.setProperty('--fill',(hi>lo?(input.value-lo)/(hi-lo)*100:100)+'%');input.setAttribute('aria-valuetext',format(+input.value));};
-  input.addEventListener('input',paint);input.setAttribute('aria-label',label);
-  const lo=el('span'),hi=el('span'),box=el('div',{className:'pomo-slider'},el('div',{className:'pomo-slider-head'},el('span',{textContent:label}),out),input,ends?el('div',{className:'pomo-range-ends'},lo,hi):'');
-  box.setRange=(a,b)=>{input.min=a;input.max=b;if(+input.value>b)input.value=b;if(+input.value<a)input.value=a;lo.textContent=format(a);hi.textContent=format(b);input.disabled=a===b;paint();};
+  let last=+input.value;
+  input.addEventListener('input',()=>{paint();if(+input.value!==last){last=+input.value;try{navigator.vibrate?.(4);}catch{}}});input.setAttribute('aria-label',label);
+  const ticks=el('span',{className:'pomo-ticks','aria-hidden':'true'}),track=el('div',{className:'pomo-slider-track'},input,ticks);
+  const lo=el('span'),hi=el('span'),box=el('div',{className:'pomo-slider'},el('div',{className:'pomo-slider-head'},el('span',{textContent:label}),out),track,ends?el('div',{className:'pomo-range-ends'},lo,hi):'');
+  box.setRange=(a,b)=>{input.min=a;input.max=b;if(+input.value>b)input.value=b;if(+input.value<a)input.value=a;lo.textContent=format(a);hi.textContent=format(b);input.disabled=a===b;
+   const n=Math.round((b-a)/(+input.step||1));track.style.setProperty('--steps',String(Math.max(1,n>24?n/5:n)));ticks.hidden=n<1;last=+input.value;paint();};
   box.setRange(min,max);return box;
  }
  // Time: drag to choose, 5 by 5 minutes.
@@ -547,6 +554,15 @@
 
  globalThis.PELEJA_POMODORO={
   attach(options){
+   saveSettings=options.saveChange?s=>options.saveChange({kind:'pomodoro-settings',settings:s},()=>{},null,()=>{lastSent='';}):null;
+   const remote=options.settings;
+   if(remote&&typeof remote==='object'&&remote.config&&remote.sound&&remote.prefs){
+    // the account's settings win; times and series wait if a session is running
+    if(state.timer.status==='idle')Object.assign(state.config,remote.config);
+    Object.assign(state.sound,remote.sound);Object.assign(state.prefs,remote.prefs);write(KEY,state);render();
+   }
+   // only real changes go up from now on
+   lastSent=JSON.stringify(snapshot());
    client=options.client;getUser=options.getUser;saveRoutines=options.saveChange?list=>options.saveChange({kind:'pomodoro-routines',routines:list},()=>{},null,()=>{}):null;
    // Routines live in the account: the account's list wins; routines only on this device are sent up once.
    if(Array.isArray(options.routines)){
@@ -555,7 +571,7 @@
    }
    flush();
   },
-  detach(){client=null;getUser=()=>null;},
+  detach(){client=null;getUser=()=>null;saveSettings=null;lastSent='';},
   state:()=>state,elapsed,actions,advance,render,outbox,
   rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,
   reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};fixBlock();save();render();}
