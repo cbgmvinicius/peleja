@@ -29,6 +29,8 @@
  let state=read(KEY,DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k],...state[k]};
  // Notifications are on by default, also for whoever had the old default (off) saved; turning them off later sticks.
  if(!state.prefs.notifyDefault){state.prefs.notify=true;state.prefs.notifyDefault=1;}
+ // Android app: block other apps during focus (off by default) and the apps that stay allowed.
+ const fixBlock=()=>{state.prefs.block={on:false,...(state.prefs.block||{})};state.prefs.block.allow=[...(state.prefs.block.allow||[])];};fixBlock();
  const save=()=>write(KEY,state);
  const planned=mode=>(mode==='focus'?state.config.focusMin:mode==='short'?state.config.shortMin:state.config.longMin)*60000;
  const elapsed=()=>state.timer.accMs+(state.timer.status==='running'?Math.max(0,now()-state.timer.runningSince):0);
@@ -94,7 +96,7 @@
  // The page is the published site, so it talks to the plugin through the bridge the app injects (no @capacitor/core).
  const cap=globalThis.Capacitor,native=cap?.isPluginAvailable?.('PelejaTimer')&&cap.nativePromise?{
   update:plan=>cap.nativePromise('PelejaTimer','update',plan),stop:()=>cap.nativePromise('PelejaTimer','stop',{}),
-  drain:()=>cap.nativePromise('PelejaTimer','drain',{}),addListener:(name,fn)=>cap.addListener('PelejaTimer',name,fn)}:null;
+  drain:()=>cap.nativePromise('PelejaTimer','drain',{}),blockStatus:()=>cap.nativePromise('PelejaTimer','blockStatus',{}),listApps:()=>cap.nativePromise('PelejaTimer','listApps',{}),openBlockSettings:o=>cap.nativePromise('PelejaTimer','openBlockSettings',o),addListener:(name,fn)=>cap.addListener('PelejaTimer',name,fn)}:null;
  let replaying=false;
  let swReg=null,swTried=false;
  const allowed=()=>state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='granted';
@@ -150,11 +152,12 @@
    mode=c.longEnabled&&sets%c.longEvery===0?'long':'short';
   }
   return {segments,at:now(),elapsedMs:elapsed(),paused:t.status==='paused',flowNotified:!!t.flowNotified,task:state.task.trim(),effects:!!state.prefs.effects,
+   block:{on:!!state.prefs.block.on,allow:state.prefs.block.allow},
    endText:'Meta da sessão concluída!',flowText:'Tempo mínimo atingido. Siga no flow ou comece a pausa.'};
  }
  function nativeOngoing(){
   const t=state.timer,on=state.prefs.notify&&t.status!=='idle';
-  const sig=on?JSON.stringify([t,state.config,state.task,state.prefs.effects]):'off';
+  const sig=on?JSON.stringify([t,state.config,state.task,state.prefs.effects,state.prefs.block]):'off';
   if(sig===ongoingSig)return;ongoingSig=sig;
   Promise.resolve(on?native.update(nativePlan()):native.stop()).catch(()=>{});
  }
@@ -499,6 +502,47 @@
   if(e.target.checked&&!native&&typeof Notification!=='undefined'&&Notification.permission!=='granted'){const p=await Notification.requestPermission().catch(()=>'denied');if(p!=='granted'){e.target.checked=false;globalThis.toast?.('O navegador não permitiu avisos','info');}}
   state.prefs.notify=e.target.checked;save();if(e.target.checked&&!native)await worker();updateOngoing();
  };
+ // Android app only: block other apps while a focus is running (the native AppBlocker does the blocking).
+ let paintBlock=()=>{};
+ async function openAllowList(){
+  const picked=new Set(state.prefs.block.allow);
+  const search=el('input',{type:'search',placeholder:'Buscar app',className:'pomo-app-search',id:'pomoAppSearch'});search.setAttribute('aria-label','Buscar app');
+  const list=el('div',{className:'pomo-app-list',id:'pomoAppList'},el('p',{className:'pomo-card-note',textContent:'Carregando apps…'}));
+  openSheet('apps','Apps liberados','Esses continuam abrindo durante o foco.',search,list,saveButton('Salvar',()=>{
+   state.prefs.block.allow=[...picked];save();updateOngoing();paintBlock();dialog.close();
+  }));
+  let apps=[];try{apps=(await native.listApps())?.apps||[];}catch{}
+  const draw=()=>{
+   const q=search.value.trim().toLowerCase(),shown=apps.filter(a=>!q||a.label.toLowerCase().includes(q));
+   list.replaceChildren(...shown.map(a=>{
+    const input=el('input',{type:'checkbox',checked:picked.has(a.id)});input.onchange=()=>{if(input.checked)picked.add(a.id);else picked.delete(a.id);};
+    const row=el('label',{className:'pomo-app'},a.icon?el('img',{src:a.icon,alt:''}):el('span',{className:'pomo-app-icon'}),el('span',{className:'pomo-app-name',textContent:a.label}),input);row.dataset.app=a.id;return row;
+   }));
+   if(!shown.length)list.append(el('p',{className:'pomo-card-note',textContent:apps.length?'Nenhum app com esse nome.':'Não deu para listar os apps.'}));
+  };
+  search.oninput=draw;draw();
+ }
+ if(native){
+  const blockCard=el('div',{className:'settings-card',id:'pomoBlockCard'},el('h3',{textContent:'Bloquear apps no foco'}),
+   el('p',{className:'pomo-block-note',textContent:'Durante o foco, abrir um app fora da lista mostra a tela "Volta pro foco". Nas pausas e com o timer pausado fica tudo liberado. Telefone, teclado e Configurações nunca são bloqueados.'}));
+  const onRow=switchRow('Bloquear outros apps durante o foco',state.prefs.block.on,'pomoBlockOn');onRow.classList.add('settings-row');
+  const perms=el('div',{className:'pomo-block-perms',id:'pomoBlockPerms'}),allowBtn=el('button',{type:'button',className:'pomo-block-apps',id:'pomoBlockApps',onclick:openAllowList});
+  blockCard.append(onRow,perms,allowBtn);settingsPanel.append(blockCard);
+  let status={usage:true,overlay:true};
+  const permRow=(which,label,note,ok)=>el('div',{className:'pomo-perm'+(ok?' is-ok':'')},el('span',{className:'pomo-perm-text'},el('b',{textContent:label}),el('small',{textContent:note})),
+   ok?el('span',{className:'pomo-perm-ok',textContent:'Liberado'}):el('button',{type:'button',className:'pomo-perm-btn',textContent:'Liberar',onclick:()=>Promise.resolve(native.openBlockSettings({which})).catch(()=>{})}));
+  paintBlock=()=>{
+   const on=state.prefs.block.on;allowBtn.hidden=!on;allowBtn.textContent=`Apps liberados (${state.prefs.block.allow.length})`;
+   perms.hidden=!on||(status.usage&&status.overlay);
+   perms.replaceChildren(el('p',{className:'pomo-block-note',textContent:'Para bloquear, o Android precisa de duas permissões (é só liberar uma vez):'}),
+    permRow('usage','Acesso ao uso','para saber qual app está aberto',status.usage),permRow('overlay','Sobrepor a outros apps','para mostrar a tela "Volta pro foco"',status.overlay));
+  };
+  const refreshStatus=()=>Promise.resolve(native.blockStatus()).then(s=>{status={usage:!!s?.usage,overlay:!!s?.overlay};paintBlock();}).catch(()=>{});
+  onRow.querySelector('input').onchange=e=>{state.prefs.block.on=e.target.checked;save();updateOngoing();paintBlock();refreshStatus();};
+  // back from the system screens: show what was granted
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshStatus();});
+  paintBlock();refreshStatus();
+ }
  globalThis.PELEJA_POMODORO_SETTINGS=settingsPanel;
 
  globalThis.PELEJA_POMODORO={
@@ -514,7 +558,7 @@
   detach(){client=null;getUser=()=>null;},
   state:()=>state,elapsed,actions,advance,render,outbox,
   rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,
-  reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};save();render();}
+  reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};fixBlock();save();render();}
  };
  advance();render();drainNative();
 })();
