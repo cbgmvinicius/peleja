@@ -1,9 +1,11 @@
 // "Resolver questões": members answer the question sets imported for a material.
-// Treino (training): options shuffled, answer key and every comment right after answering.
-// Prova (exam): questions and options shuffled, answer key only when finished.
+// Quick modes: Treino (answer key and comments after each answer, questions in order) and Prova (key only
+// at the end, everything shuffled). "Personalizar" sets each part: marking on click or with confirmation,
+// key after each answer or at the end, questions and options shuffled or in order. The choice travels in
+// the session layout (settings), so a resumed session keeps behaving the same.
 // Sessions live in Supabase (quiz_sessions) and can be resumed; the first finished session
 // of each set becomes a question round of the material, so it counts in the statistics once.
-globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
+globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  const LETTERS='ABCDEFGHIJKLMNOPQRST',EASE='cubic-bezier(.22,1,.36,1)';
  const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;};
  const ICON={
@@ -11,6 +13,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   cut:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.6" cy="7.4" r="2.6"/><circle cx="18.6" cy="16.6" r="2.6"/><path d="M16.4 15.1 12.6 12 3.4 8.1"/><path d="M16.4 8.9 12.6 12 3.4 15.9"/><path d="M1 12h9.4" stroke-dasharray="0.1 3.1" stroke-width="2.4"/></svg>',
   hint:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></svg>',
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.8 5a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.7 18.5Z"/><path d="M13.8 7l3.2 3.2"/></svg>',
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M7 7l1 12h8l1-12M9 7V4h6v3"/></svg>',
   wrong:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>'
  };
@@ -32,6 +35,16 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  const answerOf=q=>session.answers[q]||{o:null,x:[]};
  const isCorrect=(q,o)=>o!=null&&!!questions[q]?.answerOptions[o]?.isCorrect;
  const order=()=>session.layout.questions;
+ // ---------- how a session behaves ----------
+ const PRESETS={treino:{confirm:true,reveal:'each',shuffleQuestions:false,shuffleOptions:true},prova:{confirm:true,reveal:'end',shuffleQuestions:true,shuffleOptions:true}};
+ const PREF='peleja-solver-v1';
+ const prefs=()=>{try{return JSON.parse(localStorage.getItem(PREF)||'{}')||{};}catch{return {};}};
+ const savePrefs=change=>{try{localStorage.setItem(PREF,JSON.stringify({...prefs(),...change}));}catch{}};
+ const presetOf=s=>Object.entries(PRESETS).find(([,v])=>Object.keys(v).every(k=>v[k]===s[k]))?.[0]||'custom';
+ const settingsOf=s=>({...(PRESETS[s?.mode]||PRESETS.treino),...(s?.layout?.settings||{})});
+ const modeLabel=s=>({treino:'Treino',prova:'Prova',custom:'Personalizado'})[presetOf(settingsOf(s))];
+ const cfg=()=>session.settings||settingsOf(session);
+ let setupSettings={...PRESETS.treino};
  function animateIn(node,dy=8){motion(node,[{opacity:0,transform:`translateY(${dy}px)`},{opacity:1,transform:'none'}],{duration:260,easing:EASE});}
 
  // ---------- library rows ----------
@@ -88,20 +101,68 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.kind==='exam'?`Prova inteira · ${material.title}`:material.title;$s('solverProgress').hidden=true;tick();
   const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
   if(list.length>1){
-   const group=el('fieldset',{className:'solver-group'},el('legend',{textContent:'Conjunto'}));
-   list.forEach(s=>group.append(choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id)));
-   group.onchange=async()=>{setInfo=list.find(s=>s.id===group.querySelector('input:checked').value);await refreshSetupDetails();};
-   body.append(group);
-  }else body.append(el('p',{className:'solver-lead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões')));
-  const modes=el('fieldset',{className:'solver-group solver-pair'},el('legend',{textContent:'Modo'}));
-  modes.append(choice('solverMode','treino','Treino','Gabarito e comentários a cada resposta. Alternativas embaralhadas.',true),choice('solverMode','prova','Prova','Gabarito só ao finalizar. Questões e alternativas embaralhadas.',false));
+   const group=el('fieldset',{className:'solver-group solver-lists'},el('legend',{textContent:'Lista'}));
+   list.forEach(s=>{const card=choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id);card.dataset.set=s.id;if(allowed())card.append(renameButton(s));group.append(card);});
+   group.onchange=async()=>{const c=group.querySelector('input[name=solverSet]:checked'),next=c&&list.find(s=>s.id===c.value);if(!next||next.id===setInfo.id)return;setInfo=next;savePrefs({lists:{...(prefs().lists||{}),[material.key]:setInfo.id}});await refreshSetupDetails();};
+   body.append(group);lastAttempts(list,group);
+  }else{const lead=el('p',{className:'solver-lead',id:'solverListLead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões'));if(allowed())lead.append(renameButton(setInfo));body.append(lead);}
+  const modes=el('fieldset',{className:'solver-group solver-pair',id:'solverModes'},el('legend',{textContent:'Modo'}));
+  modes.append(choice('solverMode','treino','Treino','Gabarito e comentários a cada resposta. Questões em sequência.',true),choice('solverMode','prova','Prova','Gabarito só ao finalizar. Questões e alternativas embaralhadas.',false));
+  // Personalizar: each part on its own; touching one turns the mode into "Personalizado".
+  setupSettings={...PRESETS.treino,...(prefs().settings||{})};
+  const seg=(key,label,options)=>{const g=el('fieldset',{className:'solver-seg'},el('legend',{textContent:label}));for(const [value,text] of options){const input=el('input',{type:'radio',name:'solverOpt-'+key,value});g.append(el('label',{},input,el('span',{textContent:text})));}g.dataset.key=key;return g;};
+  const advanced=el('details',{className:'solver-advanced',id:'solverAdvanced'},el('summary',{},el('span',{textContent:'Personalizar'}),el('small',{id:'solverCustomNote'})),
+   el('div',{className:'solver-advanced-body'},
+    seg('confirm','Marcar a resposta',[['false','Ao clicar'],['true','Com confirmação']]),
+    seg('reveal','Gabarito e comentários',[['each','A cada resposta'],['end','No final']]),
+    seg('shuffleQuestions','Questões',[['true','Embaralhadas'],['false','Em sequência']]),
+    seg('shuffleOptions','Alternativas',[['true','Embaralhadas'],['false','Na ordem']])));
+  const paintSettings=()=>{
+   const preset=presetOf(setupSettings);
+   for(const input of modes.querySelectorAll('input'))input.checked=input.value===preset;
+   for(const g of advanced.querySelectorAll('.solver-seg'))for(const input of g.querySelectorAll('input'))input.checked=input.value===String(setupSettings[g.dataset.key]);
+   advanced.querySelector('#solverCustomNote').textContent=preset==='custom'?'Personalizado':'';
+   if(preset==='custom')advanced.open=true;
+  };
+  modes.onchange=()=>{const v=modes.querySelector('input:checked')?.value;if(!v||!PRESETS[v])return;setupSettings={...PRESETS[v]};paintSettings();};
+  advanced.onchange=e=>{const g=e.target.closest('.solver-seg');if(!g)return;const v=e.target.value;setupSettings={...setupSettings,[g.dataset.key]:v==='true'?true:v==='false'?false:v};paintSettings();};
+  paintSettings();
   const clocks=el('fieldset',{className:'solver-group solver-pair'},el('legend',{textContent:'Relógio'}));
   clocks.append(choice('solverClock','stopwatch','Cronômetro','Mostra quanto tempo você levou.',true),choice('solverClock','timer','Temporizador','Conta o tempo que você definir.',false));
   const minutes=el('label',{className:'editor-field solver-minutes',hidden:true},el('span',{textContent:'Minutos'}),el('input',{type:'number',id:'solverMinutes',min:1,max:600,step:1,inputMode:'numeric'}));
   clocks.append(minutes);clocks.onchange=()=>{minutes.hidden=clocks.querySelector('input:checked').value!=='timer';if(!minutes.hidden)animateIn(minutes,-4);};
-  body.append(modes,clocks,el('div',{id:'solverResume'}),el('div',{id:'solverHistory'}));
+  body.append(modes,advanced,clocks,el('div',{id:'solverResume'}),el('div',{id:'solverHistory'}));
   const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>start()}));
   await refreshSetupDetails();
+ }
+ // Administrators rename a list right here (the questions stay as they are).
+ function renameButton(s){
+  const b=el('button',{type:'button',className:'icon solver-rename',title:'Renomear lista',innerHTML:ICON.pencil});b.setAttribute('aria-label',`Renomear ${s.title}`);
+  b.onclick=e=>{e.preventDefault();e.stopPropagation();renameList(s,b);};
+  return b;
+ }
+ function renameList(s,button){
+  const host=button.parentElement,input=el('input',{type:'text',value:s.title,maxLength:200,className:'solver-rename-input',id:'solverRenameInput'});input.setAttribute('aria-label','Nome da lista');
+  const box=el('div',{className:'solver-rename-box'},input,
+   el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:e=>{e.stopPropagation();renderSetup();}}),
+   el('button',{type:'button',className:'primary',id:'solverRenameSave',textContent:'Salvar',onclick:e=>{e.stopPropagation();save();}}));
+  const save=async()=>{
+   const title=input.value.trim();if(!title){input.focus();return;}
+   if(title===s.title){renderSetup();return;}
+   try{const r=await client.rpc('question_set_update',{p_id:s.id,p_title:title,p_questions:null});if(r.error)throw r.error;
+    for(const x of sets)if(x.id===s.id)x.title=title;if(setInfo.id===s.id)setInfo={...setInfo,title};toast('Nome da lista salvo','check');renderSetup();}
+   catch(error){toast(message(error),'info');}
+  };
+  input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save();}if(e.key==='Escape'){e.preventDefault();e.stopPropagation();renderSetup();}};
+  input.onclick=e=>e.stopPropagation();
+  host.replaceWith(box);input.focus();input.select();
+ }
+ // Each list card shows the member's last finished attempt on it.
+ async function lastAttempts(list,group){
+  await Promise.all(list.map(async s=>{
+   try{const r=await client.rpc('quiz_sessions_mine',{p_set:s.id});const done=(r.data||[]).filter(x=>x.status==='done').sort((a,b)=>String(b.finishedAt).localeCompare(String(a.finishedAt)))[0];
+    const small=group.querySelector(`[data-set="${s.id}"] small`);if(done&&small)small.textContent=`${plural(s.count,'questão','questões')} · última: ${done.correct}/${done.layout.questions.length}`;}catch{}
+  }));
  }
  async function refreshSetupDetails(){
   $s('solverMinutes').value=Math.max(1,Math.round(setInfo.count*1.5));
@@ -111,7 +172,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   if(open){
    const done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length;
    const discard=el('button',{type:'button',className:'editor-cancel',textContent:'Descartar',onclick:()=>confirmPeleja('Descartar o progresso?',async()=>{if(await removeSession(open))refreshSetupDetails();},{description:`As ${plural(done,'resposta','respostas')} desta sessão serão apagadas e a próxima começa do zero.`,accept:'Descartar',destructive:true})});
-   resume.append(el('div',{className:'solver-resume'},el('div',{},el('strong',{textContent:'Continuar de onde parei'}),el('small',{textContent:`${open.mode==='prova'?'Prova':'Treino'} · ${done} de ${open.layout.questions.length} respondidas · ${fmt(open.elapsedMs)}`})),el('div',{className:'solver-resume-actions'},discard,el('button',{type:'button',className:'primary',textContent:'Continuar',onclick:()=>resumeSession(open)}))));
+   resume.append(el('div',{className:'solver-resume'},el('div',{},el('strong',{textContent:'Continuar de onde parei'}),el('small',{textContent:`${modeLabel(open)} · ${done} de ${open.layout.questions.length} respondidas · ${fmt(open.elapsedMs)}`})),el('div',{className:'solver-resume-actions'},discard,el('button',{type:'button',className:'primary',textContent:'Continuar',onclick:()=>resumeSession(open)}))));
   }
   const finished=history.filter(s=>s.status==='done').slice(0,8);
   if(finished.length){
@@ -119,8 +180,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
    for(const s of finished){
     const when=new Date(s.finishedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
     const remove=el('button',{type:'button',className:'icon solver-past-delete',title:'Apagar tentativa',innerHTML:ICON.trash});remove.setAttribute('aria-label',`Apagar tentativa de ${when}`);
-    remove.onclick=()=>confirmPeleja('Apagar esta tentativa?',async()=>{if(await removeSession(s))refreshSetupDetails();},{description:`${when} · ${s.mode==='prova'?'Prova':'Treino'} · ${s.correct}/${s.layout.questions.length}.${s.counted?` Ela sai também das estatísticas ${material.kind==='exam'?'da disciplina':'da apostila'}.`:''}`,accept:'Apagar',destructive:true});
-    past.append(el('div',{className:'solver-past'},el('span',{textContent:when+' · '+(s.mode==='prova'?'Prova':'Treino')+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`}),remove));
+    remove.onclick=()=>confirmPeleja('Apagar esta tentativa?',async()=>{if(await removeSession(s))refreshSetupDetails();},{description:`${when} · ${modeLabel(s)} · ${s.correct}/${s.layout.questions.length}.${s.counted?` Ela sai também das estatísticas ${material.kind==='exam'?'da disciplina':'da apostila'}.`:''}`,accept:'Apagar',destructive:true});
+    past.append(el('div',{className:'solver-past'},el('span',{textContent:when+' · '+modeLabel(s)+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`}),remove));
    }
   }
  }
@@ -143,33 +204,34 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   saveChange(material.kind==='exam'?{kind:'delete-session',roundId}:{kind:'delete-round',id:m.sourceId,roundId},()=>{},null,()=>{Object.assign(m,before);render();toast('A tentativa saiu, mas as estatísticas não foram atualizadas. Sincronize e tente de novo.','info');});
  }
  async function loadQuestions(){const r=await client.rpc('question_set',{p_id:setInfo.id});if(r.error||!r.data)throw r.error||Error('Conjunto não encontrado');questions=r.data.questions;}
- function layoutFor(mode,subset){
+ function layoutFor(settings,subset){
   const base=subset||questions.map((_,i)=>i),options={};
-  for(const q of base)options[q]=shuffle(questions[q].answerOptions.map((_,i)=>i));
-  return {questions:mode==='prova'?shuffle(base):base,options};
+  for(const q of base){const ids=questions[q].answerOptions.map((_,i)=>i);options[q]=settings.shuffleOptions?shuffle(ids):ids;}
+  return {questions:settings.shuffleQuestions?shuffle(base):base,options,settings};
  }
  async function start(subset,forced){
   if(busy)return;busy=true;const button=$s('solverStart');button?.setAttribute('aria-busy','true');
   try{
-   const mode=forced?.mode||dialog.querySelector('input[name=solverMode]:checked').value,clock=forced?.clock||dialog.querySelector('input[name=solverClock]:checked').value;
+   const settings={...(forced?forced.settings||PRESETS[forced.mode]:setupSettings)},mode=settings.reveal==='each'?'treino':'prova',clock=forced?.clock||dialog.querySelector('input[name=solverClock]:checked').value;
+   if(!forced)savePrefs({settings});
    const minutes=forced?.timerSeconds?forced.timerSeconds/60:Number($s('solverMinutes')?.value);
    if(clock==='timer'&&!(minutes>=1&&minutes<=600)){$s('solverMinutes').focus();throw Error('Informe entre 1 e 600 minutos.');}
-   await loadQuestions();const layout=layoutFor(mode,subset);
+   await loadQuestions();const layout=layoutFor(settings,subset);
    const timerSeconds=clock==='timer'?Math.round(minutes*60):null;
    const r=await client.rpc('quiz_session_start',{p_set:setInfo.id,p_mode:mode,p_clock:clock,p_timer:timerSeconds,p_layout:layout});if(r.error)throw r.error;
-   session={id:r.data,mode,clock,timerSeconds,layout,answers:{},status:'active',elapsedMs:0};
+   session={id:r.data,mode,clock,timerSeconds,layout,settings,answers:{},status:'active',elapsedMs:0};
    clockBase=0;position=0;reviewing=false;pending=new Map();hintOpen=new Set();renderQuestion();startClock();
   }catch(error){toast(message(error),'info');}
   finally{busy=false;button?.removeAttribute('aria-busy');}
  }
  async function resumeSession(open){
-  try{await loadQuestions();session={...open,answers:open.answers||{}};clockBase=open.elapsedMs||0;reviewing=false;pending=new Map();hintOpen=new Set();
+  try{await loadQuestions();session={...open,answers:open.answers||{},settings:settingsOf(open)};clockBase=open.elapsedMs||0;reviewing=false;pending=new Map();hintOpen=new Set();
    const first=order().findIndex(q=>answerOf(q).o==null);position=first<0?order().length-1:first;renderQuestion();startClock();}
   catch(error){toast(message(error),'info');}
  }
 
  // ---------- question ----------
- function revealed(q){return reviewing||(session.mode==='treino'&&answerOf(q).o!=null);}
+ function revealed(q){return reviewing||(cfg().reveal==='each'&&answerOf(q).o!=null);}
  function renderQuestion(dir=0){
   screen='question';const q=order()[position],item=questions[q],answer=answerOf(q),show=revealed(q),total=order().length;
   $s('solverKicker').textContent=`${reviewing?'REVISÃO · ':''}${position+1} / ${total}`;
@@ -206,7 +268,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(setInfo.id,q,`${setInfo.title} · Questão ${q+1}`)}));
   if(tools.childElementCount)content.append(tools);
   if(hintPanel)content.append(hintPanel);
-  if(show&&session.mode==='treino'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
+  if(show&&cfg().reveal==='each'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
   body.replaceChildren(content);body.scrollTop=0;
   if(dir)motion(content,[{opacity:0,transform:`translateX(${dir*14}px)`},{opacity:1,transform:'none'}],{duration:240,easing:EASE});
   renderQuestionFoot();
@@ -219,7 +281,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   if(reviewing){foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Voltar ao resultado',onclick:()=>renderResult()}),prev,...(next?[next]:[]));return;}
   const finish=el('button',{type:'button',className:last?'primary':'editor-cancel',textContent:session.mode==='prova'?'Finalizar prova':'Finalizar',onclick:askFinish});
   // A marked option still needs "Confirmar resposta": in training it reveals the key, in the exam it records the answer.
-  const needsConfirm=session.mode==='treino'?answer.o==null:selected!=null&&selected!==answer.o;
+  const needsConfirm=cfg().confirm&&(cfg().reveal==='each'?answer.o==null:selected!=null&&selected!==answer.o);
   if(needsConfirm){
    const confirm=el('button',{type:'button',className:'primary',id:'solverConfirm',textContent:'Confirmar resposta',disabled:selected==null,onclick:()=>confirmAnswer(q)});
    const skip=last?null:el('button',{type:'button',className:'editor-cancel',textContent:'Próxima',onclick:()=>go(1)});
@@ -231,16 +293,22 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
  function go(step){const next=position+step;if(next<0||next>=order().length)return;position=next;renderQuestion(step);}
  function choose(q,o){
   const answer=answerOf(q);if(answer.x?.includes(o))return;
-  if(session.mode==='treino'&&answer.o!=null)return; // the first confirmed answer counts in training
+  if(cfg().reveal==='each'&&answer.o!=null)return; // with the key after each answer, the first answer counts
+  if(!cfg().confirm){
+   // marked on click: recorded right away (tapping it again clears it while the key waits for the end)
+   pending.delete(q);session.answers={...session.answers,[q]:{...answer,o:answer.o===o?null:o}};queueSave();renderQuestion();
+   if(cfg().reveal==='each')for(const why of $s('solverBody').querySelectorAll('.solver-why'))animateIn(why,-4);
+   return;
+  }
   if(pending.get(q)===o)pending.delete(q);else pending.set(q,o);
   renderQuestion();
  }
  function confirmAnswer(q){
   const o=pending.get(q);if(o==null)return;pending.delete(q);
   session.answers={...session.answers,[q]:{...answerOf(q),o}};queueSave();
-  if(session.mode==='prova'&&position<order().length-1){go(1);return;}
+  if(cfg().reveal==='end'&&position<order().length-1){go(1);return;}
   renderQuestion();
-  if(session.mode==='treino')for(const why of $s('solverBody').querySelectorAll('.solver-why'))animateIn(why,-4);
+  if(cfg().reveal==='each')for(const why of $s('solverBody').querySelectorAll('.solver-why'))animateIn(why,-4);
  }
  function toggleCut(q,o){
   const answer={o:null,x:[],...answerOf(q)},cut=new Set(answer.x||[]);cut.has(o)?cut.delete(o):cut.add(o);
@@ -309,7 +377,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
   all.forEach((q,i)=>{const s=status(q);if(resultFilter!=='all'&&s!==resultFilter)return;const b=el('button',{type:'button'},el('span',{className:'solver-dot '+s}),el('span',{className:'solver-review-n',textContent:i+1}),el('span',{className:'solver-review-q',textContent:questions[q].question}));b.onclick=()=>{reviewing=true;position=i;renderQuestion();};list.append(el('li',{},b));});
   if(!list.children.length)list.append(el('li',{className:'solver-note',textContent:'Nenhuma questão aqui.'}));
   const body=$s('solverBody');body.replaceChildren(el('div',{className:'solver-result'},head,bar,filters,list));body.scrollTop=0;animateIn(body.firstElementChild);
-  const missed=all.filter(q=>status(q)!=='right'),foot=$s('solverFoot'),again={mode:session.mode,clock:session.clock,timerSeconds:session.timerSeconds};
+  const missed=all.filter(q=>status(q)!=='right'),foot=$s('solverFoot'),again={mode:session.mode,settings:cfg(),clock:session.clock,timerSeconds:session.timerSeconds};
   foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Fechar',onclick:close}));
   if(missed.length)foot.append(el('button',{type:'button',className:'editor-cancel',textContent:'Refazer erradas',onclick:()=>start(missed,{...again,timerSeconds:again.timerSeconds&&Math.max(60,Math.round(again.timerSeconds*missed.length/total))})}));
   foot.append(el('button',{type:'button',className:'primary',textContent:'Refazer tudo',onclick:()=>start(null,again)}));
@@ -317,7 +385,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange})=>{
 
  // ---------- open / close ----------
  async function open(t,opener){
-  material=t;const list=setsFor(t);if(!list.length)return;setInfo=list[0];resultFilter='all';dialog.dataset.opener=t.key;dialog.dataset.openerKind=t.kind;
+  material=t;const list=setsFor(t);if(!list.length)return;const remembered=prefs().lists?.[t.key];setInfo=list.find(s=>s.id===remembered)||list[0];resultFilter='all';dialog.dataset.opener=t.key;dialog.dataset.openerKind=t.kind;
   if(!dialog.open)dialog.showModal();motion(dialog.querySelector('.solver-shell'),[{opacity:0,transform:'translateY(10px) scale(.99)'},{opacity:1,transform:'none'}],{duration:260,easing:EASE});
   await renderSetup();$s('solverClose').focus();
  }
