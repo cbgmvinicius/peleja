@@ -308,6 +308,8 @@ console.log('PASS Ranking privacy: anonymous name and id, hidden out of others\'
 await db.exec('reset role');
 await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions.sql'),'utf8'));
 await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions-edit.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions-edit.sql'),'utf8'));
 await user(A);const sgSet=await rpc('save_question_set',qbArgs(qbQuestions,'qb-material','b'.repeat(64)),qbCasts);
 const sgCasts=['uuid','integer','text','text'];
 await user(C);
@@ -336,6 +338,23 @@ await assert.rejects(()=>rpc('question_suggestion_review',[sg1,false],['uuid','b
 assert.equal((await rpc('question_suggestions_review_list',['pending'],['text'])).length,0);assert.equal((await rpc('question_suggestions_review_list',[null],['text']))[0].status,'accepted');
 await user(C);assert.equal((await rpc('question_suggestions_mine',[],[]))[0].status,'accepted');
 await user(B);await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'other','x'],sgCasts),/Acesso negado/);
+// AnkiHub style: the member edits the question; accepting applies it.
+{const sgC5=['uuid','integer','text','text','jsonb'];await user(C);
+ const cur=(await rpc('question_set',[sgSet],['uuid'])).questions[0];
+ const prop={question:cur.question,hint:'Pense em levedura lipofílica',answerOptions:cur.answerOptions.map((o,i)=>({...o,rationale:i===0?'Malassezia furfur, levedura lipofílica.':o.rationale}))};
+ const sg2=await rpc('question_suggestion_submit',[sgSet,0,'explanation','Comentário incompleto.',JSON.stringify(prop)],sgC5);
+ await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'answer','x',JSON.stringify({...prop,answerOptions:[prop.answerOptions[0]]})],sgC5),/incompleta/);
+ await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'answer','x',JSON.stringify({...prop,answerOptions:prop.answerOptions.map(o=>({...o,isCorrect:true}))})],sgC5),/incompleta/);
+ await assert.rejects(()=>rpc('question_suggestion_submit',[sgSet,0,'answer','x',JSON.stringify({...prop,question:'  '})],sgC5),/incompleta/);
+ const same=await rpc('question_suggestion_submit',[sgSet,0,'other','Sem mudança no texto.',JSON.stringify({question:cur.question,hint:cur.hint||'',answerOptions:cur.answerOptions})],sgC5);
+ const sgReject=await rpc('question_suggestion_submit',[sgSet,0,'wording','Outro jeito.',JSON.stringify({...prop,question:'Enunciado que não vai entrar'})],sgC5);
+ await user(A);const q2=await rpc('question_suggestions_review_list',['pending'],['text']);
+ assert.equal(q2.find(s=>s.id===sg2).proposed.answerOptions[0].rationale,'Malassezia furfur, levedura lipofílica.');assert.equal(q2.find(s=>s.id===same).proposed,null,'no real change: explanation only');
+ await rpc('question_suggestion_review',[sgReject,false],['uuid','boolean']);assert.notEqual((await rpc('question_set',[sgSet],['uuid'])).questions[0].question,'Enunciado que não vai entrar','rejecting applies nothing');
+ await rpc('question_suggestion_review',[sg2,true],['uuid','boolean']);
+ const applied=(await rpc('question_set',[sgSet],['uuid'])).questions[0];assert.equal(applied.answerOptions[0].rationale,'Malassezia furfur, levedura lipofílica.');assert.equal(applied.hint,'Pense em levedura lipofílica');assert.equal(applied.topic,'Micoses superficiais','other fields kept');
+ await rpc('question_suggestion_review',[same,true],['uuid','boolean']);
+ console.log('PASS Question suggestions with edits: proposed question validated, no-op becomes explanation only, accepting applies, rejecting does not');}
 await user(A);await rpc('delete_question_set',[sgSet],['uuid']);await db.exec('reset role');
 assert.equal(Number((await db.query('select count(*) n from public.question_suggestions')).rows[0].n),0,'deleting a set removes its suggestions');
 console.log('PASS Question suggestions: member submit with kind and 500-char note, admin queue with question and author, review once, outcome for the author, admin edit keeps counts, cascade');

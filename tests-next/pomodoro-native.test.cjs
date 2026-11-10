@@ -74,34 +74,35 @@ async function app(){
  assert.equal(lastPlan().segments[0].open,true);assert.equal(lastPlan().segments[1].open,false);
  // Notifications off in Configurações: the native one goes away.
  P.state().prefs.notify=false;P.render();await tick();assert.deepEqual(p.calls.at(-1),['stop']);
- // Blocking other apps during focus (Android app only): off by default, in the plan, with the allowed apps.
- const S=w.PELEJA_POMODORO_SETTINGS,card=S.querySelector('#pomoBlockCard');
- assert.ok(card,'card in Configurações inside the app');
- P.state().prefs.notify=true;P.state().config.flow=false;P.actions.stop();await tick();$('pomoPlay').click();await tick(60);
- assert.deepEqual(lastPlan().block,{on:false,allow:[]},'off by default');
- assert.equal(S.querySelector('#pomoBlockApps').hidden,true);
- const sw=S.querySelector('#pomoBlockOn');sw.checked=true;sw.dispatchEvent(new w.Event('change'));await tick(40);
- assert.equal(lastPlan().block.on,true,'the plan carries the switch');
+ // Blocking other apps during focus (Android app only): in the Séries sheet under "Pausa longa", off by default.
+ assert.equal(w.PELEJA_POMODORO_SETTINGS.querySelector('#pomoBlockCard'),null,'no longer in Configurações');
+ P.state().prefs.notify=true;P.state().config.flow=false;P.actions.stop();await tick();
+ const D=$('pomoDialog');$('pomoPlanSets').click();await tick(40);
+ const card=D.querySelector('#pomoBlockCard');assert.ok(card,'section in the Séries sheet');
+ assert.ok(card.previousElementSibling.querySelector('#pomoLongOn'),'right under Pausa longa');
+ assert.equal(D.querySelector('#pomoBlockApps').hidden,true);
+ const sw=D.querySelector('#pomoBlockOn');sw.checked=true;sw.dispatchEvent(new w.Event('change'));await tick(40);
+ assert.equal(P.state().prefs.block.on,true,'saved right away');
  // without the two permissions it shows how to grant them
- assert.equal(S.querySelector('#pomoBlockPerms').hidden,false);
- const btns=[...S.querySelectorAll('.pomo-perm-btn')];assert.equal(btns.length,2);
+ assert.equal(D.querySelector('#pomoBlockPerms').hidden,false);
+ const btns=[...D.querySelectorAll('.pomo-perm-btn')];assert.equal(btns.length,2);
  btns[0].click();await tick();assert.deepEqual(p.calls.at(-1),['openBlockSettings','usage']);
  btns[1].click();await tick();assert.deepEqual(p.calls.at(-1),['openBlockSettings','overlay']);
- // granted, back to the app: the steps go away
  p.perms.usage=p.perms.overlay=true;w.document.dispatchEvent(new w.Event('visibilitychange'));await tick(40);
- assert.equal(S.querySelector('#pomoBlockPerms').hidden,true);
- // pick the allowed apps
- const apps=S.querySelector('#pomoBlockApps');assert.equal(apps.hidden,false);assert.equal(apps.textContent,'Apps liberados (0)');
- apps.click();await tick(40);
+ assert.equal(D.querySelector('#pomoBlockPerms').hidden,true);
+ // a slider moved before picking apps is not lost; the app list returns to Séries
+ D.querySelector('#pomoTargetSets').value='6';
+ const apps=D.querySelector('#pomoBlockApps');assert.equal(apps.textContent,'Apps liberados (0)');apps.click();await tick(40);
+ assert.equal(P.state().config.targetSets,6,'Séries kept before switching to the app list');
  const rows=[...w.document.querySelectorAll('#pomoAppList .pomo-app')];assert.deepEqual(rows.map(r=>r.dataset.app).join(),'com.whatsapp,com.android.chrome,com.spotify.music');
  const search=$('pomoAppSearch');search.value='spot';search.dispatchEvent(new w.Event('input'));
- assert.equal(w.document.querySelectorAll('#pomoAppList .pomo-app').length,1);
  const box=w.document.querySelector('#pomoAppList [data-app="com.spotify.music"] input');box.checked=true;box.dispatchEvent(new w.Event('change'));
- $('pomoDialog').querySelector('.pomo-sheet-save').click();await tick(40);
- assert.deepEqual(lastPlan().block,{on:true,allow:['com.spotify.music']});assert.equal(apps.textContent,'Apps liberados (1)');
- // pausing does not touch the block in the plan: the app decides (focus running only)
+ D.querySelector('.pomo-sheet-save').click();await tick(40);
+ assert.ok(D.querySelector('#pomoBlockCard'),'back in the Séries sheet');assert.equal(D.querySelector('#pomoBlockApps').textContent,'Apps liberados (1)');
+ D.querySelector('.pomo-dialog-close').click();await tick(40);
+ $('pomoPlay').click();await tick(60);
+ assert.deepEqual(lastPlan().block,{on:true,allow:['com.spotify.music']},'the plan carries it');
  $('pomoPlay').click();await tick(40);assert.equal(lastPlan().paused,true);assert.equal(lastPlan().block.on,true);
- // saved on this device
  assert.deepEqual(JSON.parse(w.localStorage.getItem('peleja-pomodoro-v1')).prefs.block,{on:true,allow:['com.spotify.music']});
  console.log('pomodoro native timer ok');
  process.exit(0);

@@ -1,5 +1,6 @@
-// Questions after import: members suggest changes (kind + explanation up to 500 characters, AnkiHub style);
-// the administrator edits a set (title and questions) and reviews the suggestions, accepting or rejecting.
+// Questions after import, AnkiHub style: a member edits the question itself, marks the kind of change and
+// explains why; the administrator sees before (removed text in red) and after (new text in green) and
+// accepts (the change is applied) or rejects. Administrators find them under the bell in the top bar.
 globalThis.PELEJA_INSTALL_QUESTION_REVIEW=({client,allowed})=>{
  const LETTERS='ABCDEFGHIJKLMNOPQRST';
  const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
@@ -21,24 +22,81 @@ globalThis.PELEJA_INSTALL_QUESTION_REVIEW=({client,allowed})=>{
  dialog.addEventListener('close',()=>{dirty=()=>false;});
 
  // ---------- member: suggest a change ----------
- function suggest(setId,index,label){
+ // The question comes editable (stem, options, comments, which one is right, hint); kind + explanation below.
+ async function suggest(setId,index,label){
+  shell('SUGERIR MUDANÇA',label||'Questão',[el('p',{className:'qr-lead',textContent:'Carregando a questão…'})]);
+  let current=null;try{const r=await client.rpc('question_set',{p_id:setId});if(r.error)throw r.error;current=r.data?.questions?.[index]||null;}catch{}
   let kind='';
   const kinds=el('div',{className:'qr-kinds',role:'radiogroup'});kinds.setAttribute('aria-label','Tipo de mudança');
   const paint=()=>{for(const b of kinds.children)b.setAttribute('aria-checked',String(b.dataset.kind===kind));refresh();};
   for(const [id,name,note] of KINDS){const b=el('button',{type:'button',role:'radio',onclick:()=>{kind=id;paint();}},el('span',{className:'qr-radio','aria-hidden':'true'}),el('span',{},el('strong',{textContent:name}),el('small',{textContent:note})));b.dataset.kind=id;kinds.append(b);}
-  const text=el('textarea',{id:'qrNote',maxLength:500,rows:4,placeholder:'Explique o que deveria mudar e, se puder, de onde tirou (livro, diretriz, aula).'});
+  const text=el('textarea',{id:'qrNote',maxLength:500,rows:3,placeholder:'Por que mudar? Se puder, diga de onde tirou (livro, diretriz, aula).'});
   const counter=el('small',{className:'qr-counter',textContent:'0/500'}),error=el('p',{className:'qr-error',role:'alert'});
   const send=el('button',{type:'button',className:'primary',id:'qrSend',textContent:'Enviar sugestão'});
-  function refresh(){counter.textContent=`${text.value.length}/500`;send.disabled=!kind||!text.value.trim();}
-  text.oninput=refresh;
+  const form=current?questionForm(current,'qrSug'):null;
+  const proposal=()=>form?form.read():null;
+  const changed=()=>!!form&&JSON.stringify(normalize(proposal()))!==JSON.stringify(normalize(current));
+  function refresh(){counter.textContent=`${text.value.length}/500`;send.disabled=!kind||!text.value.trim();send.textContent=changed()?'Enviar sugestão com a mudança':'Enviar sugestão';}
+  text.oninput=refresh;form?.root.addEventListener('input',refresh);form?.root.addEventListener('change',refresh);
   send.onclick=async()=>{
-   if(send.disabled)return;send.disabled=true;dialog.dataset.busy='1';error.textContent='';
-   try{const r=await client.rpc('question_suggestion_submit',{p_set:setId,p_index:index,p_kind:kind,p_note:text.value.trim().slice(0,500)});if(r.error)throw r.error;dirty=()=>false;close();toast('Sugestão enviada · o administrador vai analisar','info');}
-   catch(e){error.textContent=message(e);send.disabled=false;}finally{delete dialog.dataset.busy;}
+   if(send.disabled)return;
+   const prop=changed()?proposal():null;
+   if(prop){const bad=!prop.question||prop.answerOptions.some(o=>!o.text||!o.rationale);if(bad){error.textContent='Enunciado, alternativas e comentários não podem ficar vazios.';return;}}
+   send.disabled=true;dialog.dataset.busy='1';error.textContent='';
+   const args={p_set:setId,p_index:index,p_kind:kind,p_note:text.value.trim().slice(0,500)};
+   try{
+    let r=await client.rpc('question_suggestion_submit',{...args,p_proposed:prop});
+    // a server without edited suggestions yet: send the explanation alone
+    if(r.error&&/function|p_proposed|schema cache/i.test(r.error.message||'')&&!prop)r=await client.rpc('question_suggestion_submit',args);
+    if(r.error)throw r.error;dirty=()=>false;close();toast(prop?'Sugestão com a mudança enviada · o administrador vai analisar':'Sugestão enviada · o administrador vai analisar','info');
+   }catch(e){error.textContent=message(e);send.disabled=false;}finally{delete dialog.dataset.busy;}
   };
-  dirty=()=>!!text.value.trim();
-  shell('SUGERIR MUDANÇA',label||'Questão',[el('p',{className:'qr-lead',textContent:'O que está errado ou pode melhorar?'}),kinds,el('label',{className:'editor-field qr-note'},el('span',{},'Explicação ',counter),text),error],[el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:()=>guardClose()}),send]);
+  dirty=()=>!!text.value.trim()||changed();
+  shell('SUGERIR MUDANÇA',label||'Questão',[
+   el('p',{className:'qr-lead',textContent:form?'Corrija direto na questão o que achar errado (opcional), marque o tipo e explique.':'O que está errado ou pode melhorar?'}),
+   form?form.root:null,
+   el('p',{className:'qr-section',textContent:'Tipo de mudança'}),kinds,el('label',{className:'editor-field qr-note'},el('span',{},'Por quê? ',counter),text),error],
+   [el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:()=>guardClose()}),send]);
   refresh();
+ }
+ // Editable fields of one question (also used by the administrator's editor).
+ function questionForm(q,prefix){
+  const stem=area(q.question,'Enunciado',3),hint=area(q.hint||'','Dica',2);
+  const name=prefix+'Correct',opts=q.answerOptions.map((o,j)=>{const radio=el('input',{type:'radio',name,checked:!!o.isCorrect});radio.setAttribute('aria-label',`Alternativa ${LETTERS[j]} é a certa`);return {radio,text:area(o.text,`Alternativa ${LETTERS[j]}`,1),why:area(o.rationale,`Comentário da alternativa ${LETTERS[j]}`,2)};});
+  const root=el('div',{className:'qr-edit'},el('label',{className:'editor-field'},el('span',{textContent:'Enunciado'}),stem),
+   el('p',{className:'qr-hint-line',textContent:'Marque a bolinha da alternativa certa.'}),
+   ...opts.map((o,j)=>el('div',{className:'qr-option'},el('label',{className:'qr-correct'},o.radio,el('span',{textContent:LETTERS[j]})),el('div',{className:'qr-option-fields'},o.text,o.why))),
+   el('label',{className:'editor-field'},el('span',{textContent:'Dica (opcional)'}),hint));
+  return {root,read:()=>({question:stem.value.trim(),hint:hint.value.trim(),answerOptions:q.answerOptions.map((o,j)=>({...o,text:opts[j].text.value.trim(),rationale:opts[j].why.value.trim(),isCorrect:opts[j].radio.checked}))})};
+ }
+ const normalize=q=>q&&{question:(q.question||'').trim(),hint:(q.hint||'').trim(),answerOptions:(q.answerOptions||[]).map(o=>({text:(o.text||'').trim(),rationale:(o.rationale||'').trim(),isCorrect:!!o.isCorrect}))};
+
+ // ---------- before / after (word diff) ----------
+ const words=s=>String(s||'').split(/(\s+)/).filter(x=>x!=='');
+ function diffWords(a,b){
+  const x=words(a),y=words(b),n=x.length,m=y.length;
+  if(n*m>250000)return {before:[['del',a]],after:[['ins',b]]};
+  const L=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=x[i]===y[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  const before=[],after=[],push=(list,k,t)=>{const last=list.at(-1);if(last&&last[0]===k)last[1]+=t;else list.push([k,t]);};
+  let i=0,j=0;
+  while(i<n&&j<m){if(x[i]===y[j]){push(before,'same',x[i]);push(after,'same',y[j]);i++;j++;}else if(L[i+1][j]>=L[i][j+1])push(before,'del',x[i++]);else push(after,'ins',y[j++]);}
+  while(i<n)push(before,'del',x[i++]);while(j<m)push(after,'ins',y[j++]);
+  return {before,after};
+ }
+ const paintDiff=parts=>parts.map(([k,t])=>k==='same'?document.createTextNode(t):el(k,{textContent:t}));
+ // Only the fields that changed, each as "Antes" / "Depois".
+ function diffView(current,proposed){
+  const a=normalize(current),b=normalize(proposed),rows=[];
+  const field=(label,x,y)=>{if(x===y)return;const d=diffWords(x,y);rows.push(el('div',{className:'qr-diff-row'},el('p',{className:'qr-diff-label',textContent:label}),
+   el('div',{className:'qr-diff-pair'},el('div',{className:'qr-diff-box qr-before'},el('small',{textContent:'Antes'}),el('p',{},...(x?paintDiff(d.before):[el('em',{textContent:'(vazio)'})]))),
+    el('div',{className:'qr-diff-box qr-after'},el('small',{textContent:'Depois'}),el('p',{},...(y?paintDiff(d.after):[el('em',{textContent:'(vazio)'})]))))));};
+  field('Enunciado',a.question,b.question);
+  const right=q=>LETTERS[q.answerOptions.findIndex(o=>o.isCorrect)]||'?';
+  if(right(a)!==right(b))rows.push(el('div',{className:'qr-diff-row'},el('p',{className:'qr-diff-label',textContent:'Alternativa certa'}),el('p',{className:'qr-diff-answer'},el('del',{textContent:right(a)}),' → ',el('ins',{textContent:right(b)}))));
+  a.answerOptions.forEach((o,j)=>{const n=b.answerOptions[j]||{};field(`Alternativa ${LETTERS[j]}`,o.text,n.text||'');field(`Comentário ${LETTERS[j]}`,o.rationale,n.rationale||'');});
+  field('Dica',a.hint,b.hint);
+  return rows.length?el('div',{className:'qr-diff'},...rows):el('p',{className:'qr-empty',textContent:'A questão já está igual à proposta.'});
  }
 
  // ---------- administrator: edit a set ----------
@@ -80,12 +138,13 @@ globalThis.PELEJA_INSTALL_QUESTION_REVIEW=({client,allowed})=>{
  // ---------- administrator: suggestions queue ----------
  function reviewCard(s,inEditor=false){
   const when=new Date(s.createdAt).toLocaleDateString('pt-BR',{day:'numeric',month:'short'});
-  const accept=el('button',{type:'button',className:'primary',textContent:inEditor?'Salvar e aceitar':'Aceitar'}),reject=el('button',{type:'button',className:'editor-cancel',textContent:'Recusar'});
+  const accept=el('button',{type:'button',className:'primary',textContent:inEditor?'Salvar e aceitar':s.proposed?'Aceitar e aplicar':'Aceitar'}),reject=el('button',{type:'button',className:'editor-cancel',textContent:'Recusar'});
   const open=inEditor?null:el('button',{type:'button',className:'editor-cancel',textContent:'Abrir questão',onclick:()=>editSet(s.setId,s.index,s)});
   const card=el('article',{className:'qr-review'},el('div',{className:'qr-review-head'},el('span',{className:'qr-kind',textContent:kindName(s.kind)}),el('small',{textContent:`${s.author} · ${when}`})),
    inEditor?null:el('p',{className:'qr-review-where',textContent:`${s.setTitle} · Questão ${s.index+1}`}),
    inEditor?null:el('p',{className:'qr-review-stem',textContent:s.question?.question||''}),
-   el('p',{className:'qr-review-note',textContent:s.note}),
+   s.proposed&&s.question?diffView(s.question,s.proposed):null,
+   el('p',{className:'qr-review-note'},el('b',{textContent:'Por quê: '}),s.note),
    s.status==='pending'?el('div',{className:'qr-review-actions'},open,reject,accept):el('p',{className:'qr-review-done',textContent:s.status==='accepted'?'Aceita':'Recusada'}));
   const decide=async ok=>{
    accept.disabled=reject.disabled=true;
@@ -106,14 +165,36 @@ globalThis.PELEJA_INSTALL_QUESTION_REVIEW=({client,allowed})=>{
   shell('SUGESTÕES','Sugestões de mudança',[tabs,...(list.length?list.map(s=>reviewCard(s)):[el('p',{className:'qr-empty',textContent:tab==='pending'?'Nenhuma sugestão esperando análise.':'Nada revisado ainda.'})])]);
  }
 
- // ---------- menu entry and badge ----------
- const entry=document.createElement('button');entry.dataset.create='suggestions';entry.hidden=true;entry.textContent='Sugestões de questões';
- $('eventMenu').append(entry);entry.addEventListener('click',e=>{e.stopPropagation();closeMenus();tab='pending';queue();});
- async function onChange(){if(!allowed())return;try{const r=await client.rpc('question_suggestions_review_list',{p_status:'pending'});const n=(r.data||[]).length;entry.textContent=n?`Sugestões de questões (${n})`:'Sugestões de questões';}catch{}}
+ // ---------- bell (administrators): notifications, suggestions stacked into one entry ----------
+ const BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
+ const bell=el('button',{type:'button',className:'icon qr-bell',id:'notifyBell',hidden:true,innerHTML:BELL});bell.setAttribute('aria-label','Notificações');bell.setAttribute('aria-expanded','false');
+ const count=el('span',{className:'qr-bell-count',hidden:true});bell.append(count);
+ const panel=el('div',{className:'event-menu qr-bell-panel',id:'notifyPanel',hidden:true});app.append(panel);
+ ($('profile')?.parentElement||document.querySelector('.app header'))?.insertBefore(bell,$('profile')||null);
+ let pending=0;
+ const closePanel=()=>{panel.hidden=true;bell.setAttribute('aria-expanded','false');};
+ function drawPanel(){
+  const items=[];
+  if(pending)items.push(el('button',{type:'button',className:'qr-note-item',onclick:()=>{closePanel();tab='pending';queue();}},el('span',{className:'qr-note-icon',innerHTML:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.8 5a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.7 18.5Z"/></svg>'}),
+   el('span',{className:'qr-note-text'},el('b',{textContent:pending===1?'1 sugestão de questão':`${pending} sugestões de questões`}),el('small',{textContent:'Esperando sua análise'})),el('span',{className:'qr-note-count',textContent:String(pending)})));
+  items.push(el('button',{type:'button',className:'qr-note-item qr-note-history',onclick:()=>{closePanel();tab='history';queue();}},el('span',{className:'qr-note-text'},el('small',{textContent:'Ver sugestões já revisadas'}))));
+  if(!pending)items.unshift(el('p',{className:'qr-note-empty',textContent:'Nada novo por aqui.'}));
+  panel.replaceChildren(...items);
+ }
+ bell.addEventListener('click',e=>{e.stopPropagation();if(!panel.hidden){closePanel();return;}if(typeof closeMenus==='function')closeMenus();drawPanel();panel.hidden=false;bell.setAttribute('aria-expanded','true');if(typeof positionMenu==='function')positionMenu(panel,bell);onChange();});
+ document.addEventListener('click',e=>{if(!panel.hidden&&!panel.contains(e.target))closePanel();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden){closePanel();bell.focus();}});
+ async function onChange(){
+  if(!allowed())return;
+  try{const r=await client.rpc('question_suggestions_review_list',{p_status:'pending'});pending=(r.data||[]).length;}catch{return;}
+  count.hidden=!pending;count.textContent=pending>99?'99+':String(pending);bell.setAttribute('aria-label',pending?`Notificações: ${pending} novas`:'Notificações');
+  if(!panel.hidden)drawPanel();
+ }
+ setInterval(()=>{if(!bell.hidden&&!document.hidden)onChange();},120000);
  globalThis.PELEJA_SUGGEST=suggest;globalThis.PELEJA_EDIT_SET=(id,index)=>editSet(id,index??null);
  return {
-  ready(){entry.hidden=!allowed();onChange();},
-  reset(){entry.hidden=true;dirty=()=>false;close();},
+  ready(){bell.hidden=!allowed();onChange();},
+  reset(){bell.hidden=true;closePanel();pending=0;count.hidden=true;dirty=()=>false;close();},
   suggest,editSet,queue
  };
 };

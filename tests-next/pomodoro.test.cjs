@@ -113,7 +113,7 @@ async function app(){
  assert.equal(P.state().config.flow,true);assert.equal(P.state().config.targetSets,2);assert.equal(P.state().config.longEvery,1,'interval capped at sets - 1');
  $('pomoPlay').click();assert.equal($('pomoFlowBreak').hidden,false);
  const before=chimes().length;p.advance(25*MIN+3*MIN);await tick(700);
- assert.equal(P.state().timer.mode,'focus');assert.equal(P.state().timer.flowNotified,true);assert.equal(chimes().length,before+1);assert.match($('pomoTime').textContent,/^[+]0?\d:\d\d/);
+ assert.equal(P.state().timer.mode,'focus');assert.equal(P.state().timer.flowNotified,true);assert.equal($('pomoFlowBreak').dataset.over,'true','Começar pausa stands out once past the minimum');assert.equal(chimes().length,before+1);assert.match($('pomoTime').textContent,/^[+]0?\d:\d\d/);
  $('pomoFlowBreak').click();await tick();assert.equal(P.state().timer.mode,'long','interval 1: long break after the 1st of 2');assert.equal(saved.length,4);assert.ok(saved[3].p_flow_extra_ms>=3*MIN-2000);
  assert.match($('pomoGoalTitle').textContent,/Feitas 1 de 2/);
 

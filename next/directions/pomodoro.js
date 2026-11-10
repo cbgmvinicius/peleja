@@ -315,7 +315,7 @@
  <div class="pomo-taskline" id="pomoTaskLine"><button type="button" class="pomo-task" id="pomoTask"><span id="pomoTaskName"></span><span class="pomo-task-edit">${icon(I2.pencil)}</span></button>
   <div class="pomo-meta"><span class="pomo-status" id="pomoStatus"><i></i><span></span></span><button type="button" class="pomo-sound-chip" id="pomoSoundChip"></button></div></div>
  <div class="pomo-ring-wrap"><svg class="pomo-ring" id="pomoRing" viewBox="0 0 300 300" aria-hidden="true"><circle class="pomo-track" cx="150" cy="150" r="128"/><path class="pomo-progress" id="pomoProgress" d=""/></svg>
- <div class="pomo-center"><span class="pomo-mode" id="pomoMode">Foco</span><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-set-line" id="pomoSetLine"></span><p class="pomo-flash" id="pomoIdleLabel" hidden></p><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden>Começar pausa</button></div></div>
+ <div class="pomo-center"><span class="pomo-mode" id="pomoMode">Foco</span><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-set-line" id="pomoSetLine"></span><p class="pomo-flash" id="pomoIdleLabel" hidden></p><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 9.5h1.5a2.5 2.5 0 0 1 0 5H16"/></svg><span>Começar pausa</span></button></div></div>
  <div class="pomo-swap">
   <div class="pomo-plan" id="pomoConfig" role="group" aria-label="Plano da sessão"><button type="button" data-duration="focus"><span class="pomo-plan-icon">${icon(I2.stopwatch)}</span><span><b id="pomoFocusMin"></b><small>foco</small></span></button><button type="button" data-duration="short"><span class="pomo-plan-icon">${icon(I2.cup)}</span><span><b id="pomoShortMin"></b><small>pausa</small></span></button><button type="button" id="pomoPlanSets"><span class="pomo-plan-icon">${icon(I2.stack)}</span><span><b id="pomoSetsCount"></b><small id="pomoSetsWord">séries</small></span></button></div>
   <div class="pomo-goal" id="pomoGoal" hidden><div class="pomo-goal-top"><span class="pomo-count" id="pomoGoalTitle"><span>Série </span><b id="pomoDone">1</b><span id="pomoTarget"> de 4</span></span><span class="pomo-long-pill" id="pomoLongPill"></span><button type="button" class="pomo-skip" id="pomoSkip">Pular ${icon(I.skip)}</button></div>
@@ -333,6 +333,8 @@
  let wavePhase=0,frame=0;
  function draw(){
   const t=state.timer,p=planned(t.mode),e=elapsed(),over=t.mode==='focus'&&state.config.flow&&e>p;
+  // past the minimum in flow: "Começar pausa" turns into the main call to action
+  const fb=$('pomoFlowBreak');if(fb&&fb.dataset.over!==String(over))fb.dataset.over=String(over);
   const progress=t.status==='idle'?0:Math.min(1,e/p);
   $('pomoProgress').setAttribute('d',ringPath(progress,wavePhase));
   $('pomoTime').textContent=over?'+'+fmt(e-p):fmt(t.status==='idle'?planned('focus'):p-e);
@@ -489,7 +491,7 @@
   const longFields=el('div',{className:'pomo-long',id:'pomoLongFields'},duration,every);
   const flow=switchRow('Flow',c.flow,'pomoFlowOn','O tempo de foco vira um mínimo. Passou dele, o relógio segue contando até você tocar em “Começar pausa”.');
   const commit=()=>{if(!$('pomoTargetSets'))return;c.targetSets=+$('pomoTargetSets').value;c.longEnabled=$('pomoLongOn').checked;c.longMin=+$('pomoLongMin').value;c.longEvery=Math.min(+$('pomoLongEvery').value,Math.max(1,c.targetSets-1));c.flow=$('pomoFlowOn').checked;applied();};
-  openSheet('sets','Séries','Quantas séries fazer e quando ter a pausa longa.',sets,el('div',{className:'pomo-sheet-group'},longOn,longFields),flow,saveButton('Salvar',()=>{commit();dialog.close();}));
+  openSheet('sets','Séries','Quantas séries fazer e quando ter a pausa longa.',sets,el('div',{className:'pomo-sheet-group'},longOn,longFields),native?blockSection(commit):'',flow,saveButton('Salvar',()=>{commit();dialog.close();}));
   onClose=commit; // closing without Salvar keeps the changes too
   $('pomoTargetSets').addEventListener('input',()=>every.setRange(1,Math.max(1,+$('pomoTargetSets').value-1)));
   const syncLong=()=>{longFields.hidden=!$('pomoLongOn').checked;};$('pomoLongOn').onchange=syncLong;syncLong();
@@ -544,12 +546,12 @@
  };
  // Android app only: block other apps while a focus is running (the native AppBlocker does the blocking).
  let paintBlock=()=>{};
- async function openAllowList(){
+ async function openAllowList(back){
   const picked=new Set(state.prefs.block.allow);
   const search=el('input',{type:'search',placeholder:'Buscar app',className:'pomo-app-search',id:'pomoAppSearch'});search.setAttribute('aria-label','Buscar app');
   const list=el('div',{className:'pomo-app-list',id:'pomoAppList'},el('p',{className:'pomo-card-note',textContent:'Carregando apps…'}));
   openSheet('apps','Apps liberados','Esses continuam abrindo durante o foco.',search,list,saveButton('Salvar',()=>{
-   state.prefs.block.allow=[...picked];save();updateOngoing();paintBlock();dialog.close();
+   state.prefs.block.allow=[...picked];save();updateOngoing();if(back)back();else dialog.close();
   }));
   let apps=[];try{apps=(await native.listApps())?.apps||[];}catch{}
   const draw=()=>{
@@ -562,12 +564,14 @@
   };
   search.oninput=draw;draw();
  }
- if(native){
-  const blockCard=el('div',{className:'settings-card',id:'pomoBlockCard'},el('h3',{textContent:'Bloquear apps no foco'}),
-   el('p',{className:'pomo-block-note',textContent:'Durante o foco, abrir um app fora da lista mostra a tela "Volta pro foco". Nas pausas e com o timer pausado fica tudo liberado. Telefone, teclado e Configurações nunca são bloqueados.'}));
-  const onRow=switchRow('Bloquear outros apps durante o foco',state.prefs.block.on,'pomoBlockOn');onRow.classList.add('settings-row');
-  const perms=el('div',{className:'pomo-block-perms',id:'pomoBlockPerms'}),allowBtn=el('button',{type:'button',className:'pomo-block-apps',id:'pomoBlockApps',onclick:openAllowList});
-  blockCard.append(onRow,perms,allowBtn);settingsPanel.append(blockCard);
+ // Built inside the Séries sheet, under "Pausa longa" (Android app only). Saves on its own, right away.
+ let refreshBlock=()=>{};
+ if(native)document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshBlock();}); // back from the system screens
+ function blockSection(beforeApps){
+  const box=el('div',{className:'pomo-sheet-group pomo-block',id:'pomoBlockCard'});
+  const onRow=switchRow('Bloquear outros apps no foco',state.prefs.block.on,'pomoBlockOn','Abrir um app fora da lista mostra "Volta pro foco". Pausas liberam tudo; telefone e teclado nunca são bloqueados.');
+  const perms=el('div',{className:'pomo-block-perms',id:'pomoBlockPerms'}),allowBtn=el('button',{type:'button',className:'pomo-block-apps',id:'pomoBlockApps',onclick:()=>{beforeApps?.();openAllowList(openSets);}});
+  box.append(onRow,perms,allowBtn);
   let status={usage:true,overlay:true};
   const permRow=(which,label,note,ok)=>el('div',{className:'pomo-perm'+(ok?' is-ok':'')},el('span',{className:'pomo-perm-text'},el('b',{textContent:label}),el('small',{textContent:note})),
    ok?el('span',{className:'pomo-perm-ok',textContent:'Liberado'}):el('button',{type:'button',className:'pomo-perm-btn',textContent:'Liberar',onclick:()=>Promise.resolve(native.openBlockSettings({which})).catch(()=>{})}));
@@ -579,9 +583,8 @@
   };
   const refreshStatus=()=>Promise.resolve(native.blockStatus()).then(s=>{status={usage:!!s?.usage,overlay:!!s?.overlay};paintBlock();}).catch(()=>{});
   onRow.querySelector('input').onchange=e=>{state.prefs.block.on=e.target.checked;save();updateOngoing();paintBlock();refreshStatus();};
-  // back from the system screens: show what was granted
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshStatus();});
-  paintBlock();refreshStatus();
+  refreshBlock=refreshStatus;paintBlock();refreshStatus();
+  return box;
  }
  globalThis.PELEJA_POMODORO_SETTINGS=settingsPanel;
 

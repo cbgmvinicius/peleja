@@ -20,9 +20,9 @@ async function app(){
   calls.push([name,args]);
   if(name==='question_sets_list')return {data:[{id:'set-1',materialId:'m',title:db.set.title,count:1,fingerprint:'f',createdAt:'2026-11-01T00:00:00Z'}]};
   if(name==='question_set')return {data:structuredClone(db.set)};
-  if(name==='question_suggestion_submit'){db.queue.push({id:'sg-'+db.queue.length,setId:args.p_set,setTitle:db.set.title,index:args.p_index,question:db.set.questions[args.p_index],kind:args.p_kind,note:args.p_note,status:'pending',createdAt:'2026-11-06T10:00:00Z',author:'Ulisses'});return {data:'sg'};}
+  if(name==='question_suggestion_submit'){db.queue.push({id:'sg-'+db.queue.length,setId:args.p_set,setTitle:db.set.title,index:args.p_index,question:db.set.questions[args.p_index],kind:args.p_kind,note:args.p_note,proposed:args.p_proposed?structuredClone(args.p_proposed):null,status:'pending',createdAt:'2026-11-06T10:00:00Z',author:'Ulisses'});return {data:'sg'};}
   if(name==='question_suggestions_review_list')return {data:structuredClone(db.queue.filter(x=>!args.p_status||x.status===args.p_status))};
-  if(name==='question_suggestion_review'){const x=db.queue.find(q=>q.id===args.p_id);x.status=args.p_accept?'accepted':'rejected';return {data:null};}
+  if(name==='question_suggestion_review'){const x=db.queue.find(q=>q.id===args.p_id);x.status=args.p_accept?'accepted':'rejected';if(args.p_accept&&x.proposed)db.set.questions[x.index]={...db.set.questions[x.index],...x.proposed};return {data:null};}
   if(name==='question_set_update'){db.set={...db.set,title:args.p_title,questions:args.p_questions};return {data:null};}
   if(name==='pomodoro_block_save'){if(failSave)throw Error('offline');saved.push(args);return {data:null};}
   return {data:true};},
@@ -37,29 +37,46 @@ async function app(){
 
 (async()=>{
  const p=await app(),{w,$,db,calls}=p;const tickq=()=>new Promise(r=>setTimeout(r,60));
- // Member side: suggest a change (kind required, note up to 500).
- w.PELEJA_SUGGEST('set-1',0,'Micoses · Questão 1');assert.equal($('qrDialog').open,true);
+ // Member side, AnkiHub style: the question comes editable; kind + explanation are required.
+ await w.PELEJA_SUGGEST('set-1',0,'Micoses · Questão 1');await tickq();assert.equal($('qrDialog').open,true);
+ const form=$('qrDialog').querySelector('.qr-edit');assert.ok(form,'the question is editable');
+ const fields=[...form.querySelectorAll('textarea')];assert.equal(fields[0].value,'Agente?');
  assert.equal($('qrSend').disabled,true);
- $('qrDialog').querySelector('[data-kind=answer]').click();assert.equal($('qrSend').disabled,true,'needs the explanation too');
- $('qrNote').value='Gabarito certo é Candida.';$('qrNote').dispatchEvent(new w.Event('input'));assert.equal($('qrSend').disabled,false);
- assert.equal($('qrNote').maxLength,500);assert.match($('qrDialog').textContent,/25[/]500/);
+ $('qrDialog').querySelector('[data-kind=explanation]').click();assert.equal($('qrSend').disabled,true,'needs the explanation too');
+ $('qrNote').value='O comentário da A está incompleto.';$('qrNote').dispatchEvent(new w.Event('input'));assert.equal($('qrSend').disabled,false);
+ assert.equal($('qrSend').textContent,'Enviar sugestão','nothing edited yet');
+ // edit the comment of option A
+ fields[2].value='Porque Malassezia furfur é uma levedura lipofílica';form.dispatchEvent(new w.Event('input',{bubbles:true}));
+ assert.equal($('qrSend').textContent,'Enviar sugestão com a mudança');
  $('qrSend').click();await tickq();
- assert.equal($('qrDialog').open,false);const sent=calls.find(c=>c[0]==='question_suggestion_submit')[1];assert.deepEqual([sent.p_set,sent.p_index,sent.p_kind,sent.p_note],['set-1',0,'answer','Gabarito certo é Candida.']);
- // Admin side: the menu entry shows the count; the queue lists it; opening the question edits it in place.
- const entry=w.document.querySelector('[data-create=suggestions]');await w.PELEJA_EDIT_SET&&tickq();
- assert.equal(entry.hidden,false,'admin sees the entry');
- entry.click();await tickq();assert.match($('qrDialog').textContent,/Gabarito errado/);assert.match($('qrDialog').textContent,/Ulisses/);assert.match($('qrDialog').textContent,/Micoses · Questão 1/);
- [...$('qrDialog').querySelectorAll('button')].find(b=>b.textContent==='Abrir questão').click();await tickq();await tickq();
- assert.equal($('qrSetTitle').value,'Micoses');const q=$('qrDialog').querySelector('.qr-question');assert.equal(q.open,true);assert.ok(q.querySelector('.qr-review'),'the suggestion shows on the question');
- // Fix: the right answer is B now, title changes; "Salvar e aceitar" saves then accepts.
- q.querySelectorAll('input[type=radio]')[1].checked=true;$('qrSetTitle').value='Micoses (revisado)';
+ assert.equal($('qrDialog').open,false);const sent=calls.find(c=>c[0]==='question_suggestion_submit')[1];
+ assert.deepEqual([sent.p_set,sent.p_index,sent.p_kind,sent.p_note],['set-1',0,'explanation','O comentário da A está incompleto.']);
+ assert.equal(sent.p_proposed.answerOptions[0].rationale,'Porque Malassezia furfur é uma levedura lipofílica');assert.equal(sent.p_proposed.answerOptions[0].isCorrect,true);
+ // an explanation-only suggestion sends no proposed question
+ await w.PELEJA_SUGGEST('set-1',0,'Micoses · Questão 1');await tickq();$('qrDialog').querySelector('[data-kind=other]').click();$('qrNote').value='Só um comentário.';$('qrNote').dispatchEvent(new w.Event('input'));$('qrSend').click();await tickq();
+ assert.equal(calls.filter(c=>c[0]==='question_suggestion_submit').at(-1)[1].p_proposed,null);
+ // Admin side: the bell (only for administrators) stacks the suggestions into one entry with the count.
+ assert.equal(w.document.querySelector('[data-create=suggestions]'),null,'no longer hidden in + Novo');
+ const bell=$('notifyBell');assert.equal(bell.hidden,false,'admin sees the bell');
+ bell.click();await tickq();assert.equal($('notifyPanel').hidden,false);
+ assert.equal(bell.querySelector('.qr-bell-count').textContent,'2');assert.match($('notifyPanel').textContent,/2 sugestões de questões/);
+ $('notifyPanel').querySelector('.qr-note-item').click();await tickq();
+ // before / after: only the changed comment, removed words in red (del), new ones in green (ins)
+ const card=$('qrDialog').querySelector('.qr-review');assert.ok(card.querySelector('.qr-diff'),'diff shown');
+ assert.equal(card.querySelectorAll('.qr-diff-row').length,1,'only the field that changed');assert.match(card.querySelector('.qr-diff-label').textContent,/Comentário A/);
+ assert.equal(card.querySelector('.qr-after ins').textContent.trim(),'furfur é uma levedura lipofílica');
+ assert.equal(card.querySelector('.qr-before del'),null,'nothing removed');
+ [...card.querySelectorAll('button')].find(b=>b.textContent==='Aceitar e aplicar').click();await tickq();
+ assert.equal(db.queue[0].status,'accepted');assert.equal(db.set.questions[0].answerOptions[0].rationale,'Porque Malassezia furfur é uma levedura lipofílica','applied');
+ // the old editor still works: open the other suggestion's question, change the right answer, save and accept
+ [...$('qrDialog').querySelectorAll('.qr-review button')].find(b=>b.textContent==='Abrir questão').click();await tickq();await tickq();
+ const q=$('qrDialog').querySelector('.qr-question');q.querySelectorAll('input[type=radio]')[1].checked=true;$('qrSetTitle').value='Micoses (revisado)';
  [...q.querySelectorAll('button')].find(b=>b.textContent==='Salvar e aceitar').click();await tickq();
- assert.equal(db.set.title,'Micoses (revisado)');assert.equal(db.set.questions[0].answerOptions[1].isCorrect,true);assert.equal(db.set.questions[0].answerOptions[0].isCorrect,false);
- assert.equal(db.queue[0].status,'accepted');
+ assert.equal(db.set.title,'Micoses (revisado)');assert.equal(db.set.questions[0].answerOptions[1].isCorrect,true);assert.equal(db.queue[1].status,'accepted');
  // Empty fields are refused before reaching the server.
  w.PELEJA_EDIT_SET('set-1');await tickq();await tickq();
  const stem=$('qrDialog').querySelector('.qr-question textarea');stem.value='  ';$('qrSave').click();await tickq();
  assert.match($('qrDialog').textContent,/não podem ficar vazios/);assert.equal(calls.filter(c=>c[0]==='question_set_update').length,1);
- console.log('PASS question review: member suggestion (kind + 500-char note), admin entry and queue, edit in place with save-and-accept, empty fields refused');
+ console.log('PASS question review: member edits the question (AnkiHub), explanation-only too, admin bell stacks suggestions, before/after diff, accept applies, editor save-and-accept, empty fields refused');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
