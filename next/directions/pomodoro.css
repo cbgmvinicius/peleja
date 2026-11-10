@@ -382,3 +382,11 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-slider-track{position:relative}
 .pomo-ticks{position:absolute;left:13px;right:13px;top:calc(50% + 8px);height:6px;pointer-events:none;
  background-image:linear-gradient(90deg,color-mix(in srgb,var(--muted) 55%,transparent) 2px,transparent 2px);background-size:calc((100% - 2px) / var(--steps,1)) 100%;background-repeat:repeat-x}
+/* Flow past the minimum: "Começar pausa" becomes the obvious next step */
+.app .pomo-flow-break{display:inline-flex;align-items:center;gap:6px;transition:background .25s,color .25s,padding .25s,font-size .25s,box-shadow .25s}
+.pomo-flow-break svg{width:16px;height:16px}
+.app .pomo-flow-break[data-over=true]{padding:10px 20px;font-size:15px;background:var(--accent);color:var(--surface);animation:pomo-flow-glow 2s ease-in-out infinite}
+.app .pomo-flow-break[data-over=true]:hover{background:color-mix(in srgb,var(--accent) 88%,#000)}
+@keyframes pomo-flow-glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 0%,transparent)}}
+@media (prefers-reduced-motion:reduce){.app .pomo-flow-break[data-over=true]{animation:none}}
+.pomo-block .pomo-block-perms{margin-top:8px}
