@@ -34,7 +34,9 @@ function transitionDashboardRanking(html){
  const host=$('dashboardRanking'),template=document.createElement('div');template.innerHTML=html;
  const list=host.querySelector('.dashboard-ranking'),target=template.querySelector('.dashboard-ranking');
  if(!list||!target){cancelAnimationFrame(dashboardRankingFrame);host.innerHTML=html;return;}
- const old=new Map([...list.children].map(row=>[row.dataset.person,{row,top:row.getBoundingClientRect().top,barTransform:getComputedStyle(row.querySelector('.dashboard-track i')).transform}]));
+ // the compact ranking adds rows without a person (⋯) and a 'Ver todos' button: clear them and let it redo the compaction
+ list.querySelectorAll(':scope > .rank-gap').forEach(g=>g.remove());list._rankMore?.remove();delete list.dataset.compacted;list.querySelectorAll(':scope > .rank-hidden').forEach(r=>r.classList.remove('rank-hidden'));
+ const old=new Map([...list.children].filter(row=>row.dataset.person&&row.querySelector('.dashboard-track i')).map(row=>[row.dataset.person,{row,top:row.getBoundingClientRect().top,barTransform:getComputedStyle(row.querySelector('.dashboard-track i')).transform}]));
  cancelAnimationFrame(dashboardRankingFrame);
  const counts=[];
  for(const desired of [...target.children]){
