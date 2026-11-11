@@ -22,7 +22,8 @@ function showMockView(page,nav){if(typeof hideDashboard==='function')hideDashboa
   $(page).hidden=false;$(nav).classList.add('selected');$(nav).setAttribute('aria-current','page');
 }
 function renderMocks(){
-  const exams=orderedFaculty(mockExams.map(e=>({...e,subject:e.name})));
+  // One order for the whole list: newest date first (upcoming ones on top), same-day by name.
+  const exams=[...mockExams].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.name.localeCompare(b.name,'pt-BR'));
   $('mockCount').textContent=`${exams.length} ${exams.length===1?'simulado':'simulados'}`;$('mockEmpty').hidden=!!exams.length;
   $('mockList').innerHTML=exams.map(e=>`<article class="mock-card" data-mock="${e.id}"><div class="info"><h3>${escapeHtml(e.name)}</h3><p class="meta">${new Date(e.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short',year:'numeric'})}</p></div><div class="stats"><span>Questões<b>${e.q}</b></span><span class="correct">Acertos<b>${e.c??'—'}</b></span><span class="wrong">Erros<b>${e.c==null?'—':e.q-e.c}</b></span></div><div class="actions"><button type="button" class="icon" data-mock-result="${e.id}" title="${e.c==null?'Adicionar':'Editar'} meu resultado" aria-label="${e.c==null?'Adicionar':'Editar'} meu resultado">${svg('target')}</button><button type="button" class="icon" data-mock-performance="${e.id}" title="Desempenho do simulado" aria-label="Desempenho do simulado">${svg('chart')}</button><button type="button" class="icon" data-mock-menu="${e.id}" title="Mais ações" aria-label="Mais ações" aria-haspopup="true" aria-expanded="false">${svg('more')}</button></div></article>`).join('');
   applyDemoPermissions();

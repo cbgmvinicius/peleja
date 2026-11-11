@@ -15,6 +15,9 @@ function examCountdownBadge(exam){
  const text=days>1?`Faltam <b>${days}</b> dias`:`<b>${label}</b>`;
  return `<span class="exam-countdown" data-urgency="${urgency}" aria-label="${label}">${text}</span>`;
 }
+// The topics of an exam in the order of their label: D09, D10 … H09 … N12 (numbers compared as numbers).
+const topicLabel=m=>m.fullTitle||m.code+' '+m.title;
+function byTopicLabel(a,b){return topicLabel(a).localeCompare(topicLabel(b),'pt-BR',{numeric:true,sensitivity:'base'});}
 function orderedFaculty(exams,today=localQuestionDate()){
   return [...exams].sort((a,b)=>{
     const pastA=a.date<today||a.sortCompleted===true,pastB=b.date<today||b.sortCompleted===true;
@@ -31,7 +34,8 @@ function renderFacultyPage(){
   $('facultyPageCount').textContent=`${exams.length} ${exams.length===1?'prova':'provas'}`;
   $('facultyList').innerHTML=exams.map(exam=>{
     const performed=isFacultyPerformed(exam),expanded=facultyExpanded.has(exam.id);
-    const topics=exam.materialCodes.map(code=>data.find(m=>m.code===code)).filter(Boolean);
+    // Always in code order (D09, D10 … H09 … N12), whatever order they were linked in.
+    const topics=exam.materialCodes.map(code=>data.find(m=>m.code===code)).filter(Boolean).sort(byTopicLabel);
 
     const doneLabel=performed?'Editar meu resultado':'Adicionar meu resultado';
     return `<article class="faculty-card" data-exam="${exam.id}"><div><span class="faculty-tag">${escapeHtml(exam.type)}</span><h3>${escapeHtml(exam.subject)}</h3><span class="faculty-date">${escapeHtml(new Date(exam.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short',year:'numeric'}))}</span>${examCountdownBadge(exam)}<div class="faculty-topics" id="topics-${exam.id}">${topics.map(m=>`<button class="faculty-topic" data-topic="${escapeHtml(m.code)}" title="${escapeHtml(m.fullTitle||m.code+' '+m.title)}">${escapeHtml((m.fullTitle||m.code+' '+m.title).toLocaleUpperCase('pt-BR'))}</button>`).join('')}</div><button class="faculty-more" data-exam-expand="${exam.id}" aria-controls="topics-${exam.id}" aria-expanded="${expanded}" hidden>${topics.length} assuntos</button></div>${exam.q!=null?`<div class="faculty-result"><div class="stats"><span>Questões<b>${exam.q}</b></span><span class="correct">Acertos<b>${exam.c}</b></span><span class="wrong">Erros<b>${exam.w}</b></span></div><span class="faculty-accuracy">${Math.round(exam.c/exam.q*100)}% de acertos</span></div>`:'<div class="faculty-no-result">Sem resultado</div>'}<div class="faculty-actions"><button class="icon" data-exam-menu="${exam.id}" aria-label="Ações de ${escapeHtml(exam.type+' · '+exam.subject)}" title="Mais ações" aria-haspopup="true" aria-expanded="false">${svg('more')}</button><button class="icon exam-result-action${performed?' has-result':''}" data-exam-result="${exam.id}" aria-label="${doneLabel}" title="${doneLabel}">${svg('target')}</button></div></article>`;
