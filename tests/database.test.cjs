@@ -285,6 +285,26 @@ assert.equal((await rpc('pomodoro_ranking',[ago(60)],['timestamptz'])).find(r=>r
 await rpc('pomodoro_live_set',[null,null,null,null,null],lCasts);assert.equal((await rpc('pomodoro_ranking',[ago(60)],['timestamptz'])).find(r=>r.userId===C).live,null);
 await user(B);await assert.rejects(()=>rpc('pomodoro_ranking',[ago(60)],['timestamptz']),/Acesso negado/);
 console.log('PASS Pomodoro ranking: period totals, order, live status with 3-minute expiry, private tasks, inactive members and denial');
+// Pomodoro session shared between devices: newest press wins, private, sane times.
+await db.exec('reset role');
+await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-session.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-session.sql'),'utf8'));
+const sCasts=['jsonb','timestamptz'];
+await user(C);
+assert.equal(await rpc('pomodoro_session_get',[]),null);
+assert.equal(await rpc('pomodoro_session_set',[JSON.stringify({timer:{status:'running'},task:'Cardio'}),ago(5)],sCasts),null);
+let kept=await rpc('pomodoro_session_get',[]);assert.equal(kept.state.timer.status,'running');
+assert.equal(await rpc('pomodoro_session_set',[JSON.stringify({timer:{status:'paused'}}),ago(1)],sCasts),null,'a newer press replaces');
+kept=await rpc('pomodoro_session_set',[JSON.stringify({timer:{status:'idle'}}),ago(3)],sCasts);
+assert.equal(kept.state.timer.status,'paused','an older press is refused and gets the newer session back');
+assert.equal((await rpc('pomodoro_session_get',[])).state.timer.status,'paused');
+await assert.rejects(()=>rpc('pomodoro_session_set',[JSON.stringify({a:1}),ago(-60)],sCasts),/Horário/);
+await assert.rejects(()=>rpc('pomodoro_session_set',[JSON.stringify([1]),ago(0)],sCasts),/check/);
+await assert.rejects(()=>rpc('pomodoro_session_set',[JSON.stringify({t:'x'.repeat(5000)}),ago(0)],sCasts),/check/);
+await assert.rejects(()=>db.query('select * from public.pomodoro_session'),/permission denied/);
+await user(A);assert.equal(await rpc('pomodoro_session_get',[]),null,'each member sees only their own session');
+await user(B);await assert.rejects(()=>rpc('pomodoro_session_get',[]),/Acesso negado/);
+console.log('PASS Pomodoro session: newest press wins, older press gets the newer one, time and size checks, private, inactive denial');
 
 // Ranking privacy: anonymous and hidden.
 await db.exec('reset role');

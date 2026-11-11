@@ -25,13 +25,13 @@
  const read=(key,fallback)=>{try{return {...fallback,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{return {...fallback};}};
  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
  const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:true,notifyDefault:1},task:'',templates:[],
-  timer:{status:'idle',mode:'focus',accMs:0,runningSince:0,phaseStartedAt:0,setsDone:0,flowNotified:false}};
+  timer:{status:'idle',mode:'focus',accMs:0,runningSince:0,phaseStartedAt:0,setsDone:0,flowNotified:false,sessionId:'',changedAt:0}};
  let state=read(KEY,DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k],...state[k]};
  // Notifications are on by default, also for whoever had the old default (off) saved; turning them off later sticks.
  if(!state.prefs.notifyDefault){state.prefs.notify=true;state.prefs.notifyDefault=1;}
  // Android app: block other apps during focus (off by default) and the apps that stay allowed.
  const fixBlock=()=>{state.prefs.block={on:false,...(state.prefs.block||{})};state.prefs.block.allow=[...(state.prefs.block.allow||[])];};fixBlock();
- const save=()=>{write(KEY,state);syncSettings();};
+ const save=()=>{write(KEY,state);syncSettings();if(state.timer.changedAt!==pushedAt)pushSoon();};
  // Settings follow the account (site and Android app keep separate storage): sent a second after a change.
  const snapshot=()=>{const c=state.config,s=state.sound;return {config:{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow},sound:{enabled:!!s.enabled,id:s.id,muted:!!s.muted},prefs:{effects:!!state.prefs.effects,notify:!!state.prefs.notify}};};
  let saveSettings=null,settingsTimer=0,lastSent='';
@@ -66,10 +66,49 @@
  }
  function recordBlock(focusMs,endedAt){
   if(focusMs<60000)return; // under a minute is not a block
-  const plannedMs=planned('focus'),block={id:crypto.randomUUID(),user:getUser(),task:state.task.trim(),startedAt:new Date(state.timer.phaseStartedAt).toISOString(),endedAt:new Date(endedAt).toISOString(),focusMs:Math.round(Math.min(focusMs,endedAt-state.timer.phaseStartedAt)),plannedMs,flowExtraMs:Math.max(0,Math.round(focusMs-plannedMs))};
+  const plannedMs=planned('focus'),block={id:blockId(),user:getUser(),task:state.task.trim(),startedAt:new Date(state.timer.phaseStartedAt).toISOString(),endedAt:new Date(endedAt).toISOString(),focusMs:Math.round(Math.min(focusMs,endedAt-state.timer.phaseStartedAt)),plannedMs,flowExtraMs:Math.max(0,Math.round(focusMs-plannedMs))};
   if(block.focusMs<60000)return;
   write(OUTBOX,[...outbox(),block]);globalThis.PELEJA_POMODORO_SAVED?.();flush();
  }
+ // The same focus gets the same id on every device (session id + set number), so a focus finished on two
+ // devices is saved once (pomodoro_block_save ignores an id it already has).
+ function blockId(){const s=state.timer.sessionId;return /^[0-9a-f-]{36}$/.test(s)?s.slice(0,32)+state.timer.setsDone.toString(16).padStart(4,'0'):crypto.randomUUID();}
+
+ // ---------- session shared between devices (pomodoro_session) ----------
+ // Each button press stamps the timer with its moment (changedAt) and sends it up; on opening, coming back
+ // to the page and every 15 s, the account's session is read and the newest press wins. Phase changes that
+ // follow from the clock are not stamped: every device works them out the same way from the same start.
+ const touch=()=>{state.timer.changedAt=now();};
+ const shared=()=>{const t=state.timer,c=state.config;return {timer:{status:t.status,mode:t.mode,accMs:Math.round(t.accMs),runningSince:t.runningSince,phaseStartedAt:t.phaseStartedAt,setsDone:t.setsDone,flowNotified:!!t.flowNotified,sessionId:t.sessionId||''},task:state.task,
+  config:{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow}};};
+ let pushedAt=0,pushTimer=0,pulling=null;
+ function pushSoon(){clearTimeout(pushTimer);pushTimer=setTimeout(push,300);}
+ async function push(force=false){
+  const at=state.timer.changedAt;if(!client||!getUser()||!at||(at===pushedAt&&!force))return;
+  try{const r=await client.rpc('pomodoro_session_set',{p_state:shared(),p_changed_at:new Date(at).toISOString()});
+   if(r?.error)return;pushedAt=at;if(r?.data)adopt(r.data);}catch{}
+ }
+ const int=(v,lo,hi)=>Number.isInteger(v)&&v>=lo&&v<=hi,num=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
+ // Takes the account's session when it is newer than this device's and well formed.
+ function adopt(remote){
+  const at=Date.parse(remote?.changedAt),s=remote?.state,t=s?.timer,c=s?.config;
+  if(!Number.isFinite(at)||at<=(state.timer.changedAt||0)||!t||!c)return false;
+  if(!['idle','running','paused'].includes(t.status)||!['focus','short','long'].includes(t.mode)||![t.accMs,t.runningSince,t.phaseStartedAt].every(num)||!int(t.setsDone,0,12)||typeof t.sessionId!=='string'||typeof s.task!=='string'
+   ||!int(c.focusMin,5,120)||!int(c.shortMin,1,60)||!int(c.targetSets,1,12)||!int(c.longMin,5,60)||!int(c.longEvery,1,12))return false;
+  state.timer={...DEFAULTS.timer,status:t.status,mode:t.mode,accMs:t.accMs,runningSince:t.runningSince,phaseStartedAt:t.phaseStartedAt,setsDone:t.setsDone,flowNotified:!!t.flowNotified,sessionId:t.sessionId.slice(0,36),changedAt:at};
+  state.task=s.task.slice(0,80);Object.assign(state.config,{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow});
+  pushedAt=at;write(KEY,state);
+  // catch up quietly with the time since the press; chimes belong to the moment, not to the catch-up
+  replaying=true;try{advance();}finally{replaying=false;}
+  write(KEY,state);ongoingSig='';render();syncSound();return true;
+ }
+ function pull(){
+  if(!client||!getUser())return Promise.resolve(false);
+  if(pulling)return pulling;
+  pulling=(async()=>{try{const r=await client.rpc('pomodoro_session_get',{});if(r?.error)return false;if(!adopt(r?.data)&&state.timer.changedAt>(Date.parse(r?.data?.changedAt)||0))push(true);return true;}catch{return false;}finally{pulling=null;}})();
+  return pulling;
+ }
+ setInterval(()=>{if(!document.hidden)pull();},15000);
 
  // ---------- sound ----------
  let ambient=null,ambientId='',fadeTimer=0,currentVolume=0;
@@ -253,32 +292,32 @@
  // Session controls: play/pause in the middle; while a session is on, the side buttons reset or end it.
  let flash='',flashTimer=0;
  function showFlash(text){flash=text;clearTimeout(flashTimer);flashTimer=setTimeout(()=>{flash='';render();},3500);}
- function resetTimer(){Object.assign(state.timer,{status:'idle',mode:'focus',accMs:0,runningSince:0,setsDone:0,flowNotified:false});}
+ function resetTimer(){Object.assign(state.timer,{status:'idle',mode:'focus',accMs:0,runningSince:0,setsDone:0,flowNotified:false,sessionId:''});}
  function finishSession(celebrate){
-  const t=state.timer;if(t.mode==='focus'&&t.status!=='idle')recordBlock(elapsed(),now());
+  touch();const t=state.timer;if(t.mode==='focus'&&t.status!=='idle')recordBlock(elapsed(),now());
   resetTimer();chime(celebrate?'session_end':'session_stop',.8);save();render();syncSound(600);
   if(celebrate)openGoalReached();
  }
  const actions={
   toggle(){
-   const t=state.timer;
+   const t=state.timer;touch();
    if(t.status==='running'){t.accMs=elapsed();t.status='paused';t.runningSince=0;chime('session_end',.7);}
    else if(t.status==='paused'){t.status='running';t.runningSince=now();chime('session_start',.7);}
-   else{flash='';startPhase('focus');t.setsDone=0;chime('session_start',.7);
+   else{flash='';startPhase('focus');t.setsDone=0;t.sessionId=crypto.randomUUID();chime('session_start',.7);
     // the browser only asks for permission after a tap: the first play is that moment
     if(!native&&state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='default')Promise.resolve(Notification.requestPermission?.()).then(()=>{ongoingSig='';updateOngoing();}).catch(()=>{});}
    save();render();syncSound(t.status==='running'?1500:600);
   },
   // Flow: "Começar pausa" ends the focus with the extra time counted.
-  startBreak(){if(state.timer.mode!=='focus'||state.timer.status==='idle')return;completeFocus({manual:true});render();syncSound();},
+  startBreak(){if(state.timer.mode!=='focus'||state.timer.status==='idle')return;touch();completeFocus({manual:true});render();syncSound();},
   // Skip ends the current phase now (a focus counts as a set), only while running.
-  skip(){if(state.timer.status!=='running')return;if(state.timer.mode==='focus')completeFocus({manual:true});else completeBreak();render();syncSound();},
+  skip(){if(state.timer.status!=='running')return;touch();if(state.timer.mode==='focus')completeFocus({manual:true});else completeBreak();render();syncSound();},
   // Discard: back to the start, the focus in progress is not kept.
-  discard(){if(state.timer.status==='idle')return;resetTimer();chime('session_stop',.6);save();render();syncSound(600);},
+  discard(){if(state.timer.status==='idle')return;touch();resetTimer();chime('session_stop',.6);save();render();syncSound(600);},
   // Finish: keeps what was focused; under a minute nothing counts; with sets left it asks first.
   finish(){
    const t=state.timer,c=state.config;if(t.status==='idle')return;
-   if(t.mode==='focus'&&elapsed()<60000){showFlash('Menos de 1 minuto não conta.\nBora de novo?');resetTimer();chime('session_stop',.6);save();render();syncSound(600);return;}
+   if(t.mode==='focus'&&elapsed()<60000){showFlash('Menos de 1 minuto não conta.\nBora de novo?');touch();resetTimer();chime('session_stop',.6);save();render();syncSound(600);return;}
    const left=Math.max(0,t.mode==='focus'?c.targetSets-(t.setsDone+1):c.targetSets-t.setsDone);
    if(!left){finishSession(true);return;}
    const text=`${left===1?'Ainda falta 1 série':`Ainda faltam ${left} séries`} do plano. O que você já focou fica salvo.`;
@@ -513,7 +552,7 @@
  setInterval(()=>{if(state.timer.status==='running'){const before=state.timer.mode+state.timer.setsDone+state.timer.status;advance();if(before!==state.timer.mode+state.timer.setsDone+state.timer.status){render();syncSound();}else if(document.hidden)draw();}},500);
  // Back on the page: it shows the phase itself, so the "pausa/foco" notices already seen can go.
  const clearAlerts=()=>{if(native||!allowed())return;worker().then(reg=>reg?.getNotifications?.({tag:'peleja-pomodoro-alert'})).then(list=>(list||[]).forEach(n=>n.close())).catch(()=>{});};
- document.addEventListener('visibilitychange',()=>{if(!document.hidden){advance();render();clearAlerts();drainNative();}});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){pull().finally(()=>{advance();render();clearAlerts();drainNative();});}});
  addEventListener('online',()=>flush());
 
  // ---------- navigation ----------
@@ -605,10 +644,10 @@
     const remote=options.routines,local=(state.templates||[]).filter(t=>!remote.some(x=>x.id===t.id||x.name.toLowerCase()===t.name.toLowerCase()));
     state.templates=[...remote,...local].slice(0,20);save();if(local.length)syncRoutines();
    }
-   flush();
+   flush();pull();
   },
   detach(){client=null;getUser=()=>null;saveSettings=null;lastSent='';},
-  state:()=>state,elapsed,actions,advance,render,outbox,
+  state:()=>state,elapsed,actions,advance,render,outbox,pull,
   rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,
   reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};fixBlock();save();render();}
  };
