@@ -74,5 +74,31 @@ const running=(over={})=>({state:{timer:{status:'running',mode:'focus',accMs:0,r
  a=await app({state:{timer:{status:'flying'},config:{}},changedAt:new Date(START).toISOString()});
  assert.equal(a.P.state().timer.status,'idle');
  console.log('PASS Pomodoro sync: adopt newer session on open and return, push presses, ignore older or malformed, quiet catch-up with shared block ids');
+ // Notes: note during a focus, Enter closes the panel, the chip counts, the note syncs.
+ a=await app(null);
+ const chip=()=>a.$('pomoNotesChip'),dlg=()=>a.$('pomoDialog');
+ assert.equal(chip().title,'Anotações');assert.equal(chip().textContent,'');assert.equal(chip().dataset.count,'0');
+ a.P.actions.toggle();await tick(400);
+ const note=text=>{chip().click();assert.equal(dlg().dataset.kind,'notes');a.$('pomoNoteInput').value=text;a.$('pomoNoteInput').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Enter'}));};
+ note('  pagar   o boleto ');
+ assert.equal(dlg().open,false,'Enter closes the panel to get back to focus');
+ assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['pagar o boleto']);assert.equal(chip().dataset.count,'1');
+ assert.equal(a.P.state().timer.status,'running','noting does not touch the timer');
+ a.advance(1000);await tick(400);
+ assert.deepEqual(Array.from(a.server.sets.at(-1).p_state.notes,n=>n.text),['pagar o boleto'],'the note goes up with the session');
+ // Done removes it; the list fills up at 12.
+ chip().click();dlg().querySelector('.pomo-note-done').click();assert.equal(a.P.state().notes.length,0);assert.equal(dlg().querySelector('[data-note]'),null);dlg().close();
+ for(let i=0;i<12;i++)note('item '+i);
+ assert.equal(a.P.state().notes.length,12);chip().click();assert.equal(a.$('pomoNoteInput').disabled,true);assert.equal(a.$('pomoNotesFull').hidden,false);dlg().close();
+ // Finishing before the goal shows the list; the goal dialog offers it.
+ a.advance(5*MIN);a.P.actions.stop();assert.equal(dlg().dataset.kind,'notes');assert.match(dlg().textContent,/Da sessão que passou/);dlg().close();
+ a.P.state().notes=a.P.state().notes.slice(0,2);a.P.state().config.targetSets=1;a.P.actions.toggle();a.advance(26*MIN);a.P.advance();
+ assert.equal(dlg().dataset.kind,'goal');assert.match(a.$('pomoGoalNotes').textContent,/Anotações: 2/);a.$('pomoGoalNotes').click();assert.equal(dlg().dataset.kind,'notes');dlg().close();
+ // Notes from the newer session on the account arrive; malformed notes are refused.
+ a=await app(running({notes:[{id:'n1',text:'ligar pra mãe'}]}));
+ assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['ligar pra mãe']);
+ a=await app(running({notes:[{id:'n1',text:'x'.repeat(500)}]}));
+ assert.equal(a.P.state().notes.length,0);assert.equal(a.P.state().timer.status,'idle','a session with bad notes is not adopted');
+ console.log('PASS Pomodoro notes: note in a focus, Enter closes, chip count, synced, done removes, limit 12, list on finish and goal, adopted from account, malformed refused');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});
