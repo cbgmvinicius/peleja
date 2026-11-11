@@ -391,14 +391,25 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 @media (prefers-reduced-motion:reduce){.app .pomo-flow-break[data-over=true]{animation:none}}
 .pomo-block .pomo-block-perms{margin-top:8px}
 
-/* Notes taken during a focus: an icon-only chip, the count beside it */
+/* Tasks noted during a focus: icon-only chip with the count, and a notebook page */
 .app .pomo-notes-chip{gap:4px;padding:4px 8px}
 .pomo-notes-count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--pomo-sand);color:var(--pomo-sand-ink);font-size:11px;font-weight:700}
-.pomo-notes{margin-top:14px}
-.pomo-note-text{flex:1;min-width:0;padding:12px 4px;font-size:14px;overflow-wrap:anywhere}
-.app .pomo-note-done{width:40px;height:40px;margin-left:4px;flex:none;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--muted)}
-.app .pomo-note-done:hover{color:var(--accent);background:var(--soft)}
-.pomo-dialog .pomo-note-done svg,.pomo-dialog .pomo-template-delete svg{width:18px;height:18px}
-.pomo-notes-full{margin:10px 2px 0;font-size:13px;color:var(--pomo-red-ink)}
+.pomo-notes{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.pomo-note{display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid var(--line)}
+.app .pomo-note-box{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:10px;background:transparent;color:var(--muted)}
+.pomo-dialog .pomo-note-box svg{width:22px;height:22px}
+.app button.pomo-note-box:hover{color:var(--accent);background:var(--soft)}
+.pomo-note-box.is-blank{opacity:.45}
+.pomo-note-text{flex:1;min-width:0;font-size:15px;overflow-wrap:anywhere;padding:8px 0}
+.pomo-note.is-done .pomo-note-text{text-decoration:line-through;color:var(--muted)}
+.pomo-note.is-done .pomo-note-box{color:var(--accent)}
+.pomo-note-new input{flex:1;min-width:0;height:44px;border:0;background:transparent;font-size:15px;padding:0}
+.pomo-note-new input:focus-visible{outline:0!important}
+.pomo-note-new:focus-within{border-bottom-color:var(--accent)}
+.pomo-note-count{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pomo-note-count[data-near=true]{color:var(--pomo-red-ink)}
+.pomo-notes-full{margin:12px 2px 0;font-size:13px;color:var(--muted)}
+.app .pomo-notes-clear{margin-top:12px;padding:8px 12px;border-radius:10px;background:transparent;color:var(--muted);font-size:13px}
+.app .pomo-notes-clear:hover{background:var(--soft);color:var(--accent)}
 .app .pomo-goal-notes{display:flex;align-items:center;gap:10px;width:100%;margin:4px 0 14px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:transparent;color:inherit;text-align:left;font-size:14px}
 .pomo-goal-notes span:nth-child(2){flex:1}.pomo-goal-notes b{color:var(--accent);font-weight:600}.pomo-dialog .pomo-goal-notes svg{width:18px;height:18px}
