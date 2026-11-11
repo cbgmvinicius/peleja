@@ -107,7 +107,7 @@ let topicHighlightTimer,topicHighlight,topicHighlightLayer;
 function revealFacultyTopic(code){
   clearTimeout(topicHighlightTimer);topicHighlight?.cancel();topicHighlightLayer?.remove();
   $('search').value='';$('subject').value='';$('exam').value='all';
-  $('ankingOnly').checked=false;$('groupSpecialty').checked=false;
+  $('groupSpecialty').checked=false;
   showLibraryPage();if(typeof syncFilterControls==='function')syncFilterControls();
   const row=[...document.querySelectorAll('[data-row]')].find(el=>el.dataset.row===code);if(!row)return;
   row.tabIndex=-1;row.focus({preventScroll:true});row.scrollIntoView?.({behavior:reduceMotion()?'auto':'smooth',block:'center'});
