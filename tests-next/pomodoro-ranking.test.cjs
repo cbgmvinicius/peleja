@@ -46,10 +46,11 @@ const saved0=structuredClone(board.rows);
  // The focus in progress counts: Wilton 40 + 20 = 60 min passes Vinícius (50).
  const names=()=>[...w.document.querySelectorAll('.pomo-board li .pomo-board-name b')].map(b=>b.firstChild.textContent);
  assert.deepEqual(names(),['Wilton','Vinícius'],'only who focused in the period');assert.ok(!$('pomoRanking').textContent.includes('null'));
- const first=w.document.querySelector('.pomo-board li');assert.match(first.textContent,/1h/);assert.equal(first.dataset.live,'true');assert.match(first.textContent,/focando agora/);assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/focando há 20 min/);
+ const first=w.document.querySelector('.pomo-board li');assert.match(first.textContent,/1h/);assert.equal(first.dataset.live,'true');const icon=first.querySelector('.pomo-status-icon');assert.equal(icon.dataset.state,'focus');assert.equal(icon.dataset.tip,'Focando há 20 min');assert.doesNotMatch(first.textContent,/focando/,'an icon instead of the words');assert.equal($('pomoRanking').querySelector('.pomo-live .pomo-status-icon').dataset.tip,'Focando há 20 min');icon.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));assert.equal($('pomoRankTip').hidden,false);assert.equal($('pomoRankTip').textContent,'Focando há 20 min','a tap shows the words');
  assert.ok(first.querySelector('.pomo-avatar img'),'friend photo');
  assert.match(w.document.querySelector('.pomo-board li.is-me').textContent,/Você/);
- assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/Estudando agora/);assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/na pausa/);
+ assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/Estudando agora/);assert.equal($('pomoRanking').querySelector('.pomo-live [data-state=break]').dataset.tip,'Na pausa');
+ board.rows=structuredClone(saved0);R.setPeriod('day');await tick(120);
  // Compact board: top 3, the one above you, you and the one below; "Ver todos" opens the rest; ties share the place.
  board.rows=[...'ABCDEFGH'].map((c,i)=>({userId:'p'+c,name:'Pessoa '+c,me:false,totalMs:(100-i*10)*MIN,sessions:1,live:null}));
  board.rows.push({userId:'student',name:'Vinícius',me:true,totalMs:35*MIN,sessions:1,live:null},{userId:'pZ',name:'Pessoa Z',me:false,totalMs:35*MIN,sessions:1,live:null});
