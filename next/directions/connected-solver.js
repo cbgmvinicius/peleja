@@ -146,7 +146,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const minutes=el('label',{className:'editor-field solver-minutes',hidden:true},el('span',{textContent:'Minutos'}),el('input',{type:'number',id:'solverMinutes',min:1,max:600,step:1,inputMode:'numeric'}));
   clocks.append(minutes);clocks.onchange=()=>{minutes.hidden=clocks.querySelector('input:checked').value!=='timer';if(!minutes.hidden)animateIn(minutes,-4);};
   body.append(modes,advanced,clocks,el('div',{id:'solverHistory'}));
-  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>start()}));
+  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()}));
   await refreshSetupDetails();
  }
  // Administrators rename a list right here (the questions stay as they are).
@@ -178,18 +178,27 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
     const small=group.querySelector(`[data-set="${s.id}"] small`);if(done&&small)small.textContent=`${plural(s.count,'questão','questões')} · última: ${done.correct}/${done.layout.questions.length}`;}catch{}
   }));
  }
+ // Starting a new round on a list with one in progress replaces it (the server deletes the open session),
+ // so it asks first. Rounds on other lists are not touched.
+ let activeHere=null;
+ function startOrConfirm(){
+  if(!activeHere||typeof confirmPeleja!=='function')return start();
+  const {set,open}=activeHere,done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length,total=open.layout.questions.length;
+  confirmPeleja('Começar uma nova rodada?',()=>start(),{description:`A rodada em andamento de "${set.title}" (${done} de ${total} respondidas) será apagada, e o progresso dela se perde.`,accept:'Começar nova',destructive:true});
+ }
  async function refreshSetupDetails(){
   $s('solverMinutes').value=Math.max(1,Math.round(setInfo.count*1.5));
   const resume=$s('solverResume'),past=$s('solverHistory');resume.replaceChildren();past.replaceChildren();
   try{await loadHistory();}catch(error){resume.append(el('p',{className:'solver-note',textContent:message(error)}));return;}
   // Sessions in progress on any list of this subject/exam, newest first, each with its list's name.
-  const actives=[];
+  const actives=[];activeHere=null;
   for(const set of setsFor(material)){
    let rows=history;
    if(set.id!==setInfo.id){try{const r=await client.rpc('quiz_sessions_mine',{p_set:set.id});rows=Array.isArray(r.data)?r.data:[];}catch{rows=[];}}
    for(const open of rows.filter(x=>x.status==='active'))actives.push({set,open});
   }
   actives.sort((a,b)=>String(b.open.createdAt||'').localeCompare(String(a.open.createdAt||'')));
+  activeHere=actives.find(a=>a.set.id===setInfo.id)||null;
   for(const {set,open} of actives){
    const done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length,total=open.layout.questions.length;
    const discard=el('button',{type:'button',className:'editor-cancel solver-resume-discard',textContent:'Descartar',onclick:()=>confirmPeleja('Descartar o progresso?',async()=>{if(await removeSession(open))refreshSetupDetails();},{description:`As ${plural(done,'resposta','respostas')} desta sessão de "${set.title}" serão apagadas e a próxima começa do zero.`,accept:'Descartar',destructive:true})});

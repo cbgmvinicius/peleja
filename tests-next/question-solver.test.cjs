@@ -108,6 +108,10 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  assert.match(q('.solver-resume small').textContent,/^[^·]+ · /,'the list name opens the line');
  assert.equal(q('#solverAdvanced').open,false,'Personalizar stays closed');assert.equal(q('#solverNewTitle').hidden,false);
  assert.equal(q('#solverStart').textContent,'Começar nova');assert.ok(!q('#solverStart').classList.contains('primary'),'starting a new one is secondary');
+ // Starting a new round over the one in progress asks first (the server would delete it); cancelling keeps it.
+ const startsBefore=state.sessions.length;q('#solverStart').click();await tick(60);
+ assert.equal(w.document.getElementById('confirmDialog').open,true,'asks before replacing');assert.match(w.document.getElementById('confirmDescription').textContent,/1 de 2 respondidas/);
+ w.document.getElementById('confirmCancel').click();await tick(300);assert.equal(state.sessions.length,startsBefore);assert.ok(state.sessions.some(s=>s.status==='active'),'the round in progress stays');
  resume.click();await tick(80);assert.equal(q('#solverKicker').textContent,'2 / 2','resumes at the first unanswered question');
  // ... and "Descartar e recomeçar depois" deletes it.
  $('solverClose').click();await tick(60);$('solverDiscard').click();await tick(120);
