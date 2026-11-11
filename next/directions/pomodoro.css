@@ -365,12 +365,12 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-ranking{position:relative}
 .pomo-live-name{display:flex;align-items:center;gap:6px}
 .pomo-board-meta{display:flex;align-items:center;gap:6px}
-.pomo-status-icon{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;cursor:help;outline-offset:2px}
+.pomo-status-icon{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;cursor:default;outline-offset:2px}
 .pomo-status-icon svg{width:12px;height:12px}
 .pomo-status-icon[data-state=focus]{color:#fff;background:var(--accent)}
 .pomo-status-icon[data-state=break]{color:#fff;background:#6d8fa3}
 .pomo-status-icon[data-state=paused]{color:var(--muted);background:color-mix(in srgb,var(--muted) 18%,transparent)}
-.pomo-avatar[data-live=paused]::after{border-color:color-mix(in srgb,var(--muted) 75%,transparent);border-width:2px;border-style:dashed}
+.pomo-avatar[data-live=paused]::after{border:0;background:repeating-conic-gradient(from 5deg,color-mix(in srgb,var(--muted) 75%,transparent) 0 10deg,transparent 10deg 20deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 2px))} /* even dashes all around (a dashed border breaks at 0/3/6/9 o'clock) */
 /* Android app: blocking other apps during focus (Configurações › Pomodoro) */
 .pomo-block-note{margin:4px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
 .pomo-block-perms{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--soft)}
