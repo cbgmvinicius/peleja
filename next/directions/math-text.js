@@ -1,6 +1,7 @@
 // Inline formulas in question text: Gemini / NotebookLM write LaTeX between dollar signs ("$\Delta$ atividade",
 // "$10^{6}$", "$\geq 2$"). Shown as plain text with Greek letters, symbols, superscripts and subscripts; no library.
-// Only segments that look like LaTeX are touched (a backslash, ^ or _ inside), so "R$ 10 e R$ 20" stays as it is.
+// A dollar right after a letter is money (R$, US$), and "$ 10 e $" with spaces at the edges is not math, so
+// "R$ 10 e R$ 20" stays as it is; "$3$", "$HbSS$" and "$r = -0{,}14$" lose their dollars.
 (function(root){
  'use strict';
  const SYMBOLS={
@@ -11,10 +12,15 @@
   partial:'∂',sum:'Σ',prod:'Π',int:'∫',sqrt:'√',ldots:'…',dots:'…',cdots:'⋯',prime:'′',angle:'∠',
   '%':'%',$:'$','{':'{','}':'}','&':'&','#':'#',_:'_',',':' ',';':' ',':':' ','!':'',quad:' ',qquad:'  ',' ':' '
  };
+ // Accents over a letter: d\acute{e}j\grave{a} → déjà.
+ const ACCENTS={acute:'\u0301',grave:'\u0300',tilde:'\u0303',hat:'\u0302',bar:'\u0304',ddot:'\u0308',"'":'\u0301','`':'\u0300','~':'\u0303','^':'\u0302','"':'\u0308'};
  const WRAPPERS=new Set(['text','mathrm','mathbf','mathit','textbf','textit','operatorname','mathsf','boldsymbol','bm','left','right','displaystyle']);
  // A segment between single dollars that looks like math.
  const SEGMENT=/\$([^$\n]{1,200}?)\$/g;
- const looksMath=s=>/[\\^_]/.test(s);
+ const looksMath=s=>/[\\^_]/.test(s)||s===s.trim();
+ // Some imports lost one backslash in JSON: "\text" arrived as a tab + "ext", "\frac" as a form feed + "rac".
+ const CONTROL={'\t':'t','\f':'f','\b':'b','\r':'r','\v':'v'};
+ const repair=s=>s.replace(/[\t\f\b\r\v](?=[a-zA-Z])/g,c=>'\\'+CONTROL[c]);
 
  // Reads one argument after a command or ^/_: {...} or a single character.
  function arg(src,i){
@@ -33,6 +39,7 @@
     const m=/^\\([a-zA-Z]+|.)/.exec(src.slice(i));const name=m?m[1]:'';i+=m?m[0].length:1;
     if(name==='frac'||name==='dfrac'||name==='tfrac'){const [a,j]=arg(src,i);const [b,k]=arg(src,j);i=k;flush();const wrap=s=>s.length>1&&/[+\-×·\s]/.test(plain(s))?['(',...parse(s),')']:parse(s);out.push(...wrap(a),'/',...wrap(b));continue;}
     if(name==='sqrt'){const [a,j]=arg(src,i);i=j;flush();out.push('√',...(a.length>1?['(',...parse(a),')']:parse(a)));continue;}
+    if(Object.hasOwn(ACCENTS,name)){const [a,j]=arg(src,i);i=j;text+=(plain(a)+ACCENTS[name]).normalize('NFC');continue;}
     if(WRAPPERS.has(name)){if(src[i]==='{'){const [a,j]=arg(src,i);i=j;flush();out.push(...parse(a));}continue;}
     const sym=Object.hasOwn(SYMBOLS,name)?SYMBOLS[name]:name;text+=sym;
     // \mu L reads as μL; operators keep their spaces (150 \times 10 → 150 × 10)
@@ -57,9 +64,10 @@
   if(typeof text!=='string'||!text.includes('$'))return null;
   SEGMENT.lastIndex=0;let m,last=0,found=false;const frag=doc.createDocumentFragment();
   while((m=SEGMENT.exec(text))){
-   if(!looksMath(m[1]))continue;
+   // money (R$, US$) or not math: try again from the next dollar
+   if((m.index>0&&/\p{L}/u.test(text[m.index-1]))||!looksMath(m[1])){SEGMENT.lastIndex=m.index+1;continue;}
    found=true;if(m.index>last)frag.append(doc.createTextNode(text.slice(last,m.index)));
-   const span=doc.createElement('span');span.className='math';build(doc,parse(m[1].trim()),span);frag.append(span);last=m.index+m[0].length;
+   const span=doc.createElement('span');span.className='math';build(doc,parse(repair(m[1]).trim()),span);frag.append(span);last=m.index+m[0].length;
   }
   if(!found)return null;
   if(last<text.length)frag.append(doc.createTextNode(text.slice(last)));
