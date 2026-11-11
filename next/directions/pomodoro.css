@@ -360,7 +360,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-board-gap{display:block!important;padding:2px 0!important;text-align:center;color:var(--muted);letter-spacing:2px;border-top:0!important}
 .pomo-board-gap+li{border-top-color:transparent!important}
 .app .pomo-board-more{display:block;margin:10px auto 0;padding:8px 16px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
-/* Ranking: status icons with a tooltip, a visible ring while paused, and the hours of the day on the bar */
+/* Ranking: status icons with a tooltip and a visible ring while paused */
 .pomo-rank-tip{white-space:normal;width:max-content;max-width:240px;text-align:center;font-size:13px;line-height:1.35}
 .pomo-ranking{position:relative}
 .pomo-live-name{display:flex;align-items:center;gap:6px}
@@ -371,33 +371,6 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-status-icon[data-state=break]{color:#fff;background:#6d8fa3}
 .pomo-status-icon[data-state=paused]{color:var(--muted);background:color-mix(in srgb,var(--muted) 18%,transparent)}
 .pomo-avatar[data-live=paused]::after{border-color:color-mix(in srgb,var(--muted) 75%,transparent);border-width:2px;border-style:dashed}
-.pomo-board-bar{position:relative}
-.pomo-board-bar[data-tier] i{position:relative;overflow:hidden}
-.pomo-board-bar[data-tier=t1] i{background:linear-gradient(90deg,var(--accent),#d9a441)}
-.pomo-board-bar[data-tier=t2] i{background:linear-gradient(90deg,var(--accent) 10%,#e08a2e)}
-.pomo-board-bar[data-tier=t3] i{background:linear-gradient(90deg,#e08a2e,#d9542b);box-shadow:0 0 8px rgba(217,84,43,.35)}
-.pomo-board-bar[data-tier=apex] i{background:linear-gradient(90deg,#d99a1e,#f5d77a 55%,#e2b33c);box-shadow:0 0 10px rgba(226,179,60,.55)}
-.pomo-board-bar[data-tier=warn] i{background:repeating-linear-gradient(135deg,#bfae8c 0 6px,#a8946f 6px 12px)}
-.pomo-board-bar[data-tier=burn] i{background:repeating-linear-gradient(135deg,#c08a85 0 6px,#9d6f6b 6px 12px);opacity:.85}
-.pomo-board-bar:is([data-tier=t2],[data-tier=t3],[data-tier=apex]) i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);transform:translateX(-100%);animation:pomo-shine 3.2s ease-in-out infinite}
-.pomo-board-bar[data-tier=t3] i::after{animation-duration:2.2s}
-.pomo-board-bar[data-tier=apex] i::after{animation-duration:1.6s}
-@keyframes pomo-shine{60%,100%{transform:translateX(100%)}}
-/* the halo: outside the status ring, from a soft glow at 3h to a burning ring at 5h, gold at 6h, then cooling down */
-.pomo-avatar[data-tier]{cursor:help;outline-offset:6px}
-.pomo-board .pomo-avatar{margin:0 7px}
-.pomo-avatar[data-tier]::before{content:"";position:absolute;inset:-9px;border-radius:50%;pointer-events:none;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))}
-.pomo-avatar[data-tier=t1]::before{background:rgba(217,164,65,.45)}
-.pomo-avatar[data-tier=t2]::before{background:conic-gradient(#e08a2e,#f2c46b,#e08a2e,#f2c46b,#e08a2e);animation:pomo-spin 6s linear infinite}
-.pomo-avatar[data-tier=t3]::before{inset:-10px;background:conic-gradient(#d9542b,#f0a23a,#d9542b,#f0a23a,#d9542b);filter:drop-shadow(0 0 5px rgba(217,84,43,.55));animation:pomo-spin 3s linear infinite}
-.pomo-avatar[data-tier=apex]::before{inset:-10px;background:conic-gradient(#d99a1e,#fff1b8,#e2b33c,#fff1b8,#d99a1e);filter:drop-shadow(0 0 7px rgba(226,179,60,.85));animation:pomo-spin 2.2s linear infinite,pomo-halo-pulse 2s ease-in-out infinite}
-.pomo-avatar[data-tier=warn]::before{background:repeating-conic-gradient(#bfae8c 0 12deg,transparent 12deg 20deg)}
-.pomo-avatar[data-tier=burn]::before{background:repeating-conic-gradient(#b0605a 0 8deg,transparent 8deg 20deg);opacity:.75}
-.pomo-avatar[data-tier=warn] img{filter:saturate(.7)}
-.pomo-avatar[data-tier=burn] img{filter:grayscale(.55)}
-@keyframes pomo-spin{to{transform:rotate(1turn)}}
-@keyframes pomo-halo-pulse{0%,100%{opacity:.85}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.pomo-avatar[data-tier]::before,.pomo-board-bar i::after{animation:none!important}}
 /* Android app: blocking other apps during focus (Configurações › Pomodoro) */
 .pomo-block-note{margin:4px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
 .pomo-block-perms{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--soft)}
