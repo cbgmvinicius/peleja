@@ -53,12 +53,12 @@ const saved0=structuredClone(board.rows);
  // Hours of the day: nothing under 3h, warming up from 3h, the top at 6h, a burnout warning past 6h30 and 7h30.
  for(const [h,key] of [[2.5,null],[3.2,'t1'],[4.5,'t2'],[5.5,'t3'],[6.1,'apex'],[7,'warn'],[8,'burn']]){
   board.rows=[{userId:'student',name:'Vinícius',me:true,totalMs:h*60*MIN,sessions:4,live:null}];R.setPeriod('day');await tick(120);
-  const bar=w.document.querySelector('.pomo-board-bar'),badge=w.document.querySelector('.pomo-tier');
-  assert.equal(bar.dataset.tier??null,key,h+'h');assert.equal(badge?.dataset.tier??null,key,h+'h badge');
+  const bar=w.document.querySelector('.pomo-board-bar'),badge=w.document.querySelector('.pomo-board .pomo-avatar');
+  assert.equal(bar.dataset.tier??null,key,h+'h');assert.equal(badge.dataset.tier??null,key,h+'h halo');
  }
- assert.match(w.document.querySelector('.pomo-tier').dataset.tip,/Descansar também é estudo/);
+ assert.match(w.document.querySelector('.pomo-board .pomo-avatar').dataset.tip,/Descansar também é estudo/);
  board.rows=[{userId:'student',name:'Vinícius',me:true,totalMs:8*60*MIN,sessions:4,live:null}];R.setPeriod('week');await tick(120);
- assert.equal(w.document.querySelector('.pomo-tier'),null,'the hours of the day only on Hoje');
+ assert.equal(w.document.querySelector('.pomo-board .pomo-avatar[data-tier]'),null,'the hours of the day only on Hoje');
  board.rows=structuredClone(saved0);R.setPeriod('day');await tick(120);
  // Compact board: top 3, the one above you, you and the one below; "Ver todos" opens the rest; ties share the place.
  board.rows=[...'ABCDEFGH'].map((c,i)=>({userId:'p'+c,name:'Pessoa '+c,me:false,totalMs:(100-i*10)*MIN,sessions:1,live:null}));

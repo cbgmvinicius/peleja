@@ -371,18 +371,6 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-status-icon[data-state=break]{color:#fff;background:#6d8fa3}
 .pomo-status-icon[data-state=paused]{color:var(--muted);background:color-mix(in srgb,var(--muted) 18%,transparent)}
 .pomo-avatar[data-live=paused]::after{border-color:color-mix(in srgb,var(--muted) 75%,transparent);border-width:2px;border-style:dashed}
-.pomo-board-time{display:flex;align-items:center;gap:6px}
-.pomo-tier{display:inline-grid;place-items:center;width:22px;height:22px;cursor:help;outline-offset:2px}
-.pomo-tier svg{width:17px;height:17px}
-.pomo-tier[data-tier=t1]{color:#d9a441}
-.pomo-tier[data-tier=t2]{color:#e08a2e}
-.pomo-tier[data-tier=t2] svg{width:19px;height:19px}
-.pomo-tier[data-tier=t3]{color:#d9542b}
-.pomo-tier[data-tier=t3] svg{width:21px;height:21px;filter:drop-shadow(0 0 4px rgba(217,84,43,.45));animation:pomo-flicker 1.6s ease-in-out infinite}
-.pomo-tier[data-tier=apex]{color:#d99a1e}
-.pomo-tier[data-tier=apex] svg{width:21px;height:21px;filter:drop-shadow(0 0 6px rgba(226,179,60,.7));animation:pomo-glow 2.4s ease-in-out infinite}
-.pomo-tier[data-tier=warn]{color:#a8946f}
-.pomo-tier[data-tier=burn]{color:#b0605a}
 .pomo-board-bar{position:relative}
 .pomo-board-bar[data-tier] i{position:relative;overflow:hidden}
 .pomo-board-bar[data-tier=t1] i{background:linear-gradient(90deg,var(--accent),#d9a441)}
@@ -395,9 +383,21 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-board-bar[data-tier=t3] i::after{animation-duration:2.2s}
 .pomo-board-bar[data-tier=apex] i::after{animation-duration:1.6s}
 @keyframes pomo-shine{60%,100%{transform:translateX(100%)}}
-@keyframes pomo-flicker{0%,100%{transform:scale(1)}50%{transform:scale(1.12) rotate(-3deg)}}
-@keyframes pomo-glow{0%,100%{filter:drop-shadow(0 0 3px rgba(226,179,60,.5))}50%{filter:drop-shadow(0 0 9px rgba(226,179,60,.9))}}
-@media (prefers-reduced-motion:reduce){.pomo-tier svg,.pomo-board-bar i::after{animation:none!important}}
+/* the halo: outside the status ring, from a soft glow at 3h to a burning ring at 5h, gold at 6h, then cooling down */
+.pomo-avatar[data-tier]{cursor:help;outline-offset:6px}
+.pomo-board .pomo-avatar{margin:0 7px}
+.pomo-avatar[data-tier]::before{content:"";position:absolute;inset:-9px;border-radius:50%;pointer-events:none;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))}
+.pomo-avatar[data-tier=t1]::before{background:rgba(217,164,65,.45)}
+.pomo-avatar[data-tier=t2]::before{background:conic-gradient(#e08a2e,#f2c46b,#e08a2e,#f2c46b,#e08a2e);animation:pomo-spin 6s linear infinite}
+.pomo-avatar[data-tier=t3]::before{inset:-10px;background:conic-gradient(#d9542b,#f0a23a,#d9542b,#f0a23a,#d9542b);filter:drop-shadow(0 0 5px rgba(217,84,43,.55));animation:pomo-spin 3s linear infinite}
+.pomo-avatar[data-tier=apex]::before{inset:-10px;background:conic-gradient(#d99a1e,#fff1b8,#e2b33c,#fff1b8,#d99a1e);filter:drop-shadow(0 0 7px rgba(226,179,60,.85));animation:pomo-spin 2.2s linear infinite,pomo-halo-pulse 2s ease-in-out infinite}
+.pomo-avatar[data-tier=warn]::before{background:repeating-conic-gradient(#bfae8c 0 12deg,transparent 12deg 20deg)}
+.pomo-avatar[data-tier=burn]::before{background:repeating-conic-gradient(#b0605a 0 8deg,transparent 8deg 20deg);opacity:.75}
+.pomo-avatar[data-tier=warn] img{filter:saturate(.7)}
+.pomo-avatar[data-tier=burn] img{filter:grayscale(.55)}
+@keyframes pomo-spin{to{transform:rotate(1turn)}}
+@keyframes pomo-halo-pulse{0%,100%{opacity:.85}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.pomo-avatar[data-tier]::before,.pomo-board-bar i::after{animation:none!important}}
 /* Android app: blocking other apps during focus (Configurações › Pomodoro) */
 .pomo-block-note{margin:4px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
 .pomo-block-perms{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--soft)}
