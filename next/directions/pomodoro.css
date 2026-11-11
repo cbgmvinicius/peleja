@@ -390,3 +390,16 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 @keyframes pomo-flow-glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 0%,transparent)}}
 @media (prefers-reduced-motion:reduce){.app .pomo-flow-break[data-over=true]{animation:none}}
 .pomo-block .pomo-block-perms{margin-top:8px}
+
+/* Pra depois: notes taken during a focus */
+.app .pomo-notes-chip{gap:5px}
+.pomo-notes-count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--pomo-sand);color:var(--pomo-sand-ink);font-size:11px;font-weight:700}
+.pomo-notes{margin-top:14px}
+.pomo-note-text{flex:1;min-width:0;padding:12px 4px;font-size:14px;overflow-wrap:anywhere}
+.app .pomo-note-done{width:40px;height:40px;margin-left:4px;flex:none;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--muted)}
+.app .pomo-note-done:hover{color:var(--accent);background:var(--soft)}
+.pomo-dialog .pomo-note-done svg,.pomo-dialog .pomo-template-delete svg{width:18px;height:18px}
+.pomo-notes-full{margin:10px 2px 0;font-size:13px;color:var(--pomo-red-ink)}
+.app .pomo-goal-notes{display:flex;align-items:center;gap:10px;width:100%;margin:4px 0 14px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:transparent;color:inherit;text-align:left;font-size:14px}
+.pomo-goal-notes span:nth-child(2){flex:1}.pomo-goal-notes b{color:var(--accent);font-weight:600}.pomo-dialog .pomo-goal-notes svg{width:18px;height:18px}
+@media(max-width:420px){.pomo-notes-chip:not([data-count="0"]) span{display:none}}

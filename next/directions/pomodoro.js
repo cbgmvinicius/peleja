@@ -24,9 +24,13 @@
  const KEY='peleja-pomodoro-v1',OUTBOX='peleja-pomodoro-outbox-v1';
  const read=(key,fallback)=>{try{return {...fallback,...JSON.parse(localStorage.getItem(key)||'{}')};}catch{return {...fallback};}};
  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
- const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:true,notifyDefault:1},task:'',templates:[],
+ const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:true,notifyDefault:1},task:'',templates:[],notes:[],
   timer:{status:'idle',mode:'focus',accMs:0,runningSince:0,phaseStartedAt:0,setsDone:0,flowNotified:false,sessionId:'',changedAt:0}};
  let state=read(KEY,DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k],...state[k]};
+ // "Pra depois": things that come to mind during a focus, noted and left for later (up to 12, 100 characters each).
+ const NOTES_MAX=12,NOTE_LEN=100;
+ const validNotes=list=>Array.isArray(list)&&list.length<=NOTES_MAX&&list.every(n=>typeof n?.id==='string'&&n.id&&n.id.length<=40&&typeof n.text==='string'&&n.text.trim()&&n.text.length<=NOTE_LEN);
+ if(!validNotes(state.notes))state.notes=[];
  // Notifications are on by default, also for whoever had the old default (off) saved; turning them off later sticks.
  if(!state.prefs.notifyDefault){state.prefs.notify=true;state.prefs.notifyDefault=1;}
  // Android app: block other apps during focus (off by default) and the apps that stay allowed.
@@ -78,9 +82,11 @@
  // Each button press stamps the timer with its moment (changedAt) and sends it up; on opening, coming back
  // to the page and every 15 s, the account's session is read and the newest press wins. Phase changes that
  // follow from the clock are not stamped: every device works them out the same way from the same start.
- const touch=()=>{state.timer.changedAt=now();};
+ const touch=()=>{state.timer.changedAt=Math.max(now(),(state.timer.changedAt||0)+1);}; // always moves forward, so two changes in one millisecond both go up
  const shared=()=>{const t=state.timer,c=state.config;return {timer:{status:t.status,mode:t.mode,accMs:Math.round(t.accMs),runningSince:t.runningSince,phaseStartedAt:t.phaseStartedAt,setsDone:t.setsDone,flowNotified:!!t.flowNotified,sessionId:t.sessionId||''},task:state.task,
-  config:{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow}};};
+  config:{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow},notes:state.notes.map(n=>({id:n.id,text:n.text}))};};
+ // The shared session row holds at most 4000 bytes; notes are refused before that is reached.
+ const fits=()=>{try{return new TextEncoder().encode(JSON.stringify(shared())).length<=3800;}catch{return true;}};
  let pushedAt=0,pushTimer=0,pulling=null;
  function pushSoon(){clearTimeout(pushTimer);pushTimer=setTimeout(push,300);}
  async function push(force=false){
@@ -94,9 +100,9 @@
   const at=Date.parse(remote?.changedAt),s=remote?.state,t=s?.timer,c=s?.config;
   if(!Number.isFinite(at)||at<=(state.timer.changedAt||0)||!t||!c)return false;
   if(!['idle','running','paused'].includes(t.status)||!['focus','short','long'].includes(t.mode)||![t.accMs,t.runningSince,t.phaseStartedAt].every(num)||!int(t.setsDone,0,12)||typeof t.sessionId!=='string'||typeof s.task!=='string'
-   ||!int(c.focusMin,5,120)||!int(c.shortMin,1,60)||!int(c.targetSets,1,12)||!int(c.longMin,5,60)||!int(c.longEvery,1,12))return false;
+   ||!int(c.focusMin,5,120)||!int(c.shortMin,1,60)||!int(c.targetSets,1,12)||!int(c.longMin,5,60)||!int(c.longEvery,1,12)||(s.notes!==undefined&&!validNotes(s.notes)))return false;
   state.timer={...DEFAULTS.timer,status:t.status,mode:t.mode,accMs:t.accMs,runningSince:t.runningSince,phaseStartedAt:t.phaseStartedAt,setsDone:t.setsDone,flowNotified:!!t.flowNotified,sessionId:t.sessionId.slice(0,36),changedAt:at};
-  state.task=s.task.slice(0,80);Object.assign(state.config,{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow});
+  state.task=s.task.slice(0,80);if(s.notes)state.notes=s.notes.map(n=>({id:n.id,text:n.text}));Object.assign(state.config,{focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:!!c.longEnabled,longMin:c.longMin,longEvery:c.longEvery,flow:!!c.flow});
   pushedAt=at;write(KEY,state);
   // catch up quietly with the time since the press; chimes belong to the moment, not to the catch-up
   replaying=true;try{advance();}finally{replaying=false;}
@@ -296,7 +302,7 @@
  function finishSession(celebrate){
   touch();const t=state.timer;if(t.mode==='focus'&&t.status!=='idle')recordBlock(elapsed(),now());
   resetTimer();chime(celebrate?'session_end':'session_stop',.8);save();render();syncSound(600);
-  if(celebrate)openGoalReached();
+  if(celebrate)openGoalReached();else if(state.notes.length&&!replaying)openNotes('Da sessão que passou. Risque o que já resolveu.');
  }
  const actions={
   toggle(){
@@ -345,6 +351,7 @@
   fire:'<path d="M12 3c.6 3 3.6 4.6 5 7.4 1.5 3 .8 6.6-1.7 8.4A6.5 6.5 0 0 1 6 15c0-2.6 1.3-4.4 2.6-5.6.2 1.7 1 2.8 2.2 3.3C10.2 9 10.8 5.8 12 3Z"/>',
   book:'<path d="M4 5.5c3-1 5.5-.5 8 1.5 2.5-2 5-2.5 8-1.5V19c-3-1-5.5-.5-8 1.5-2.5-2-5-2.5-8-1.5Z"/><path d="M12 7v13"/>',
   waves:'<path d="M3 9c3-2 6 2 9 0s6 2 9 0M3 14c3-2 6 2 9 0s6 2 9 0"/>',
+  note:'<path d="M6 3.5h9l3.5 3.5v13.5H6Z"/><path d="M15 3.5V7h3.5M9 11h6M9 14.5h6M9 18h3"/>',
   trophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7"/>'
  };
  const SOUND_ICONS={forest:I2.tree,rain:I2.drop,brown_noise:I2.noise,fireplace:I2.fire,library:I2.book,riverside:I2.waves};
@@ -352,7 +359,7 @@
  const page=el('section',{id:'pomodoroPage',className:'pomodoro',hidden:true});page.setAttribute('aria-label','Pomodoro');
  page.innerHTML=`<div class="pomo-head"></div>
  <div class="pomo-taskline" id="pomoTaskLine"><button type="button" class="pomo-task" id="pomoTask"><span id="pomoTaskName"></span><span class="pomo-task-edit">${icon(I2.pencil)}</span></button>
-  <div class="pomo-meta"><span class="pomo-status" id="pomoStatus"><i></i><span></span></span><button type="button" class="pomo-sound-chip" id="pomoSoundChip"></button></div></div>
+  <div class="pomo-meta"><span class="pomo-status" id="pomoStatus"><i></i><span></span></span><button type="button" class="pomo-sound-chip" id="pomoSoundChip"></button><button type="button" class="pomo-sound-chip pomo-notes-chip" id="pomoNotesChip"></button></div></div>
  <div class="pomo-ring-wrap"><svg class="pomo-ring" id="pomoRing" viewBox="0 0 300 300" aria-hidden="true"><circle class="pomo-track" cx="150" cy="150" r="128"/><path class="pomo-progress" id="pomoProgress" d=""/></svg>
  <div class="pomo-center"><span class="pomo-mode" id="pomoMode">Foco</span><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-set-line" id="pomoSetLine"></span><p class="pomo-flash" id="pomoIdleLabel" hidden></p><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 9.5h1.5a2.5 2.5 0 0 1 0 5H16"/></svg><span>Começar pausa</span></button></div></div>
  <div class="pomo-swap">
@@ -401,6 +408,8 @@
   $('pomoSoundChip').innerHTML=icon(none||muted?I.mute:I.sound)+`<span>${none?'Sem som':muted?'Mudo':name}</span>`;
   $('pomoSoundChip').disabled=none;$('pomoSoundChip').dataset.state=none?'none':muted?'muted':running?'playing':'on';
   $('pomoSoundChip').setAttribute('aria-label',none?'Sem som de fundo':muted?'Ligar o som':'Silenciar o som');
+  const notes=state.notes.length;$('pomoNotesChip').innerHTML=icon(I2.note)+'<span>Pra depois</span>'+(notes?`<b class="pomo-notes-count">${notes}</b>`:'');
+  $('pomoNotesChip').dataset.count=String(notes);$('pomoNotesChip').setAttribute('aria-label',notes?`Pra depois: ${notes===1?'1 anotação':notes+' anotações'}`:'Anotar algo pra depois');
   // ring: the planned time when idle, the countdown while active; notices replace the set line
   $('pomoMode').textContent=t.mode==='focus'?(c.flow&&active?'Foco · flow':'Foco'):modeName[t.mode];
   $('pomoSetLine').textContent=active?(t.mode==='focus'?`série ${Math.min(t.setsDone+1,c.targetSets)} de ${c.targetSets}`:'próxima série já já'):'Aperte o play para começar';
@@ -536,7 +545,34 @@
   const syncLong=()=>{longFields.hidden=!$('pomoLongOn').checked;};$('pomoLongOn').onchange=syncLong;syncLong();
  }
  function openGoalReached(){
-  openSmall('goal',el('span',{className:'pomo-goal-icon',innerHTML:icon(I2.trophy)}),el('h2',{textContent:'Plano cumprido!'}),el('p',{className:'pomo-lead',textContent:'Todas as séries feitas. O fogo de hoje tá garantido. Descansa que tu merece.'}),saveButton('Valeu!',()=>dialog.close()));
+  const n=state.notes.length,later=n?el('button',{type:'button',className:'pomo-goal-notes',id:'pomoGoalNotes',onclick:()=>openNotes('Da sessão que passou. Risque o que já resolveu.')},el('span',{innerHTML:icon(I2.note)}),el('span',{textContent:`Pra depois: ${n===1?'1 anotação':n+' anotações'}`}),el('b',{textContent:'Ver lista'})):'';
+  openSmall('goal',el('span',{className:'pomo-goal-icon',innerHTML:icon(I2.trophy)}),el('h2',{textContent:'Plano cumprido!'}),el('p',{className:'pomo-lead',textContent:'Todas as séries feitas. O fogo de hoje tá garantido. Descansa que tu merece.'}),later,saveButton('Valeu!',()=>dialog.close()));
+ }
+ // Pra depois: write it down, Enter, and the panel closes so the focus goes on.
+ function openNotes(lead='Anote e volte pro foco. Fica aqui até você riscar.'){
+  const full=()=>state.notes.length>=NOTES_MAX;
+  const input=el('input',{type:'text',maxLength:NOTE_LEN,placeholder:'Ex.: pagar o boleto, revisar H11…',id:'pomoNoteInput',autocomplete:'off'});input.setAttribute('aria-label','Nova anotação');
+  const add=el('button',{type:'button',className:'pomo-input-go',id:'pomoNoteAdd',textContent:'Ok'});
+  const warn=el('p',{className:'pomo-notes-full',id:'pomoNotesFull',textContent:'Lista cheia: risque algo antes de anotar mais.'});
+  const list=el('div',{className:'pomo-routines pomo-notes',id:'pomoNotesList'});
+  const changed=()=>{touch();save();render();draw();};
+  function draw(){
+   warn.hidden=!full();input.disabled=add.disabled=full();list.replaceChildren();list.hidden=!state.notes.length;
+   for(const n of state.notes){
+    const done=el('button',{type:'button',className:'pomo-note-done',innerHTML:icon(I2.check),onclick:()=>{state.notes=state.notes.filter(x=>x.id!==n.id);changed();globalThis.toast?.('Riscado','check');}});done.setAttribute('aria-label','Feito: '+n.text);
+    const del=el('button',{type:'button',className:'pomo-template-delete',innerHTML:icon(I2.trash),onclick:()=>{const go=()=>{state.notes=state.notes.filter(x=>x.id!==n.id);changed();};if(typeof confirmPeleja==='function')confirmPeleja('Apagar anotação?',go,{description:`“${n.text}” sai da lista.`,accept:'Apagar',destructive:true});else go();}});del.setAttribute('aria-label','Apagar '+n.text);
+    const row=el('div',{className:'pomo-routine pomo-note'},done,el('span',{className:'pomo-note-text',textContent:n.text}),del);row.dataset.note=n.id;list.append(row);
+   }
+  }
+  add.onclick=()=>{
+   const text=input.value.trim().replace(/\s+/g,' ').slice(0,NOTE_LEN);if(!text||full())return;
+   const before=state.notes;state.notes=[...state.notes,{id:crypto.randomUUID(),text}];
+   if(!fits()){state.notes=before;warn.textContent='Lista cheia: risque algo antes de anotar mais.';warn.hidden=false;return;}
+   touch();save();render();dialog.close();globalThis.toast?.('Anotado pra depois','check');
+  };
+  input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add.click();}};
+  draw();openSheet('notes','Pra depois',lead,el('div',{className:'pomo-input'},input,add),warn,list);
+  setTimeout(()=>{if(!input.disabled)input.focus();},60);
  }
 
  // ---------- wiring ----------
@@ -547,6 +583,7 @@
  $('pomoPlanSets').onclick=openSets;
  $('pomoFlowBreak').onclick=()=>actions.startBreak();
  $('pomoTask').onclick=()=>{if(state.timer.status==='idle')openTask();};
+ $('pomoNotesChip').onclick=()=>openNotes();
  $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled)return;state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
  for(const b of page.querySelectorAll('[data-duration]'))b.onclick=()=>openDuration(b.dataset.duration);
  setInterval(()=>{if(state.timer.status==='running'){const before=state.timer.mode+state.timer.setsDone+state.timer.status;advance();if(before!==state.timer.mode+state.timer.setsDone+state.timer.status){render();syncSound();}else if(document.hidden)draw();}},500);
