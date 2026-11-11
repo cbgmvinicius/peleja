@@ -60,6 +60,7 @@
   "directions/import.css",
   "directions/index.html",
   "directions/mobile-nav.css",
+  "directions/math-text.js",
   "directions/mobile-nav.js",
   "directions/mock-answers.js",
   "directions/mocks.js",

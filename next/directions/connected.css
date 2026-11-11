@@ -142,3 +142,6 @@ tr.rank-gap td{text-align:center;padding:2px 0!important;color:var(--muted)}
 .dashboard-comparison[data-abstained]{display:none!important}
 .rank-abstained{margin:0;padding:24px 16px;border:1px dashed var(--line);border-radius:18px;text-align:center;color:var(--muted);font-size:14px}.rank-abstained strong{display:block;color:var(--ink);margin-bottom:4px}
 @container (min-width:900px){#dashboardPage:has(>.dashboard-comparison[data-abstained]){grid-template-columns:minmax(0,1fr)!important}}
+
+/* inline formulas (math-text.js) */
+.math{white-space:nowrap}.math sup,.math sub{font-size:.72em;line-height:0}
