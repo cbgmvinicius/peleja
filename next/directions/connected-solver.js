@@ -60,7 +60,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  dialog.addEventListener('close',hideTip);
  dialog.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t)showTip(t);});
  dialog.addEventListener('pointerout',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t&&!t.contains(e.relatedTarget))hideTip();});
- dialog.addEventListener('click',e=>{const t=e.target.closest?.('[data-tip]');if(!t)return;e.preventDefault();e.stopPropagation();showTip(t,3000);},true);
+ let lastPointer='mouse';dialog.addEventListener('pointerdown',e=>{lastPointer=e.pointerType||'mouse';},true);
+ dialog.addEventListener('click',e=>{const t=e.target.closest?.('[data-tip]');if(!t)return;e.preventDefault();e.stopPropagation();if(lastPointer!=='mouse')showTip(t,3000);},true);
  function animateIn(node,dy=8){motion(node,[{opacity:0,transform:`translateY(${dy}px)`},{opacity:1,transform:'none'}],{duration:260,easing:EASE});}
 
  // ---------- library rows ----------
@@ -226,7 +227,9 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
     const when=new Date(s.finishedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
     const remove=el('button',{type:'button',className:'icon solver-past-delete',title:'Apagar tentativa',innerHTML:ICON.trash});remove.setAttribute('aria-label',`Apagar tentativa de ${when}`);
     remove.onclick=()=>confirmPeleja('Apagar esta tentativa?',async()=>{if(await removeSession(s))refreshSetupDetails();},{description:`${when} · ${modeLabel(s)} · ${s.correct}/${s.layout.questions.length}.${s.counted?` Ela sai também das estatísticas ${material.kind==='exam'?'da disciplina':'da apostila'}.`:''}`,accept:'Apagar',destructive:true});
-    past.append(el('div',{className:'solver-past'},el('span',{textContent:when+' · '+modeLabel(s)+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`}),remove));
+    const view=el('button',{type:'button',className:'solver-past-open',onclick:()=>openPast(s)},el('span',{textContent:when+' · '+modeLabel(s)+(s.counted?' · conta nas estatísticas':'')}),el('b',{textContent:`${s.correct}/${s.layout.questions.length}`}));
+    view.setAttribute('aria-label',`Ver o resultado de ${when}: ${s.correct} de ${s.layout.questions.length}`);
+    past.append(el('div',{className:'solver-past'},view,remove));
    }
   }
  }
@@ -268,6 +271,11 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    clockBase=0;position=0;reviewing=false;pending=new Map();hintOpen=new Set();renderQuestion();startClock();
   }catch(error){toast(message(error),'info');}
   finally{busy=false;button?.removeAttribute('aria-busy');}
+ }
+ // A finished attempt opens straight on its result screen (score, filters, review of each question).
+ async function openPast(done){
+  try{await loadQuestions();hideTip();stopClock();session={...done,answers:done.answers||{},settings:settingsOf(done),fromHistory:true};clockBase=done.elapsedMs||0;clockStart=0;resultFilter='all';reviewing=false;renderResult();}
+  catch(error){toast(message(error),'info');}
  }
  async function resumeSession(open){
   try{await loadQuestions();session={...open,answers:open.answers||{},settings:settingsOf(open)};clockBase=open.elapsedMs||0;reviewing=false;pending=new Map();hintOpen=new Set();
@@ -424,7 +432,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   if(!list.children.length)list.append(el('li',{className:'solver-note',textContent:'Nenhuma questão aqui.'}));
   const body=$s('solverBody');body.replaceChildren(el('div',{className:'solver-result'},head,bar,filters,list));body.scrollTop=0;animateIn(body.firstElementChild);
   const missed=all.filter(q=>status(q)!=='right'),foot=$s('solverFoot'),again={mode:session.mode,settings:cfg(),clock:session.clock,timerSeconds:session.timerSeconds};
-  foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Fechar',onclick:close}));
+  foot.replaceChildren(session.fromHistory?el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Voltar',onclick:()=>{session=null;renderSetup();}}):el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Fechar',onclick:close}));
   if(missed.length)foot.append(el('button',{type:'button',className:'editor-cancel',textContent:'Refazer erradas',onclick:()=>start(missed,{...again,timerSeconds:again.timerSeconds&&Math.max(60,Math.round(again.timerSeconds*missed.length/total))})}));
   foot.append(el('button',{type:'button',className:'primary',textContent:'Refazer tudo',onclick:()=>start(null,again)}));
  }
