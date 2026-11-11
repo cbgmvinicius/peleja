@@ -103,6 +103,11 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  const open=state.sessions.find(s=>s.status==='active');assert.deepEqual(Object.keys(open.answers),['1']);
  q('[data-solve]').click();await tick(120);
  const resume=qa('.solver-resume button').find(b=>b.textContent==='Continuar');assert.ok(resume,'resume offered');
+ // The session in progress comes first and is the main call; the rest steps back.
+ assert.equal(q('#solverBody').firstElementChild.id,'solverResume','resume is the first block');
+ assert.match(q('.solver-resume small').textContent,/^[^·]+ · /,'the list name opens the line');
+ assert.equal(q('#solverAdvanced').open,false,'Personalizar stays closed');assert.equal(q('#solverNewTitle').hidden,false);
+ assert.equal(q('#solverStart').textContent,'Começar nova');assert.ok(!q('#solverStart').classList.contains('primary'),'starting a new one is secondary');
  resume.click();await tick(80);assert.equal(q('#solverKicker').textContent,'2 / 2','resumes at the first unanswered question');
  // ... and "Descartar e recomeçar depois" deletes it.
  $('solverClose').click();await tick(60);$('solverDiscard').click();await tick(120);

@@ -58,7 +58,7 @@ const starts=calls=>calls.filter(([n])=>n==='quiz_session_start').map(c=>c[1]);
  // Personalizar: on click, key at the end, questions and options in order
  const opt=(k,v)=>{const i=q(`input[name=solverOpt-${k}][value=${v}]`);i.checked=true;i.dispatchEvent(new w.Event('change',{bubbles:true}));};
  opt('confirm','false');opt('reveal','end');opt('shuffleQuestions','false');opt('shuffleOptions','false');
- assert.equal(q('#solverCustomNote').textContent,'Personalizado');assert.equal(qa('input[name=solverMode]:checked').length,0,'no preset marked');
+ assert.equal(q('#solverCustomNote').hidden,false);assert.equal(q('#solverCustomNote').dataset.tip,'Personalizado: as suas escolhas abaixo');assert.equal(qa('input[name=solverMode]:checked').length,0,'no preset marked');
  $('solverStart').click();await tick(80);
  let s=starts(calls).at(-1);assert.equal(s.p_set,'set-2');assert.equal(s.p_mode,'prova');
  assert.deepEqual(s.p_layout.questions,[0,1,2]);for(const k of ['0','1','2'])assert.deepEqual(s.p_layout.options[k],questions[k].answerOptions.map((_,i)=>i));
@@ -73,8 +73,8 @@ const starts=calls=>calls.filter(([n])=>n==='quiz_session_start').map(c=>c[1]);
  $('solverClose').click();await tick(60);if($('solverLeave').open){$('solverKeep').click();await tick(120);}
  q('[data-row] [data-solve]').click();await tick(150);
  assert.equal(q('input[name=solverSet]:checked').value,'set-2','last list remembered');
- assert.equal(q('#solverCustomNote').textContent,'Personalizado','last settings remembered');
- assert.match(q('.solver-resume small').textContent,/^Personalizado · 1 de 3/);
+ assert.equal(q('#solverCustomNote').hidden,false,'last settings remembered');assert.equal(q('#solverAdvanced').open,false,'Personalizar does not open by itself');
+ assert.match(q('.solver-resume small').textContent,/^Micoses · lista A · Personalizado · 1 de 3/);
  q('.solver-resume .primary').click();await tick(80);
  qa('.solver-option')[0].querySelector('.solver-pick').click();await tick();assert.equal($('solverConfirm'),null,'resumed with marking on click');
  // key after each answer + on click: revealed right away

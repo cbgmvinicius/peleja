@@ -15,6 +15,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.8 5a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.7 18.5Z"/><path d="M13.8 7l3.2 3.2"/></svg>',
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M7 7l1 12h8l1-12M9 7V4h6v3"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   wrong:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>'
  };
  let pending=new Map(),hintOpen=new Set(),sets=[],material=null,setInfo=null,questions=[],session=null,history=[],position=0,screen='setup',reviewing=false;
@@ -45,6 +46,18 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  const modeLabel=s=>({treino:'Treino',prova:'Prova',custom:'Personalizado'})[presetOf(settingsOf(s))];
  const cfg=()=>session.settings||settingsOf(session);
  let setupSettings={...PRESETS.treino};
+ const tip=el('div',{className:'pomo-day-tip pomo-rank-tip solver-tip',id:'solverTip',hidden:true,role:'status'});dialog.append(tip);
+ let tipTimer=0;
+ const hideTip=()=>{clearTimeout(tipTimer);tip.hidden=true;};
+ function showTip(target,ms=0){
+  tip.textContent=target.dataset.tip;tip.hidden=false;
+  const r=target.getBoundingClientRect(),half=(tip.offsetWidth||140)/2;
+  tip.style.left=Math.max(half+8,Math.min(innerWidth-half-8,r.left+r.width/2))+'px';tip.style.top=(r.top-8)+'px';
+  clearTimeout(tipTimer);if(ms)tipTimer=setTimeout(hideTip,ms);
+ }
+ dialog.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t)showTip(t);});
+ dialog.addEventListener('pointerout',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t&&!t.contains(e.relatedTarget))hideTip();});
+ dialog.addEventListener('click',e=>{const t=e.target.closest?.('[data-tip]');if(!t)return;e.preventDefault();e.stopPropagation();showTip(t,3000);},true);
  function animateIn(node,dy=8){motion(node,[{opacity:0,transform:`translateY(${dy}px)`},{opacity:1,transform:'none'}],{duration:260,easing:EASE});}
 
  // ---------- library rows ----------
@@ -100,6 +113,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   screen='setup';session=null;stopClock();clockBase=0;
   $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.kind==='exam'?`Prova inteira · ${material.title}`:material.title;$s('solverProgress').hidden=true;tick();
   const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
+  // A session in progress comes first; the new-session choices below step back while it exists.
+  body.append(el('div',{id:'solverResume'}),el('p',{className:'solver-section-title solver-new-title',id:'solverNewTitle',textContent:'Ou comece uma nova',hidden:true}));
   if(list.length>1){
    const group=el('fieldset',{className:'solver-group solver-lists'},el('legend',{textContent:'Lista'}));
    list.forEach(s=>{const card=choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id);card.dataset.set=s.id;if(allowed())card.append(renameButton(s));group.append(card);});
@@ -111,7 +126,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   // Personalizar: each part on its own; touching one turns the mode into "Personalizado".
   setupSettings={...PRESETS.treino,...(prefs().settings||{})};
   const seg=(key,label,options)=>{const g=el('fieldset',{className:'solver-seg'},el('legend',{textContent:label}));for(const [value,text] of options){const input=el('input',{type:'radio',name:'solverOpt-'+key,value});g.append(el('label',{},input,el('span',{textContent:text})));}g.dataset.key=key;return g;};
-  const advanced=el('details',{className:'solver-advanced',id:'solverAdvanced'},el('summary',{},el('span',{textContent:'Personalizar'}),el('small',{id:'solverCustomNote'})),
+  const advanced=el('details',{className:'solver-advanced',id:'solverAdvanced'},el('summary',{},el('span',{textContent:'Personalizar'}),el('span',{className:'solver-custom-check',id:'solverCustomNote',innerHTML:ICON.check,hidden:true,tabIndex:0})),
    el('div',{className:'solver-advanced-body'},
     seg('confirm','Marcar a resposta',[['false','Ao clicar'],['true','Com confirmação']]),
     seg('reveal','Gabarito e comentários',[['each','A cada resposta'],['end','No final']]),
@@ -121,8 +136,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    const preset=presetOf(setupSettings);
    for(const input of modes.querySelectorAll('input'))input.checked=input.value===preset;
    for(const g of advanced.querySelectorAll('.solver-seg'))for(const input of g.querySelectorAll('input'))input.checked=input.value===String(setupSettings[g.dataset.key]);
-   advanced.querySelector('#solverCustomNote').textContent=preset==='custom'?'Personalizado':'';
-   if(preset==='custom')advanced.open=true;
+   const note=advanced.querySelector('#solverCustomNote');note.hidden=preset!=='custom';note.dataset.tip='Personalizado: as suas escolhas abaixo';note.setAttribute('role','img');note.setAttribute('aria-label','Personalizado');
   };
   modes.onchange=()=>{const v=modes.querySelector('input:checked')?.value;if(!v||!PRESETS[v])return;setupSettings={...PRESETS[v]};paintSettings();};
   advanced.onchange=e=>{const g=e.target.closest('.solver-seg');if(!g)return;const v=e.target.value;setupSettings={...setupSettings,[g.dataset.key]:v==='true'?true:v==='false'?false:v};paintSettings();};
@@ -131,7 +145,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   clocks.append(choice('solverClock','stopwatch','Cronômetro','Mostra quanto tempo você levou.',true),choice('solverClock','timer','Temporizador','Conta o tempo que você definir.',false));
   const minutes=el('label',{className:'editor-field solver-minutes',hidden:true},el('span',{textContent:'Minutos'}),el('input',{type:'number',id:'solverMinutes',min:1,max:600,step:1,inputMode:'numeric'}));
   clocks.append(minutes);clocks.onchange=()=>{minutes.hidden=clocks.querySelector('input:checked').value!=='timer';if(!minutes.hidden)animateIn(minutes,-4);};
-  body.append(modes,advanced,clocks,el('div',{id:'solverResume'}),el('div',{id:'solverHistory'}));
+  body.append(modes,advanced,clocks,el('div',{id:'solverHistory'}));
   const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>start()}));
   await refreshSetupDetails();
  }
@@ -168,12 +182,30 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   $s('solverMinutes').value=Math.max(1,Math.round(setInfo.count*1.5));
   const resume=$s('solverResume'),past=$s('solverHistory');resume.replaceChildren();past.replaceChildren();
   try{await loadHistory();}catch(error){resume.append(el('p',{className:'solver-note',textContent:message(error)}));return;}
-  const open=history.find(s=>s.status==='active');
-  if(open){
-   const done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length;
-   const discard=el('button',{type:'button',className:'editor-cancel',textContent:'Descartar',onclick:()=>confirmPeleja('Descartar o progresso?',async()=>{if(await removeSession(open))refreshSetupDetails();},{description:`As ${plural(done,'resposta','respostas')} desta sessão serão apagadas e a próxima começa do zero.`,accept:'Descartar',destructive:true})});
-   resume.append(el('div',{className:'solver-resume'},el('div',{},el('strong',{textContent:'Continuar de onde parei'}),el('small',{textContent:`${modeLabel(open)} · ${done} de ${open.layout.questions.length} respondidas · ${fmt(open.elapsedMs)}`})),el('div',{className:'solver-resume-actions'},discard,el('button',{type:'button',className:'primary',textContent:'Continuar',onclick:()=>resumeSession(open)}))));
+  // Sessions in progress on any list of this subject/exam, newest first, each with its list's name.
+  const actives=[];
+  for(const set of setsFor(material)){
+   let rows=history;
+   if(set.id!==setInfo.id){try{const r=await client.rpc('quiz_sessions_mine',{p_set:set.id});rows=Array.isArray(r.data)?r.data:[];}catch{rows=[];}}
+   for(const open of rows.filter(x=>x.status==='active'))actives.push({set,open});
   }
+  actives.sort((a,b)=>String(b.open.createdAt||'').localeCompare(String(a.open.createdAt||'')));
+  for(const {set,open} of actives){
+   const done=Object.values(open.answers||{}).filter(a=>a&&a.o!=null).length,total=open.layout.questions.length;
+   const discard=el('button',{type:'button',className:'editor-cancel solver-resume-discard',textContent:'Descartar',onclick:()=>confirmPeleja('Descartar o progresso?',async()=>{if(await removeSession(open))refreshSetupDetails();},{description:`As ${plural(done,'resposta','respostas')} desta sessão de "${set.title}" serão apagadas e a próxima começa do zero.`,accept:'Descartar',destructive:true})});
+   const go=el('button',{type:'button',className:'primary solver-resume-go',textContent:'Continuar',onclick:async()=>{
+    if(set.id!==setInfo.id){setInfo=set;savePrefs({lists:{...(prefs().lists||{}),[material.key]:set.id}});}
+    await resumeSession(open);}});
+   const bar=el('span',{className:'solver-resume-bar'},el('i'));bar.firstChild.style.width=(total?done/total*100:0)+'%';
+   resume.append(el('div',{className:'solver-resume'},
+    el('div',{className:'solver-resume-text'},el('strong',{textContent:'Continuar de onde parei'}),
+     el('small',{textContent:`${set.title} · ${modeLabel(open)} · ${done} de ${total} respondidas · ${fmt(open.elapsedMs)}`}),bar),
+    el('div',{className:'solver-resume-actions'},discard,go)));
+  }
+  // With a session to resume, "Começar" steps back to a secondary "Começar nova".
+  $s('solverNewTitle').hidden=!actives.length;
+  const startButton=$s('solverStart');if(startButton){startButton.textContent=actives.length?'Começar nova':'Começar';startButton.className=actives.length?'editor-cancel solver-start-new':'primary';}
+  if(actives.length)setTimeout(()=>resume.querySelector('.solver-resume-go')?.focus(),60);
   const finished=history.filter(s=>s.status==='done').slice(0,8);
   if(finished.length){
    past.append(el('p',{className:'solver-section-title',textContent:'Tentativas anteriores'}));
