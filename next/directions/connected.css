@@ -21,8 +21,6 @@
 
 .connection-notice:not(:has(button:not([hidden]))){display:none!important}
 
-/* One transparent AnKing asset, monochrome only on light surfaces. */
-body:not(.review-dark) img[src*="anking.png"]{filter:brightness(0)}
 .toast-symbol img{width:25px;height:25px;object-fit:contain}
 
 #accountDialog{max-height:85dvh;overflow:auto}#accountDialog form{display:grid;gap:16px}#accountDialog hr{border:0;border-top:1px solid var(--line);margin:26px 0}.account-photo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.account-photo-row .avatar{width:52px;height:52px}#accountFeedback{font-size:14px;color:var(--muted)}
@@ -31,9 +29,6 @@ body:not(.review-dark) img[src*="anking.png"]{filter:brightness(0)}
 
 /* Course resources stay beside the completion control, never between columns. */
 .extra-lesson-copy{flex:1}.extra-resource{margin-left:auto;text-decoration:none}
-body.review-dark img[src*="anking.png"]{filter:brightness(0) invert(1)}
-body .toast-symbol:has(img[src*="anking.png"]){background:#f3f1e8}
-body .toast-symbol img[src*="anking.png"]{filter:none!important}
 #settingsDialog.settings-workspace{width:min(880px,calc(100vw - 24px));padding:24px;overflow:auto}
 .settings-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:28px;margin-top:24px;align-items:start}
 .settings-nav{display:flex;flex-direction:column;align-items:stretch;gap:6px;position:sticky;top:0}

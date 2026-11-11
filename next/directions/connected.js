@@ -56,11 +56,6 @@
    if(mode==='next'){const first=exams.filter(e=>e.date).sort((a,b)=>a.date.localeCompare(b.date))[0];exams=first?exams.filter(e=>e.date===first.date):[];}
    return [...new Set(exams.flatMap(e=>e.materialCodes))];
   };
-  $('library').addEventListener('click',async event=>{
-   const copy=event.target.closest('[data-hint]');if(!copy)return;event.preventDefault();event.stopImmediatePropagation();
-   const item=data.find(m=>m.code===copy.closest('[data-row]')?.dataset.row);
-   try{await navigator.clipboard.writeText(item?.ankiQuery||'');toast(`${ankingNidCount(item?.ankiQuery)} NIDs copiados`,'anking');}catch{toast('Não foi possível copiar os NIDs','info');}
-  },true);
   function setSaving(active){
    notice.querySelector('span').textContent=active?'Salvando…':writer.blocked?'Atualize os dados antes de continuar':'';
    for(const id of ['questionsSave','mockSave','facultyDeleteResult','mockDeleteResult'])$(id).disabled=active;

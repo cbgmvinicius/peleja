@@ -22,7 +22,7 @@ window.PELEJA_INSTALL_ADMIN=({writer,allowed,saveChange,hydrate})=>{
   $('editorName').setCustomValidity(title?'':'Informe o título.');$('editorDrive').setCustomValidity(rawDrive&&!driveUrl?'Use um link HTTPS do Google Drive ou Google Docs.':'');$('editorNotebook').setCustomValidity(rawNotebook&&!notebookUrl?'Use um link HTTPS do NotebookLM.':'');
   if(!$('subjectForm').reportValidity())return;
   const old=data.find(m=>m.code===editingCode);
-  commit({kind:'catalog-subject',id:old?.sourceId||crypto.randomUUID(),record:{title,subject:$('editorSubject').value,specialty:$('editorSpecialty').value,classDate:$('editorDate').value,driveUrl,notebookUrl,sketchyTags:$('editorQuery').value.trim()},examIds:[...$('editorExams').querySelectorAll('input:checked')].map(el=>el.value)},()=>closeEditor(true),old?'Assunto atualizado':'Assunto criado');
+  commit({kind:'catalog-subject',id:old?.sourceId||crypto.randomUUID(),record:{title,subject:$('editorSubject').value,specialty:$('editorSpecialty').value,classDate:$('editorDate').value,driveUrl,notebookUrl,sketchyTags:old?.ankiQuery||''},examIds:[...$('editorExams').querySelectorAll('input:checked')].map(el=>el.value)},()=>closeEditor(true),old?'Assunto atualizado':'Assunto criado');
  };
  const content=$('facultyResult').querySelector('.faculty-result-content'),counts=content.querySelector('.question-numbers');
  const mode=document.createElement('div');mode.className='connected-result-mode';mode.innerHTML='<button type="button" data-result-mode="counts" aria-pressed="true">Questões</button><button type="button" data-result-mode="grade" aria-pressed="false">Nota direta</button>';

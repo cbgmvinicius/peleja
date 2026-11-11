@@ -39,7 +39,7 @@
     for(const [key,label,hosts] of [['driveUrl','Google Drive',['drive.google.com','docs.google.com']],['notebookUrl','NotebookLM',['notebook.google.com','notebooklm.google.com','gemininotebook.google.com']]]){
      try{const u=new URL(m[key]);if(u.protocol!=='https:'||!hosts.includes(u.hostname)||u.username||u.password)continue;const a=node('a',label);a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';links.append(a);}catch{}
     }
-    if(m.sketchyTags)links.append(button('Copiar NIDs AnKing',async()=>{try{await navigator.clipboard.writeText(m.sketchyTags);document.getElementById('message').textContent='NIDs copiados.';}catch{document.getElementById('message').textContent='Não foi possível copiar os NIDs.';}}));info.append(links);
+    info.append(links);
     const totals=Array.isArray(m.questionEntries)?m.questionEntries.reduce((a,r)=>[a[0]+r.questions,a[1]+r.correct,a[2]+r.wrong],[0,0,0]):[m.questions||0,m.correct||0,m.wrong||0];
     article.append(info,stats(...totals));list.append(article);
    }

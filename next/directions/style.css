@@ -67,7 +67,6 @@ body.review-dark { background:#121214; color:#eeeeef; }
 
 
 .switch-tooltip { position:absolute; left:0; bottom:calc(100% + 5px); padding:5px 9px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); font-size:11px; white-space:nowrap; pointer-events:none; opacity:0; transform:translateY(3px); transition:opacity 150ms ease,transform 150ms ease; z-index:4; }
-.anking-switch:hover .switch-tooltip,.anking-switch:focus-within .switch-tooltip { opacity:1; transform:translateY(0); }
 /* Grouped views keep the discipline label in the group header. */
 .row { position:relative; }
 

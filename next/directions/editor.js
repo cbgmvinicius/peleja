@@ -22,7 +22,7 @@ function fillExams(selected=null){
 }
 function openEditor(code=null,opener=null){
   if(!canEditDemoStructure())return;
-  resetAnkingAnimation();closeMenus();editingCode=code;editorOpener=opener||document.activeElement;
+  closeMenus();editingCode=code;editorOpener=opener||document.activeElement;
   const m=data.find(x=>x.code===code);$('subjectForm').reset();$('editorError').hidden=true;
   const subjects=[...new Set([...Object.keys(editorCurriculum),...data.map(x=>x.subject)])];
   $('editorSubject').replaceChildren(new Option('Selecione',''),...subjects.map(v=>new Option(v,v)));
@@ -32,7 +32,6 @@ function openEditor(code=null,opener=null){
   fillExams(m?(m.examTypes||['PR2.1']):null);
   $('editorNotebook').value=m?.notebookUrl||'';$('editorNotebook').setCustomValidity('');
   $('editorDrive').value=m?.driveUrl||'';$('editorDrive').setCustomValidity('');
-  $('editorQuery').value=m?.ankiQuery||(m?.anki?'nid:123,456':'');$('editorAnking').open=!!$('editorQuery').value;
   $('editorTitle').textContent=m?'Editar assunto':'Novo assunto';$('editorSave').textContent=m?'Salvar alterações':'Criar assunto';
   editorInitial=editorSnapshot();$('subjectDialog').showModal();$('editorName').focus();
   motion($('subjectForm'),[{opacity:0,transform:'translateY(10px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'cubic-bezier(.25,.1,.25,1)'});
@@ -73,8 +72,8 @@ $('subjectForm').onsubmit=e=>{
   const rawNotebook=$('editorNotebook').value.trim(),notebookUrl=notebookLink(rawNotebook);
   $('editorNotebook').setCustomValidity(rawNotebook&&!notebookUrl?'Use um link HTTPS do NotebookLM.':'');
   if(!$('subjectForm').reportValidity())return;
-  const query=$('editorQuery').value.trim(),old=data.find(m=>m.code===editingCode);
-  const record={...(old||{code:'demo-'+crypto.randomUUID(),q:0,c:0,w:0,created:false,studied:false}),fullTitle:title,title,subject:$('editorSubject').value,specialty:$('editorSpecialty').value,date:$('editorDate').value,driveUrl,notebookUrl,ankiQuery:query,anki:!!query,examTypes:[...$('editorExams').querySelectorAll('input:checked')].map(x=>x.value)};
+  const old=data.find(m=>m.code===editingCode);
+  const record={...(old||{code:'demo-'+crypto.randomUUID(),q:0,c:0,w:0,created:false,studied:false}),fullTitle:title,title,subject:$('editorSubject').value,specialty:$('editorSpecialty').value,date:$('editorDate').value,driveUrl,notebookUrl,examTypes:[...$('editorExams').querySelectorAll('input:checked')].map(x=>x.value)};
   if(old)data[data.indexOf(old)]=record;else data.push(record);
   closeEditor(true);if($('dashboardPage')&&!$('dashboardPage').hidden)showLibraryPage();else render();
   const row=[...document.querySelectorAll('[data-row]')].find(el=>el.dataset.row===record.code);
@@ -83,21 +82,3 @@ $('subjectForm').onsubmit=e=>{
   toast(row?(old?'Alterações salvas na demonstração':'Assunto criado na demonstração'):'Assunto salvo; os filtros atuais ocultam este registro.',row?(old?'edit':'add'):'filter');
 };
 
-// Keep the details content mounted during collapse so the entire form glides.
-let ankingAnimation=null,ankingTarget=false;
-function resetAnkingAnimation(){
-  if(ankingAnimation){ankingAnimation.cancel();ankingAnimation=null;}
-  const panel=$('editorAnking');panel.style.height='';panel.style.overflow='';panel.removeAttribute('data-expanded');
-}
-$('editorAnking').querySelector('summary').addEventListener('click',event=>{
-  event.preventDefault();const panel=$('editorAnking');
-  const expand=ankingAnimation?!ankingTarget:!panel.open;
-  const start=panel.getBoundingClientRect().height;
-  resetAnkingAnimation();ankingTarget=expand;
-  panel.open=true;panel.dataset.expanded=String(expand);
-  const end=expand?panel.getBoundingClientRect().height:panel.querySelector('summary').getBoundingClientRect().height+2;
-  panel.style.overflow='hidden';
-  const animation=motion(panel,[{height:start+'px'},{height:end+'px'}],{duration:220,easing:'cubic-bezier(.25,.1,.25,1)'});
-  const finish=()=>{panel.open=expand;panel.style.height='';panel.style.overflow='';panel.removeAttribute('data-expanded');ankingAnimation=null;};
-  if(animation){ankingAnimation=animation;animation.onfinish=finish;}else finish();
-});
