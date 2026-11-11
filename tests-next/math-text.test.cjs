@@ -22,5 +22,8 @@ const show=async text=>{const p=w.document.getElementById('q');p.textContent=tex
  // Built with nodes, never HTML: markup inside a formula stays text.
  p=await show('$\\Delta <img src=x onerror=alert(1)>$');assert.equal(p.querySelector('img'),null);assert.match(p.textContent,/Δ<img/);
  assert.equal(M.plain('\\Delta x'),'Δx');
+ // The hemophilia explanation from a real Gemini quiz.
+ p=await show('Pela fórmula: $\\text{UI} = \\text{peso (kg)} \\times \\Delta \\text{atividade (\\%)} \\div 2$. Assim, $10 \\times 100 \\div 2 = 500\\text{ UI}$.');
+ assert.equal(p.textContent,'Pela fórmula: UI = peso (kg) × Δ atividade (%) ÷ 2. Assim, 10 × 100 ÷ 2 = 500 UI.');
  console.log('PASS math text: Greek, symbols, sup/sub, frac, sqrt, text wrappers, money untouched, fields untouched, no HTML injection');
 })().catch(e=>{console.error(e);process.exit(1);});

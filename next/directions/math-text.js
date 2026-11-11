@@ -36,7 +36,7 @@
     if(WRAPPERS.has(name)){if(src[i]==='{'){const [a,j]=arg(src,i);i=j;flush();out.push(...parse(a));}continue;}
     const sym=Object.hasOwn(SYMBOLS,name)?SYMBOLS[name]:name;text+=sym;
     // \mu L reads as μL; operators keep their spaces (150 \times 10 → 150 × 10)
-    if(/^[a-zA-Z]+$/.test(name)&&/^\p{L}+$/u.test(sym)&&src[i]===' ')i++;
+    if(/^[a-zA-Z]+$/.test(name)&&/^\p{L}+$/u.test(sym)&&src[i]===' '&&src[i+1]!==String.fromCharCode(92))i++; // but "\Delta \text{x}" keeps the space: Δ x
     continue;
    }
    if(c==='^'||c==='_'){const [a,j]=arg(src,i+1);i=j;flush();if(a==='\\circ'){out.push('°');continue;}out.push(c==='^'?{sup:parse(a)}:{sub:parse(a)});continue;}
