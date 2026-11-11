@@ -74,10 +74,10 @@ const running=(over={})=>({state:{timer:{status:'running',mode:'focus',accMs:0,r
  a=await app({state:{timer:{status:'flying'},config:{}},changedAt:new Date(START).toISOString()});
  assert.equal(a.P.state().timer.status,'idle');
  console.log('PASS Pomodoro sync: adopt newer session on open and return, push presses, ignore older or malformed, quiet catch-up with shared block ids');
- // Pra depois: note during a focus, Enter closes the panel, the chip counts, the note syncs.
+ // Notes: note during a focus, Enter closes the panel, the chip counts, the note syncs.
  a=await app(null);
  const chip=()=>a.$('pomoNotesChip'),dlg=()=>a.$('pomoDialog');
- assert.match(chip().textContent,/Pra depois/);assert.equal(chip().dataset.count,'0');
+ assert.equal(chip().title,'Anotações');assert.equal(chip().textContent,'');assert.equal(chip().dataset.count,'0');
  a.P.actions.toggle();await tick(400);
  const note=text=>{chip().click();assert.equal(dlg().dataset.kind,'notes');a.$('pomoNoteInput').value=text;a.$('pomoNoteInput').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Enter'}));};
  note('  pagar   o boleto ');
@@ -93,12 +93,12 @@ const running=(over={})=>({state:{timer:{status:'running',mode:'focus',accMs:0,r
  // Finishing before the goal shows the list; the goal dialog offers it.
  a.advance(5*MIN);a.P.actions.stop();assert.equal(dlg().dataset.kind,'notes');assert.match(dlg().textContent,/Da sessão que passou/);dlg().close();
  a.P.state().notes=a.P.state().notes.slice(0,2);a.P.state().config.targetSets=1;a.P.actions.toggle();a.advance(26*MIN);a.P.advance();
- assert.equal(dlg().dataset.kind,'goal');assert.match(a.$('pomoGoalNotes').textContent,/2 anotações/);a.$('pomoGoalNotes').click();assert.equal(dlg().dataset.kind,'notes');dlg().close();
+ assert.equal(dlg().dataset.kind,'goal');assert.match(a.$('pomoGoalNotes').textContent,/Anotações: 2/);a.$('pomoGoalNotes').click();assert.equal(dlg().dataset.kind,'notes');dlg().close();
  // Notes from the newer session on the account arrive; malformed notes are refused.
  a=await app(running({notes:[{id:'n1',text:'ligar pra mãe'}]}));
  assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['ligar pra mãe']);
  a=await app(running({notes:[{id:'n1',text:'x'.repeat(500)}]}));
  assert.equal(a.P.state().notes.length,0);assert.equal(a.P.state().timer.status,'idle','a session with bad notes is not adopted');
- console.log('PASS Pomodoro Pra depois: note in a focus, Enter closes, chip count, synced, done removes, limit 12, list on finish and goal, adopted from account, malformed refused');
+ console.log('PASS Pomodoro notes: note in a focus, Enter closes, chip count, synced, done removes, limit 12, list on finish and goal, adopted from account, malformed refused');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});

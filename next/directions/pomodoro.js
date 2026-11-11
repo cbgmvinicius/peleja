@@ -27,7 +27,7 @@
  const DEFAULTS={config:{focusMin:25,shortMin:5,longEnabled:true,longMin:15,longEvery:4,targetSets:4,flow:false},sound:{enabled:false,id:'rain',muted:false},prefs:{effects:true,notify:true,notifyDefault:1},task:'',templates:[],notes:[],
   timer:{status:'idle',mode:'focus',accMs:0,runningSince:0,phaseStartedAt:0,setsDone:0,flowNotified:false,sessionId:'',changedAt:0}};
  let state=read(KEY,DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k],...state[k]};
- // "Pra depois": things that come to mind during a focus, noted and left for later (up to 12, 100 characters each).
+ // Notes: things that come to mind during a focus, noted and left for later (up to 12, 100 characters each).
  const NOTES_MAX=12,NOTE_LEN=100;
  const validNotes=list=>Array.isArray(list)&&list.length<=NOTES_MAX&&list.every(n=>typeof n?.id==='string'&&n.id&&n.id.length<=40&&typeof n.text==='string'&&n.text.trim()&&n.text.length<=NOTE_LEN);
  if(!validNotes(state.notes))state.notes=[];
@@ -351,7 +351,7 @@
   fire:'<path d="M12 3c.6 3 3.6 4.6 5 7.4 1.5 3 .8 6.6-1.7 8.4A6.5 6.5 0 0 1 6 15c0-2.6 1.3-4.4 2.6-5.6.2 1.7 1 2.8 2.2 3.3C10.2 9 10.8 5.8 12 3Z"/>',
   book:'<path d="M4 5.5c3-1 5.5-.5 8 1.5 2.5-2 5-2.5 8-1.5V19c-3-1-5.5-.5-8 1.5-2.5-2-5-2.5-8-1.5Z"/><path d="M12 7v13"/>',
   waves:'<path d="M3 9c3-2 6 2 9 0s6 2 9 0M3 14c3-2 6 2 9 0s6 2 9 0"/>',
-  note:'<path d="M6 3.5h9l3.5 3.5v13.5H6Z"/><path d="M15 3.5V7h3.5M9 11h6M9 14.5h6M9 18h3"/>',
+  note:'<path d="M6 3.5h9l3.5 3.5v13.5H6Z"/><path d="M15 3.5V7h3.5M9 12h6M9 16h4"/>',
   trophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7"/>'
  };
  const SOUND_ICONS={forest:I2.tree,rain:I2.drop,brown_noise:I2.noise,fireplace:I2.fire,library:I2.book,riverside:I2.waves};
@@ -408,8 +408,8 @@
   $('pomoSoundChip').innerHTML=icon(none||muted?I.mute:I.sound)+`<span>${none?'Sem som':muted?'Mudo':name}</span>`;
   $('pomoSoundChip').disabled=none;$('pomoSoundChip').dataset.state=none?'none':muted?'muted':running?'playing':'on';
   $('pomoSoundChip').setAttribute('aria-label',none?'Sem som de fundo':muted?'Ligar o som':'Silenciar o som');
-  const notes=state.notes.length;$('pomoNotesChip').innerHTML=icon(I2.note)+'<span>Pra depois</span>'+(notes?`<b class="pomo-notes-count">${notes}</b>`:'');
-  $('pomoNotesChip').dataset.count=String(notes);$('pomoNotesChip').setAttribute('aria-label',notes?`Pra depois: ${notes===1?'1 anotação':notes+' anotações'}`:'Anotar algo pra depois');
+  const notes=state.notes.length;$('pomoNotesChip').innerHTML=icon(I2.note)+(notes?`<b class="pomo-notes-count">${notes}</b>`:'');$('pomoNotesChip').title='Anotações';
+  $('pomoNotesChip').dataset.count=String(notes);$('pomoNotesChip').setAttribute('aria-label',notes?`Anotações: ${notes}`:'Anotar algo');
   // ring: the planned time when idle, the countdown while active; notices replace the set line
   $('pomoMode').textContent=t.mode==='focus'?(c.flow&&active?'Foco · flow':'Foco'):modeName[t.mode];
   $('pomoSetLine').textContent=active?(t.mode==='focus'?`série ${Math.min(t.setsDone+1,c.targetSets)} de ${c.targetSets}`:'próxima série já já'):'Aperte o play para começar';
@@ -545,11 +545,11 @@
   const syncLong=()=>{longFields.hidden=!$('pomoLongOn').checked;};$('pomoLongOn').onchange=syncLong;syncLong();
  }
  function openGoalReached(){
-  const n=state.notes.length,later=n?el('button',{type:'button',className:'pomo-goal-notes',id:'pomoGoalNotes',onclick:()=>openNotes('Da sessão que passou. Risque o que já resolveu.')},el('span',{innerHTML:icon(I2.note)}),el('span',{textContent:`Pra depois: ${n===1?'1 anotação':n+' anotações'}`}),el('b',{textContent:'Ver lista'})):'';
+  const n=state.notes.length,later=n?el('button',{type:'button',className:'pomo-goal-notes',id:'pomoGoalNotes',onclick:()=>openNotes('Da sessão que passou. Risque o que já resolveu.')},el('span',{innerHTML:icon(I2.note)}),el('span',{textContent:`Anotações: ${n}`}),el('b',{textContent:'Ver lista'})):'';
   openSmall('goal',el('span',{className:'pomo-goal-icon',innerHTML:icon(I2.trophy)}),el('h2',{textContent:'Plano cumprido!'}),el('p',{className:'pomo-lead',textContent:'Todas as séries feitas. O fogo de hoje tá garantido. Descansa que tu merece.'}),later,saveButton('Valeu!',()=>dialog.close()));
  }
- // Pra depois: write it down, Enter, and the panel closes so the focus goes on.
- function openNotes(lead='Anote e volte pro foco. Fica aqui até você riscar.'){
+ // Notes: write it down, Enter, and the panel closes so the focus goes on.
+ function openNotes(lead='Anote e volte pro foco.'){
   const full=()=>state.notes.length>=NOTES_MAX;
   const input=el('input',{type:'text',maxLength:NOTE_LEN,placeholder:'Ex.: pagar o boleto, revisar H11…',id:'pomoNoteInput',autocomplete:'off'});input.setAttribute('aria-label','Nova anotação');
   const add=el('button',{type:'button',className:'pomo-input-go',id:'pomoNoteAdd',textContent:'Ok'});
@@ -568,10 +568,10 @@
    const text=input.value.trim().replace(/\s+/g,' ').slice(0,NOTE_LEN);if(!text||full())return;
    const before=state.notes;state.notes=[...state.notes,{id:crypto.randomUUID(),text}];
    if(!fits()){state.notes=before;warn.textContent='Lista cheia: risque algo antes de anotar mais.';warn.hidden=false;return;}
-   touch();save();render();dialog.close();globalThis.toast?.('Anotado pra depois','check');
+   touch();save();render();dialog.close();globalThis.toast?.('Anotado','check');
   };
   input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add.click();}};
-  draw();openSheet('notes','Pra depois',lead,el('div',{className:'pomo-input'},input,add),warn,list);
+  draw();openSheet('notes','Anotações',lead,el('div',{className:'pomo-input'},input,add),warn,list);
   setTimeout(()=>{if(!input.disabled)input.focus();},60);
  }
 
