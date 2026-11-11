@@ -52,6 +52,52 @@
   if(live.mode!=='focus')return live.mode==='long'?'pausa longa':'na pausa';
   return 'focando há '+dur(live.accMs+Math.max(0,now()-Date.parse(live.since)));
  }
+ // Status as an icon; the words show on hover (computer) or on a tap (phone), like the heatmap.
+ const svg=path=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+ const ICON={
+  focus:'<path d="M8 5.8v12.4c0 .7.8 1.2 1.4.8l9.4-6.2c.6-.4.6-1.2 0-1.6L9.4 5c-.6-.4-1.4.1-1.4.8Z" fill="currentColor" stroke="none"/>',
+  break:'<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v2M12 3.5v2"/>',
+  paused:'<rect x="7" y="5.5" width="3.4" height="13" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.6" y="5.5" width="3.4" height="13" rx="1.2" fill="currentColor" stroke="none"/>',
+  flame:'<path d="M12 3c.6 3 3.6 4.6 5 7.4 1.5 3 .8 6.6-1.7 8.4A6.5 6.5 0 0 1 6 15c0-2.6 1.3-4.4 2.6-5.6.2 1.7 1 2.8 2.2 3.3C10.2 9 10.8 5.8 12 3Z" fill="currentColor" stroke="none"/>',
+  crown:'<path d="M4 8.5 8 12l4-6 4 6 4-3.5-1.6 9.5H5.6Z" fill="currentColor" stroke="none"/><path d="M5.8 20h12.4"/>',
+  batteryHalf:'<rect x="3" y="7.5" width="16" height="9" rx="2.2"/><path d="M21 10.5v3"/><rect x="5.3" y="9.8" width="5.5" height="4.4" rx=".8" fill="currentColor" stroke="none"/>',
+  batteryLow:'<rect x="3" y="7.5" width="16" height="9" rx="2.2"/><path d="M21 10.5v3"/><rect x="5.3" y="9.8" width="2.2" height="4.4" rx=".6" fill="currentColor" stroke="none"/>'
+ };
+ const capital=t=>t.charAt(0).toUpperCase()+t.slice(1);
+ function statusIcon(live){
+  if(!live)return null;
+  const state=live.running?(live.mode==='focus'?'focus':'break'):'paused',text=capital(liveText(live));
+  const n=el('span',{className:'pomo-status-icon',innerHTML:svg(ICON[state]),tabIndex:0});n.dataset.state=state;n.dataset.tip=text;n.setAttribute('role','img');n.setAttribute('aria-label',text);return n;
+ }
+ // Hours of the day: from 3h it starts to warm up, 6h is the top, past 6h30 it cools down into a burnout warning.
+ const H=3600000;
+ function tier(ms){
+  if(ms>=7.5*H)return {key:'burn',icon:'batteryLow',tip:`${dur(ms)} hoje: muito além das 6h. Descansar também é estudo.`};
+  if(ms>=6.5*H)return {key:'warn',icon:'batteryHalf',tip:`${dur(ms)} hoje: já passou das 6h. Que tal parar por hoje?`};
+  if(ms>=6*H)return {key:'apex',icon:'crown',tip:`${dur(ms)} hoje: meta máxima do dia. Agora é descansar.`};
+  if(ms>=5*H)return {key:'t3',icon:'flame',tip:`${dur(ms)} hoje: pegando fogo. Falta pouco pras 6h.`};
+  if(ms>=4*H)return {key:'t2',icon:'flame',tip:`${dur(ms)} hoje: embalado. Dia de estudo de verdade.`};
+  if(ms>=3*H)return {key:'t1',icon:'flame',tip:`${dur(ms)} hoje: aquecendo. Mais uma hora e o fogo cresce.`};
+  return null;
+ }
+ function tierBadge(t){
+  if(!t)return null;
+  const n=el('span',{className:'pomo-tier',innerHTML:svg(ICON[t.icon]),tabIndex:0});n.dataset.tier=t.key;n.dataset.tip=t.tip;n.setAttribute('role','img');n.setAttribute('aria-label',t.tip);return n;
+ }
+ const tip=el('div',{className:'pomo-day-tip pomo-rank-tip',id:'pomoRankTip',hidden:true,role:'status'});
+ let tipTimer=0;
+ const hideTip=()=>{clearTimeout(tipTimer);tip.hidden=true;};
+ function showTip(target,ms=0){
+  tip.textContent=target.dataset.tip;tip.hidden=false;
+  const r=target.getBoundingClientRect(),b=panel.getBoundingClientRect(),half=(tip.offsetWidth||140)/2;
+  tip.style.left=Math.max(half+8,Math.min(b.width-half-8,r.left-b.left+r.width/2))+'px';tip.style.top=(r.top-b.top-8)+'px';
+  clearTimeout(tipTimer);if(ms)tipTimer=setTimeout(hideTip,ms);
+ }
+ panel.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t)showTip(t);});
+ panel.addEventListener('pointerout',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t&&!t.contains(e.relatedTarget))hideTip();});
+ panel.addEventListener('click',e=>{const t=e.target.closest?.('[data-tip]');if(t)showTip(t,2600);});
+ panel.addEventListener('focusin',e=>{const t=e.target.closest?.('[data-tip]');if(t)showTip(t);});
+ panel.addEventListener('focusout',hideTip);
  function avatar(row){
   const a=el('span',{className:'pomo-avatar'}),src=photos?.get(row.userId);
   if(src){const img=new Image();img.src=src;img.alt='';a.append(img);}else a.textContent=(row.name||'?').slice(0,1).toUpperCase();
@@ -70,7 +116,7 @@
   const head=el('div',{className:'pomo-ranking-head'},el('div',{},el('h2',{textContent:'Ranking de foco'}),el('p',{textContent:'Horas focadas no Pomodoro. O foco em andamento já conta.'})),switcher);
   const studying=list.filter(r=>r.live);
   const liveBox=studying.length?el('div',{className:'pomo-live'},el('h3',{},el('i',{className:'pomo-live-dot'}),studying.filter(r=>r.live.running&&r.live.mode==='focus').length?'Estudando agora':'Com o timer aberto'),
-   el('div',{className:'pomo-live-list'},...studying.map(r=>el('div',{className:'pomo-live-person'},avatar(r),el('span',{},el('b',{textContent:r.me?'Você':r.name}),el('small',{textContent:liveText(r.live)})))))):null;
+   el('div',{className:'pomo-live-list'},...studying.map(r=>el('div',{className:'pomo-live-person'},avatar(r),el('span',{className:'pomo-live-name'},el('b',{textContent:r.me?'Você':r.name}),statusIcon(r.live)))))):null;
   let body;
   if(!list.length)body=el('p',{className:'pomo-ranking-empty',textContent:loadedFor?'Ninguém por aqui ainda.':'Carregando o ranking…'});
   else if(!list.some(r=>r.shown))body=el('div',{className:'pomo-ranking-empty'},el('strong',{textContent:'Ninguém focou nesse período ainda'}),el('p',{textContent:'Dá o play e sai na frente.'}));
@@ -85,16 +131,17 @@
    ranked.forEach((r,i)=>{
     if(compact&&!keep.has(i)){if(keep.has(i-1)||i===0)board.append(el('li',{className:'pomo-board-gap','aria-hidden':'true',textContent:'⋯'}));return;}
     const bar=el('i');bar.style.width=(r.shown/max*100)+'%';
+    const t=period==='day'?tier(r.shown):null,barBox=el('span',{className:'pomo-board-bar'},bar);if(t)barBox.dataset.tier=t.key;
     const li=el('li',{className:r.me?'is-me':''},el('span',{className:'pomo-place',textContent:r.place+'º'}),avatar(r),
-     el('span',{className:'pomo-board-name'},el('b',{},r.name,r.me?el('small',{className:'pomo-you',textContent:'Você'}):null),el('small',{textContent:[r.sessions?(r.sessions===1?'1 sessão':r.sessions+' sessões'):'',r.live?(r.live.running&&r.live.mode==='focus'?'focando agora':liveText(r.live)):''].filter(Boolean).join(' · ')})),
-     el('span',{className:'pomo-board-total'},el('strong',{textContent:dur(r.shown)}),el('span',{className:'pomo-board-bar'},bar)));
+     el('span',{className:'pomo-board-name'},el('b',{},r.name,r.me?el('small',{className:'pomo-you',textContent:'Você'}):null),el('small',{className:'pomo-board-meta'},r.sessions?(r.sessions===1?'1 sessão':r.sessions+' sessões'):'',statusIcon(r.live))),
+     el('span',{className:'pomo-board-total'},el('span',{className:'pomo-board-time'},tierBadge(t),el('strong',{textContent:dur(r.shown)})),barBox));
     li.dataset.place=String(r.place);if(r.live?.running&&r.live.mode==='focus')li.dataset.live='true';board.append(li);
    });
    if(ranked.length>keep.size)body.append(el('button',{type:'button',className:'pomo-board-more',id:'pomoBoardMore',textContent:expanded?'Mostrar menos':`Ver todos (${ranked.length})`,onclick:()=>{expanded=!expanded;draw();}}));
    if(meAt<0)body.append(el('p',{className:'pomo-ranking-note',textContent:'Você ainda não focou nesse período. Dá o play e entra no ranking.'}));
   }
   const mine=list.find(r=>r.me),note=mine?.hidden?el('p',{className:'pomo-ranking-note',textContent:'Você escolheu não aparecer nos rankings: só você vê a sua linha. Dá para mudar em Configurações → Privacidade.'}):null;
-  panel.replaceChildren(...[head,note,liveBox,body].filter(Boolean));
+  hideTip();panel.replaceChildren(...[head,note,liveBox,body,tip].filter(Boolean));
  }
 
  // ---------- publishing my live state ----------

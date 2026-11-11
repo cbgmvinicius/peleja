@@ -46,10 +46,20 @@ const saved0=structuredClone(board.rows);
  // The focus in progress counts: Wilton 40 + 20 = 60 min passes Vinícius (50).
  const names=()=>[...w.document.querySelectorAll('.pomo-board li .pomo-board-name b')].map(b=>b.firstChild.textContent);
  assert.deepEqual(names(),['Wilton','Vinícius'],'only who focused in the period');assert.ok(!$('pomoRanking').textContent.includes('null'));
- const first=w.document.querySelector('.pomo-board li');assert.match(first.textContent,/1h/);assert.equal(first.dataset.live,'true');assert.match(first.textContent,/focando agora/);assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/focando há 20 min/);
+ const first=w.document.querySelector('.pomo-board li');assert.match(first.textContent,/1h/);assert.equal(first.dataset.live,'true');const icon=first.querySelector('.pomo-status-icon');assert.equal(icon.dataset.state,'focus');assert.equal(icon.dataset.tip,'Focando há 20 min');assert.doesNotMatch(first.textContent,/focando/,'an icon instead of the words');assert.equal($('pomoRanking').querySelector('.pomo-live .pomo-status-icon').dataset.tip,'Focando há 20 min');icon.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));assert.equal($('pomoRankTip').hidden,false);assert.equal($('pomoRankTip').textContent,'Focando há 20 min','a tap shows the words');
  assert.ok(first.querySelector('.pomo-avatar img'),'friend photo');
  assert.match(w.document.querySelector('.pomo-board li.is-me').textContent,/Você/);
- assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/Estudando agora/);assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/na pausa/);
+ assert.match($('pomoRanking').querySelector('.pomo-live').textContent,/Estudando agora/);assert.equal($('pomoRanking').querySelector('.pomo-live [data-state=break]').dataset.tip,'Na pausa');
+ // Hours of the day: nothing under 3h, warming up from 3h, the top at 6h, a burnout warning past 6h30 and 7h30.
+ for(const [h,key] of [[2.5,null],[3.2,'t1'],[4.5,'t2'],[5.5,'t3'],[6.1,'apex'],[7,'warn'],[8,'burn']]){
+  board.rows=[{userId:'student',name:'Vinícius',me:true,totalMs:h*60*MIN,sessions:4,live:null}];R.setPeriod('day');await tick(120);
+  const bar=w.document.querySelector('.pomo-board-bar'),badge=w.document.querySelector('.pomo-tier');
+  assert.equal(bar.dataset.tier??null,key,h+'h');assert.equal(badge?.dataset.tier??null,key,h+'h badge');
+ }
+ assert.match(w.document.querySelector('.pomo-tier').dataset.tip,/Descansar também é estudo/);
+ board.rows=[{userId:'student',name:'Vinícius',me:true,totalMs:8*60*MIN,sessions:4,live:null}];R.setPeriod('week');await tick(120);
+ assert.equal(w.document.querySelector('.pomo-tier'),null,'the hours of the day only on Hoje');
+ board.rows=structuredClone(saved0);R.setPeriod('day');await tick(120);
  // Compact board: top 3, the one above you, you and the one below; "Ver todos" opens the rest; ties share the place.
  board.rows=[...'ABCDEFGH'].map((c,i)=>({userId:'p'+c,name:'Pessoa '+c,me:false,totalMs:(100-i*10)*MIN,sessions:1,live:null}));
  board.rows.push({userId:'student',name:'Vinícius',me:true,totalMs:35*MIN,sessions:1,live:null},{userId:'pZ',name:'Pessoa Z',me:false,totalMs:35*MIN,sessions:1,live:null});
