@@ -56,6 +56,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   tip.style.left=Math.max(half+8,Math.min(d.width-half-8,r.left-d.left+r.width/2))+'px';tip.style.top=(r.top-d.top-8)+'px';
   clearTimeout(tipTimer);if(ms)tipTimer=setTimeout(hideTip,ms);
  }
+ // a screen change or closing the solver never leaves the bubble behind
+ dialog.addEventListener('close',hideTip);
  dialog.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t)showTip(t);});
  dialog.addEventListener('pointerout',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t&&!t.contains(e.relatedTarget))hideTip();});
  dialog.addEventListener('click',e=>{const t=e.target.closest?.('[data-tip]');if(!t)return;e.preventDefault();e.stopPropagation();showTip(t,3000);},true);
@@ -111,6 +113,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const input=el('input',{type:'radio',name,value,checked});const card=el('label',{className:'solver-choice'},input,el('span',{className:'solver-choice-text'},el('strong',{textContent:title}),el('small',{textContent:text})));return card;
  }
  async function renderSetup(){
+  hideTip();
   screen='setup';session=null;stopClock();clockBase=0;
   $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.kind==='exam'?`Prova inteira · ${material.title}`:material.title;$s('solverProgress').hidden=true;tick();
   const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
@@ -275,6 +278,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  // ---------- question ----------
  function revealed(q){return reviewing||(cfg().reveal==='each'&&answerOf(q).o!=null);}
  function renderQuestion(dir=0){
+  hideTip();
   screen='question';const q=order()[position],item=questions[q],answer=answerOf(q),show=revealed(q),total=order().length;
   $s('solverKicker').textContent=`${reviewing?'REVISÃO · ':''}${position+1} / ${total}`;
   const bar=$s('solverProgress');bar.hidden=false;bar.firstElementChild.style.width=`${(Object.values(session.answers).filter(a=>a.o!=null).length/total)*100}%`;
