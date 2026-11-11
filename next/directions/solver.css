@@ -164,3 +164,21 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
  .app .solver-seg label:hover{background:color-mix(in srgb,var(--soft) 45%,var(--surface))}
  .app .solver-seg label:has(input:checked):hover{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 }
+
+/* Resolver questões: a session in progress comes first and is the main call */
+#solverResume:empty{display:none}
+#solverResume{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.solver .solver-resume{display:flex;align-items:center;gap:16px;padding:18px 18px;border-radius:18px;border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.solver-resume-text{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.solver-resume-text strong{font-size:17px;font-weight:600}
+.solver-resume-text small{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.solver-resume-bar{display:block;height:5px;border-radius:999px;background:color-mix(in srgb,var(--accent) 16%,transparent);overflow:hidden;margin-top:3px;max-width:320px}
+.solver-resume-bar i{display:block;height:100%;border-radius:999px;background:var(--accent)}
+.solver-resume-actions{display:flex;align-items:center;gap:6px;flex:none}
+.solver .solver-resume-go{min-height:46px;padding:0 26px;font-size:16px;border-radius:14px}
+.solver .solver-resume-discard{font-size:13px}
+.solver-new-title{margin:4px 0 10px}
+.solver-custom-check{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);margin-left:8px;cursor:default;vertical-align:middle}
+.solver-custom-check svg{width:12px;height:12px}
+.solver-tip{position:fixed;z-index:20}
+@media (max-width:560px){.solver .solver-resume{flex-direction:column;align-items:stretch}.solver-resume-actions{justify-content:flex-end}}
