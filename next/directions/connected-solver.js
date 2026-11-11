@@ -51,8 +51,9 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  const hideTip=()=>{clearTimeout(tipTimer);tip.hidden=true;};
  function showTip(target,ms=0){
   tip.textContent=target.dataset.tip;tip.hidden=false;
-  const r=target.getBoundingClientRect(),half=(tip.offsetWidth||140)/2;
-  tip.style.left=Math.max(half+8,Math.min(innerWidth-half-8,r.left+r.width/2))+'px';tip.style.top=(r.top-8)+'px';
+  // positioned inside the dialog (the open dialog is the reference box, not the window)
+  const r=target.getBoundingClientRect(),d=dialog.getBoundingClientRect(),half=(tip.offsetWidth||140)/2;
+  tip.style.left=Math.max(half+8,Math.min(d.width-half-8,r.left-d.left+r.width/2))+'px';tip.style.top=(r.top-d.top-8)+'px';
   clearTimeout(tipTimer);if(ms)tipTimer=setTimeout(hideTip,ms);
  }
  dialog.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest?.('[data-tip]');if(t)showTip(t);});

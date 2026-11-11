@@ -180,5 +180,5 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 .solver-new-title{margin:4px 0 10px}
 .solver-custom-check{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);margin-left:8px;cursor:default;vertical-align:middle}
 .solver-custom-check svg{width:12px;height:12px}
-.solver-tip{position:fixed;z-index:20}
+.solver-tip{position:absolute;z-index:20}
 @media (max-width:560px){.solver .solver-resume{flex-direction:column;align-items:stretch}.solver-resume-actions{justify-content:flex-end}}
