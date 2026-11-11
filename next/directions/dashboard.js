@@ -21,7 +21,7 @@ function dashboardProgress(){
 }
 function renderDashboard(){
  if(!$('dashboardPage')||$('dashboardPage').hidden)return;
- const next=dashboardUpcoming()[0],topics=next?next.materialCodes.map(code=>data.find(m=>m.code===code)).filter(Boolean):[],pending=topics.filter(m=>!m.studied),done=topics.length-pending.length;
+ const next=dashboardUpcoming()[0],topics=next?next.materialCodes.map(code=>data.find(m=>m.code===code)).filter(Boolean).sort(byTopicLabel):[],pending=topics.filter(m=>!m.studied),done=topics.length-pending.length;
  const overdue=scheduledExtra.filter(l=>extraDates.get(l.id)<=localQuestionDate()&&!extraWatched.cardio.has(l.id));
  const nextDate=next?.date?new Date(next.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short'}):'';
  // CardioPapers only shows for members enrolled in it (catalog of courses).
