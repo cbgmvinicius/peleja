@@ -74,31 +74,42 @@ const running=(over={})=>({state:{timer:{status:'running',mode:'focus',accMs:0,r
  a=await app({state:{timer:{status:'flying'},config:{}},changedAt:new Date(START).toISOString()});
  assert.equal(a.P.state().timer.status,'idle');
  console.log('PASS Pomodoro sync: adopt newer session on open and return, push presses, ignore older or malformed, quiet catch-up with shared block ids');
- // Notes: note during a focus, Enter closes the panel, the chip counts, the note syncs.
+ // Tasks: a notebook page. Enter adds a line and keeps the page open, the counter shows what is left,
+ // ticking crosses out, crossed tasks leave on close, 10 open tasks of 60 characters.
  a=await app(null);
- const chip=()=>a.$('pomoNotesChip'),dlg=()=>a.$('pomoDialog');
- assert.equal(chip().title,'Anotações');assert.equal(chip().textContent,'');assert.equal(chip().dataset.count,'0');
+ const chip=()=>a.$('pomoNotesChip'),dlg=()=>a.$('pomoDialog'),inp=()=>a.$('pomoNoteInput');
+ const type=text=>{inp().value=text;inp().dispatchEvent(new a.w.Event('input'));inp().dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Enter'}));};
+ assert.equal(chip().title,'Tarefas');assert.equal(chip().textContent,'');assert.equal(chip().dataset.count,'0');
  a.P.actions.toggle();await tick(400);
- const note=text=>{chip().click();assert.equal(dlg().dataset.kind,'notes');a.$('pomoNoteInput').value=text;a.$('pomoNoteInput').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Enter'}));};
- note('  pagar   o boleto ');
- assert.equal(dlg().open,false,'Enter closes the panel to get back to focus');
- assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['pagar o boleto']);assert.equal(chip().dataset.count,'1');
- assert.equal(a.P.state().timer.status,'running','noting does not touch the timer');
+ chip().click();assert.equal(dlg().dataset.kind,'notes');assert.equal(inp().maxLength,60);assert.equal(a.$('pomoNoteCount').textContent,'0/60');
+ inp().value='pontos currículo R+';inp().dispatchEvent(new a.w.Event('input'));assert.equal(a.$('pomoNoteCount').textContent,'19/60');
+ type('  pontos   currículo R+ ');
+ assert.equal(dlg().open,true,'Enter keeps the page open, like a notebook');assert.equal(inp().value,'');assert.equal(a.$('pomoNoteCount').textContent,'0/60');
+ type('tabelas NBME');
+ assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['pontos currículo R+','tabelas NBME']);assert.equal(chip().dataset.count,'2');
+ assert.equal(dlg().querySelectorAll('[data-note]').length,2);assert.equal(a.P.state().timer.status,'running','noting does not touch the timer');
  a.advance(1000);await tick(400);
- assert.deepEqual(Array.from(a.server.sets.at(-1).p_state.notes,n=>n.text),['pagar o boleto'],'the note goes up with the session');
- // Done removes it; the list fills up at 12.
- chip().click();dlg().querySelector('.pomo-note-done').click();assert.equal(a.P.state().notes.length,0);assert.equal(dlg().querySelector('[data-note]'),null);dlg().close();
- for(let i=0;i<12;i++)note('item '+i);
- assert.equal(a.P.state().notes.length,12);chip().click();assert.equal(a.$('pomoNoteInput').disabled,true);assert.equal(a.$('pomoNotesFull').hidden,false);dlg().close();
- // Finishing before the goal shows the list; the goal dialog offers it.
+ assert.deepEqual(Array.from(a.server.sets.at(-1).p_state.notes,n=>n.text),['pontos currículo R+','tabelas NBME'],'tasks go up with the session');
+ // Tick crosses out (still listed, not counted); untick brings it back; closing removes crossed tasks.
+ const first=()=>dlg().querySelector('[data-note] .pomo-note-box');
+ first().click();assert.equal(first().getAttribute('aria-checked'),'true');assert.ok(dlg().querySelector('[data-note]').classList.contains('is-done'));assert.equal(chip().dataset.count,'1');
+ assert.equal(a.$('pomoNotesClear').hidden,false);
+ first().click();assert.equal(first().getAttribute('aria-checked'),'false');first().click();
+ dlg().close();assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['tabelas NBME'],'crossed tasks leave on close');
+ // 10 open tasks at most: the new line gives way to a notice.
+ chip().click();for(let i=0;i<9;i++)type('item '+i);
+ assert.equal(a.P.state().notes.length,10);assert.equal(dlg().querySelector('.pomo-note-new').hidden,true);assert.equal(a.$('pomoNotesFull').hidden,false);
+ first().click();assert.equal(dlg().querySelector('.pomo-note-new').hidden,false,'crossing one out frees a line');dlg().close();
+ // Finishing before the goal shows the page; the goal dialog offers it.
  a.advance(5*MIN);a.P.actions.stop();assert.equal(dlg().dataset.kind,'notes');assert.match(dlg().textContent,/Da sessão que passou/);dlg().close();
  a.P.state().notes=a.P.state().notes.slice(0,2);a.P.state().config.targetSets=1;a.P.actions.toggle();a.advance(26*MIN);a.P.advance();
- assert.equal(dlg().dataset.kind,'goal');assert.match(a.$('pomoGoalNotes').textContent,/Anotações: 2/);a.$('pomoGoalNotes').click();assert.equal(dlg().dataset.kind,'notes');dlg().close();
- // Notes from the newer session on the account arrive; malformed notes are refused.
- a=await app(running({notes:[{id:'n1',text:'ligar pra mãe'}]}));
- assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['ligar pra mãe']);
+ assert.equal(dlg().dataset.kind,'goal');assert.match(a.$('pomoGoalNotes').textContent,/2 tarefas anotadas/);a.$('pomoGoalNotes').click();assert.equal(dlg().dataset.kind,'notes');dlg().close();
+ // From the account: tasks (and a crossed one) arrive; older 100-character notes still load; malformed are refused.
+ a=await app(running({notes:[{id:'n1',text:'ligar pra mãe'},{id:'n2',text:'feito',done:true}]}));
+ assert.deepEqual(Array.from(a.P.state().notes,n=>n.text),['ligar pra mãe','feito']);assert.equal(a.$('pomoNotesChip').dataset.count,'1');
+ a=await app(running({notes:[{id:'n1',text:'x'.repeat(90)}]}));assert.equal(a.P.state().notes.length,1);
  a=await app(running({notes:[{id:'n1',text:'x'.repeat(500)}]}));
  assert.equal(a.P.state().notes.length,0);assert.equal(a.P.state().timer.status,'idle','a session with bad notes is not adopted');
- console.log('PASS Pomodoro notes: note in a focus, Enter closes, chip count, synced, done removes, limit 12, list on finish and goal, adopted from account, malformed refused');
+ console.log('PASS Pomodoro tasks: notebook page, Enter keeps it open, 60-char counter, tick crosses out, cleared on close, 10 open max, list on finish and goal, synced, legacy and malformed');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});
