@@ -448,9 +448,9 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-mini[data-small=true] :is(.pomo-mini-sets,.pomo-mini-actions){display:none}
 .pomo-mini[data-small=true] .pomo-mini-time{font-size:15px}
 .pomo-mini[hidden],.pomo-mini [hidden]{display:none!important} /* its own display:flex must never beat hidden */
-/* inside the solver it docks in the dialog, above its footer, never past its edge */
-.solver .pomo-mini{position:absolute;right:16px;bottom:82px}
-@media (max-width:640px){.pomo-mini{right:10px;bottom:84px}.solver .pomo-mini{right:10px;bottom:78px}}
+/* over the solver it still lives in the dialog (top layer, clickable) but sits in the corner of the screen */
+/* on a phone the solver fills the screen: stay above its footer (Próxima) */
+@media (max-width:640px){.pomo-mini{right:10px;bottom:84px}.solver .pomo-mini{bottom:84px}}
 @media (prefers-reduced-motion:reduce){.pomo-mini,.pomo-mini-dot{animation:none!important}}
 /* the legend bubble (heatmap, ranking, solver): hidden must win over its display:flex */
 .pomo-day-tip[hidden]{display:none!important}
