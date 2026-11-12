@@ -446,7 +446,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .app .pomo-mini-fold{width:26px;height:26px;color:var(--muted)}
 .pomo-mini[data-small=true] :is(.pomo-mini-mode,.pomo-mini-sets,.pomo-mini-actions){display:none}
 .pomo-mini[data-small=true] .pomo-mini-time{font-size:15px}
-.pomo-mini [hidden]{display:none!important}
+.pomo-mini[hidden],.pomo-mini [hidden]{display:none!important} /* its own display:flex must never beat hidden */
 /* inside the solver it docks in the dialog, above its footer, never past its edge */
 .solver .pomo-mini{position:absolute;right:16px;bottom:82px}
 @media (max-width:640px){.pomo-mini{right:10px;bottom:84px}.solver .pomo-mini{right:10px;bottom:78px}}

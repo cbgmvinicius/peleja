@@ -33,7 +33,9 @@
   const host=document.querySelector('#solverDialog[open]')||home();
   if(mini.parentElement!==host)host.append(mini);
  }
- function paint(){
+ // A failure never leaves a half-drawn player on screen: it hides and says why in the console.
+ function paint(){try{draw();}catch(error){mini.hidden=true;console.error('Miniatura do Pomodoro:',error);}}
+ function draw(){
   const t=P.state().timer,c=P.state().config,running=t.status==='running';
   const show=t.status!=='idle'&&(P.page.hidden||!!document.querySelector('#solverDialog[open]'));
   mini.hidden=!show;if(!show)return;

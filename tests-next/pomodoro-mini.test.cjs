@@ -52,6 +52,15 @@ async function app(session){
  // Concluir ends the session (it asks first while sets are left) and the player goes away.
  mini().querySelector('.pomo-mini-finish').click();await tick(40);a.w.document.getElementById('confirmAccept')?.click();await tick(120);
  assert.equal(P.state().timer.status,'idle');assert.equal(mini().hidden,true);
+ // Flow: "Foco · flow", the time, the set and "Começar pausa"; past the minimum it counts up.
+ P.state().config.flow=true;P.actions.toggle();await tick(60);
+ assert.equal(mini().hidden,false);assert.match(mini().textContent,/Foco · flow/);assert.match(mini().textContent,/série 1 de 4/);
+ assert.equal(mini().querySelector('.pomo-mini-break').hidden,false,'Começar pausa in flow');assert.ok(mini().querySelector('.pomo-mini-toggle svg'),'the toggle has its icon');assert.ok(mini().querySelector('.pomo-mini-fold svg'),'the fold has its icon');
+ a.advance(30*MIN);P.advance();await tick(600);assert.match(mini().querySelector('.pomo-mini-time').textContent,/^\+05:0\d$/);
+ mini().querySelector('.pomo-mini-break').click();await tick(40);assert.equal(P.state().timer.mode,'short','Começar pausa ends the focus');
+ P.actions.stop();await tick(40);assert.equal(mini().hidden,true);
+ // Hidden must win over the player's own display:flex (it showed an empty shell on the Pomodoro tab).
+ assert.match(fs.readFileSync(path.join(root,'pomodoro.css'),'utf8'),/\.pomo-mini\[hidden\][^{]*\{display:none!important\}/);
  console.log('PASS Pomodoro mini player: hidden idle and on its tab, phase/time/set, pause/continue/skip, inside the solver dialog, fold, finish');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});
