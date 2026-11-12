@@ -95,6 +95,13 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  qa('#solverFoot button').find(b=>b.textContent==='Refazer erradas').click();await tick(80);
  const redo=calls.filter(([n])=>n==='quiz_session_start').at(-1)[1];assert.deepEqual(redo.p_layout.questions,[1,2]);
  assert.equal(q('#solverKicker').textContent,'1 / 2');
+ // Pausing the clock: the question is covered and inert, the time stops; Continuar brings it back.
+ q('#solverClock').click();await tick(60);
+ assert.equal(q('#solverClock').dataset.paused,'true');assert.equal(q('#solverVeil').hidden,false);assert.equal(q('#solverBody').inert,true);assert.equal(q('#solverFoot').inert,true);
+ const pausedAt=q('#solverClock').textContent;await tick(1100);assert.equal(q('#solverClock').textContent,pausedAt,'the time does not move while paused');
+ const saved=calls.filter(([n])=>n==='quiz_session_save').at(-1)?.[1];assert.ok(saved&&saved.p_elapsed<1000,'the time is saved at the pause');
+ q('#solverUnpause').click();await tick(60);
+ assert.equal(q('#solverClock').dataset.paused,'false');assert.equal(q('#solverVeil').hidden,true);assert.equal(q('#solverBody').inert,false);
  qa('.solver-option').find(li=>optionText(li)==='Griseofulvina').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
  // Leaving before the end asks; "Continuar respondendo" goes back, "Guardar progresso" keeps it for later.
  $('solverClose').click();await tick(60);assert.equal($('solverLeave').open,true);assert.match($('solverLeaveText').textContent,/1 de 2/);
