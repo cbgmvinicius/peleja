@@ -428,23 +428,24 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-mini{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 8px;border-radius:999px;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 10px 30px rgba(30,40,30,.16),0 2px 6px rgba(30,40,30,.08);font-size:13px;animation:pomo-mini-in .26s cubic-bezier(.22,1,.36,1)}
 @keyframes pomo-mini-in{from{opacity:0;transform:translateY(10px)}}
 .app .pomo-mini-info{display:flex;align-items:center;gap:9px;padding:4px 8px 4px 4px;border-radius:999px;background:transparent;color:inherit;text-align:left}
-.app .pomo-mini-info:hover{background:var(--soft)}
+.app .pomo-mini .pomo-mini-info:not(:disabled):not([aria-disabled="true"]):hover{background:var(--soft)}
 .pomo-mini-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--accent)}
 .pomo-mini[data-mode=short] .pomo-mini-dot,.pomo-mini[data-mode=long] .pomo-mini-dot{background:#6d8fa3}
 .pomo-mini[data-status=paused] .pomo-mini-dot{background:var(--muted)}
 .pomo-mini[data-status=running][data-mode=focus] .pomo-mini-dot{animation:pomo-pulse 1.6s ease-in-out infinite}
-.pomo-mini-text{display:grid;grid-template-columns:auto auto;align-items:baseline;column-gap:8px;line-height:1.2}
-.pomo-mini-mode{font-size:12px;color:var(--muted)}
-.pomo-mini-time{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;grid-row:span 2;order:-1}
+.pomo-mini-text{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.pomo-mini-mode{display:none} /* the phase stays in the label for screen readers */
+.pomo-mini-time{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
 .pomo-mini-sets{font-size:11px;color:var(--muted)}
 .pomo-mini-actions{display:flex;align-items:center;gap:2px}
 .app .pomo-mini-btn{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--ink)}
-.app .pomo-mini-btn:hover{background:var(--soft);color:var(--accent)}
+/* beats the site-wide button hover (.app button:not(:disabled):not([aria-disabled]):hover) */
+.app .pomo-mini .pomo-mini-btn:not(:disabled):not([aria-disabled="true"]):hover{background:var(--soft);color:var(--accent)}
 .app .pomo-mini-toggle{background:var(--button);color:var(--onbutton)}
-.app .pomo-mini-toggle:hover{background:var(--button);color:var(--onbutton);filter:brightness(1.08)}
+.app .pomo-mini .pomo-mini-toggle:not(:disabled):not([aria-disabled="true"]):hover{background:var(--button);color:var(--onbutton);filter:brightness(1.1)}
 .pomo-mini-btn svg{width:16px;height:16px}
 .app .pomo-mini-fold{width:26px;height:26px;color:var(--muted)}
-.pomo-mini[data-small=true] :is(.pomo-mini-mode,.pomo-mini-sets,.pomo-mini-actions){display:none}
+.pomo-mini[data-small=true] :is(.pomo-mini-sets,.pomo-mini-actions){display:none}
 .pomo-mini[data-small=true] .pomo-mini-time{font-size:15px}
 .pomo-mini[hidden],.pomo-mini [hidden]{display:none!important} /* its own display:flex must never beat hidden */
 /* inside the solver it docks in the dialog, above its footer, never past its edge */
