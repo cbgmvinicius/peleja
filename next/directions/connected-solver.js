@@ -33,6 +33,9 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  const asMaterial=m=>m&&{kind:'material',sourceId:m.sourceId,title:m.fullTitle||m.title,key:m.code};
  const asExam=e=>e&&{kind:'exam',sourceId:e.sourceId,title:`${e.type} · ${e.subject}`,subject:e.subject,key:e.id};
  const setsFor=t=>t?sets.filter(s=>t.kind==='exam'?s.examId===t.sourceId:s.materialId===t.sourceId):[];
+ // "Só meus erros" of an exam reads the exam's own lists and the lists of the subjects linked to it.
+ const examTopics=t=>{const e=t?.kind==='exam'&&facultyRecords.find(x=>x.id===t.key);if(!e)return [];const list=(e.materialCodes||[]).map(code=>data.find(m=>m.code===code)).filter(Boolean);return typeof byTopicLabel==='function'?list.sort(byTopicLabel):list;};
+ const reviewSetsFor=t=>t?.kind==='exam'?[...setsFor(t),...examTopics(t).flatMap(m=>sets.filter(s=>s.materialId===m.sourceId))]:[];
  const answerOf=q=>session.answers[q]||{o:null,x:[]};
  const isCorrect=(q,o)=>o!=null&&!!questions[q]?.answerOptions[o]?.isCorrect;
  const order=()=>session.layout.questions;
@@ -79,7 +82,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    const actions=card.querySelector('.faculty-actions'),e=facultyRecords.find(x=>x.id===card.dataset.exam);if(!actions||!e)continue;
    let solve=actions.querySelector('[data-solve-exam]');
    if(!solve){solve=el('button',{type:'button',className:'icon solve-action'});solve.dataset.solveExam=e.id;solve.innerHTML=ICON.solve;const more=actions.querySelector('[data-exam-menu]');more?more.after(solve):actions.prepend(solve);}
-   const ready=setsFor(asExam(e)).length>0,label=ready?`Resolver questões de ${e.type} · ${e.subject}`:'Ainda não há questões desta prova';
+   const ready=reviewSetsFor(asExam(e)).length>0,label=ready?`Resolver questões de ${e.type} · ${e.subject}`:'Ainda não há questões desta prova';
    if(solve.getAttribute('aria-label')!==label){solve.setAttribute('aria-label',label);solve.title=ready?'Resolver questões da prova':label;solve.setAttribute('aria-disabled',String(!ready));solve.classList.toggle('is-empty',!ready);}
   }
  }
@@ -126,7 +129,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  // ---------- persistence ----------
  function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>flush().catch(()=>{}),700);}
  async function flush(){
-  clearTimeout(saveTimer);if(!session||session.status!=='active')return;
+  clearTimeout(saveTimer);if(!session||session.status!=='active'||session.review)return;
   const r=await client.rpc('quiz_session_save',{p_id:session.id,p_answers:session.answers,p_elapsed:Math.round(elapsed()),p_finish:false});if(r.error)throw r.error;
  }
 
@@ -147,7 +150,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    list.forEach(s=>{const card=choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id);card.dataset.set=s.id;if(allowed())card.append(renameButton(s));group.append(card);});
    group.onchange=async()=>{const c=group.querySelector('input[name=solverSet]:checked'),next=c&&list.find(s=>s.id===c.value);if(!next||next.id===setInfo.id)return;setInfo=next;savePrefs({lists:{...(prefs().lists||{}),[material.key]:setInfo.id}});await refreshSetupDetails();};
    body.append(group);lastAttempts(list,group);
-  }else{const lead=el('p',{className:'solver-lead',id:'solverListLead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões'));if(allowed())lead.append(renameButton(setInfo));body.append(lead);}
+  }else if(setInfo){const lead=el('p',{className:'solver-lead',id:'solverListLead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões'));if(allowed())lead.append(renameButton(setInfo));body.append(lead);}
+  else body.append(el('p',{className:'solver-lead',id:'solverMistakesLead',textContent:'Esta prova ainda não tem lista própria.'}));
   const modes=el('fieldset',{className:'solver-group solver-pair',id:'solverModes'},el('legend',{textContent:'Modo'}));
   modes.append(choice('solverMode','treino','Treino','Gabarito e comentários a cada resposta. Questões em sequência.',true),choice('solverMode','prova','Prova','Gabarito só ao finalizar. Questões e alternativas embaralhadas.',false));
   // Personalizar: each part on its own; touching one turns the mode into "Personalizado".
@@ -173,7 +177,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const minutes=el('label',{className:'editor-field solver-minutes',hidden:true},el('span',{textContent:'Minutos'}),el('input',{type:'number',id:'solverMinutes',min:1,max:600,step:1,inputMode:'numeric'}));
   clocks.append(minutes);clocks.onchange=()=>{minutes.hidden=clocks.querySelector('input:checked').value!=='timer';if(!minutes.hidden)animateIn(minutes,-4);};
   body.append(modes,advanced,clocks,el('div',{id:'solverHistory'}));
-  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()}));
+  // Exams: "Só meus erros" sits beside "Começar" and uses the mode and clock chosen above.
+  const mistakesButton=material.kind==='exam'?el('button',{type:'button',className:(setInfo?'editor-cancel':'primary')+' solver-mistakes',id:'solverMistakes',disabled:true,onclick:()=>startReview()},el('span',{textContent:'Só meus erros'}),el('small',{id:'solverMistakesCount'})):null;
+  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),...(mistakesButton?[mistakesButton]:[]),...(setInfo?[el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()})]:[]));
+  mistakes=[];if(mistakesButton)loadMistakes();
   await refreshSetupDetails();
  }
  // Administrators rename a list right here (the questions stay as they are).
@@ -214,8 +221,9 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   confirmPeleja('Começar uma nova rodada?',()=>start(),{description:`A rodada em andamento de "${set.title}" (${done} de ${total} respondidas) será apagada, e o progresso dela se perde.`,accept:'Começar nova',destructive:true});
  }
  async function refreshSetupDetails(){
-  $s('solverMinutes').value=Math.max(1,Math.round(setInfo.count*1.5));
+  $s('solverMinutes').value=Math.max(1,Math.round((setInfo?setInfo.count:mistakes.length||10)*1.5));
   const resume=$s('solverResume'),past=$s('solverHistory');resume.replaceChildren();past.replaceChildren();
+  if(!setInfo){history=[];return;}
   try{await loadHistory();}catch(error){resume.append(el('p',{className:'solver-note',textContent:message(error)}));return;}
   // Sessions in progress on any list of this subject/exam, newest first, each with its list's name.
   const actives=[];activeHere=null;
@@ -255,6 +263,40 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    }
   }
  }
+ // ---------- "Só meus erros" (exams) ----------
+ // Every question the member got wrong in a finished attempt (also when it was answered right later),
+ // over the exam's own lists and its subjects' lists, in that order. The round lives only here:
+ // it is not saved and does not count in the statistics, so the errors stay for the next review.
+ let mistakes=[],reviewItems=[];
+ async function mistakesOf(set){
+  const r=await client.rpc('quiz_sessions_mine',{p_set:set.id});if(r.error)throw r.error;
+  const done=(Array.isArray(r.data)?r.data:[]).filter(x=>x.status==='done'&&x.answered>x.correct);if(!done.length)return [];
+  const full=await client.rpc('question_set',{p_id:set.id});if(full.error||!full.data)throw full.error||Error('Conjunto não encontrado');
+  const list=full.data.questions||[],wrong=new Set();
+  for(const s of done)for(const [k,a] of Object.entries(s.answers||{})){const q=list[Number(k)];if(a?.o!=null&&q?.answerOptions?.[a.o]&&!q.answerOptions[a.o].isCorrect)wrong.add(Number(k));}
+  return [...wrong].sort((a,b)=>a-b).map(index=>({setId:set.id,title:set.title,index,question:list[index]}));
+ }
+ async function loadMistakes(){
+  const target=material;let rows;
+  try{rows=(await Promise.all(reviewSetsFor(target).map(mistakesOf))).flat();}catch{rows=null;}
+  const button=$s('solverMistakes');if(material!==target||screen!=='setup'||!button)return;
+  if(!rows){button.title='Não foi possível carregar os seus erros. Feche e abra de novo.';return;}
+  mistakes=rows;
+  button.disabled=!mistakes.length;$s('solverMistakesCount').textContent=String(mistakes.length);
+  button.title=mistakes.length?`${plural(mistakes.length,'questão errada','questões erradas')} nas listas da prova e dos assuntos dela`:'Nenhum erro nas listas respondidas desta prova';
+  button.setAttribute('aria-label',`Só meus erros: ${button.title}`);
+  if(!setInfo){$s('solverMinutes').value=Math.max(1,Math.round((mistakes.length||10)*1.5));$s('solverMistakesLead').textContent=mistakes.length?'Esta prova ainda não tem lista própria. Resolva os seus erros nas listas dos assuntos dela.':'Esta prova ainda não tem lista própria, e você ainda não errou questões nas listas dos assuntos dela.';}
+ }
+ async function startReview(subset,forced){
+  if(busy||(!subset&&!mistakes.length))return;busy=true;const button=$s('solverMistakes');button?.setAttribute('aria-busy','true');
+  try{
+   const {settings,mode,clock,timerSeconds}=choices(forced);
+   if(!subset){reviewItems=mistakes;questions=mistakes.map(x=>x.question);}
+   session={id:null,review:true,mode,clock,timerSeconds,layout:layoutFor(settings,subset),settings,answers:{},status:'active',elapsedMs:0};
+   clockBase=0;position=0;reviewing=false;pending=new Map();hintOpen=new Set();renderQuestion();startClock();
+  }catch(error){toast(message(error),'info');}
+  finally{busy=false;button?.removeAttribute('aria-busy');}
+ }
  // Deletes one of the member's sessions; a counted attempt also leaves the material's statistics.
  async function removeSession(s){
   try{
@@ -279,15 +321,19 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   for(const q of base){const ids=questions[q].answerOptions.map((_,i)=>i);options[q]=settings.shuffleOptions?shuffle(ids):ids;}
   return {questions:settings.shuffleQuestions?shuffle(base):base,options,settings};
  }
+ // Mode, key and clock for a new round: the choices on the setup screen, or the ones of the round being redone.
+ function choices(forced){
+  const settings={...(forced?forced.settings||PRESETS[forced.mode]:setupSettings)},mode=settings.reveal==='each'?'treino':'prova',clock=forced?.clock||dialog.querySelector('input[name=solverClock]:checked').value;
+  if(!forced)savePrefs({settings});
+  const minutes=forced?.timerSeconds?forced.timerSeconds/60:Number($s('solverMinutes')?.value);
+  if(clock==='timer'&&!(minutes>=1&&minutes<=600)){$s('solverMinutes').focus();throw Error('Informe entre 1 e 600 minutos.');}
+  return {settings,mode,clock,timerSeconds:clock==='timer'?Math.round(minutes*60):null};
+ }
  async function start(subset,forced){
   if(busy)return;busy=true;const button=$s('solverStart');button?.setAttribute('aria-busy','true');
   try{
-   const settings={...(forced?forced.settings||PRESETS[forced.mode]:setupSettings)},mode=settings.reveal==='each'?'treino':'prova',clock=forced?.clock||dialog.querySelector('input[name=solverClock]:checked').value;
-   if(!forced)savePrefs({settings});
-   const minutes=forced?.timerSeconds?forced.timerSeconds/60:Number($s('solverMinutes')?.value);
-   if(clock==='timer'&&!(minutes>=1&&minutes<=600)){$s('solverMinutes').focus();throw Error('Informe entre 1 e 600 minutos.');}
+   const {settings,mode,clock,timerSeconds}=choices(forced);
    await loadQuestions();const layout=layoutFor(settings,subset);
-   const timerSeconds=clock==='timer'?Math.round(minutes*60):null;
    const r=await client.rpc('quiz_session_start',{p_set:setInfo.id,p_mode:mode,p_clock:clock,p_timer:timerSeconds,p_layout:layout});if(r.error)throw r.error;
    session={id:r.data,mode,clock,timerSeconds,layout,settings,answers:{},status:'active',elapsedMs:0};
    clockBase=0;position=0;reviewing=false;pending=new Map();hintOpen=new Set();renderQuestion();startClock();
@@ -310,7 +356,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  function renderQuestion(dir=0){
   hideTip();
   screen='question';const q=order()[position],item=questions[q],answer=answerOf(q),show=revealed(q),total=order().length;
-  $s('solverKicker').textContent=`${reviewing?'REVISÃO · ':''}${position+1} / ${total}`;
+  $s('solverKicker').textContent=`${reviewing?'REVISÃO · ':''}${session.review?'SÓ MEUS ERROS · ':''}${position+1} / ${total}`;
   const bar=$s('solverProgress');bar.hidden=false;bar.firstElementChild.style.width=`${(Object.values(session.answers).filter(a=>a.o!=null).length/total)*100}%`;
   const body=$s('solverBody'),list=el('ol',{className:'solver-options'});
   session.layout.options[q].forEach((o,j)=>{
@@ -341,7 +387,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    tools.append(toggle);
   }
   // A member reports a problem with this question (kind + explanation).
-  if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(setInfo.id,q,`${setInfo.title} · Questão ${q+1}`)}));
+  const source=session.review?{id:reviewItems[q].setId,i:reviewItems[q].index,title:reviewItems[q].title}:{id:setInfo.id,i:q,title:setInfo.title};
+  if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(source.id,source.i,`${source.title} · Questão ${source.i+1}`)}));
   if(tools.childElementCount)content.append(tools);
   if(hintPanel)content.append(hintPanel);
   if(show&&cfg().reveal==='each'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
@@ -400,6 +447,11 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  async function finishSession(){
   if(busy)return;busy=true;stopClock();
   try{
+   if(session.review){
+    const answered=order().filter(q=>answerOf(q).o!=null);
+    session={...session,status:'done',answered:answered.length,correct:answered.filter(q=>isCorrect(q,answerOf(q).o)).length,counted:false,elapsedMs:Math.round(elapsed())};
+    renderResult();return;
+   }
    const r=await client.rpc('quiz_session_save',{p_id:session.id,p_answers:session.answers,p_elapsed:Math.round(elapsed()),p_finish:true});if(r.error)throw r.error;
    session={...session,status:'done',answered:r.data.answered,correct:r.data.correct,counted:r.data.counted,elapsedMs:Math.round(elapsed())};
    if(r.data.counted)recordRound(r.data);
@@ -455,13 +507,14 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const body=$s('solverBody');body.replaceChildren(el('div',{className:'solver-result'},head,bar,filters,list));body.scrollTop=0;animateIn(body.firstElementChild);
   const missed=all.filter(q=>status(q)!=='right'),foot=$s('solverFoot'),again={mode:session.mode,settings:cfg(),clock:session.clock,timerSeconds:session.timerSeconds};
   foot.replaceChildren(session.fromHistory?el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Voltar',onclick:()=>{session=null;renderSetup();}}):el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Fechar',onclick:close}));
-  if(missed.length)foot.append(el('button',{type:'button',className:'editor-cancel',textContent:'Refazer erradas',onclick:()=>start(missed,{...again,timerSeconds:again.timerSeconds&&Math.max(60,Math.round(again.timerSeconds*missed.length/total))})}));
-  foot.append(el('button',{type:'button',className:'primary',textContent:'Refazer tudo',onclick:()=>start(null,again)}));
+  const redo=session.review?startReview:start;
+  if(missed.length)foot.append(el('button',{type:'button',className:'editor-cancel',textContent:'Refazer erradas',onclick:()=>redo(missed,{...again,timerSeconds:again.timerSeconds&&Math.max(60,Math.round(again.timerSeconds*missed.length/total))})}));
+  foot.append(el('button',{type:'button',className:'primary',textContent:'Refazer tudo',onclick:()=>redo(session.review?all:null,again)}));
  }
 
  // ---------- open / close ----------
  async function open(t,opener){
-  material=t;const list=setsFor(t);if(!list.length)return;const remembered=prefs().lists?.[t.key];setInfo=list.find(s=>s.id===remembered)||list[0];resultFilter='all';dialog.dataset.opener=t.key;dialog.dataset.openerKind=t.kind;
+  material=t;const list=setsFor(t);if(!list.length&&!reviewSetsFor(t).length)return;const remembered=prefs().lists?.[t.key];setInfo=list.find(s=>s.id===remembered)||list[0]||null;resultFilter='all';dialog.dataset.opener=t.key;dialog.dataset.openerKind=t.kind;
   if(!dialog.open)dialog.showModal();motion(dialog.querySelector('.solver-shell'),[{opacity:0,transform:'translateY(10px) scale(.99)'},{opacity:1,transform:'none'}],{duration:260,easing:EASE});
   await renderSetup();$s('solverClose').focus();
  }
@@ -473,7 +526,12 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  async function close(){
   if(leave.open)return;
   const answered=session?.status==='active'?Object.values(session.answers).filter(a=>a.o!=null).length:0;
-  if(session?.status==='active'&&(answered||Object.keys(session.answers).length)){
+  // The errors round is not saved: leaving with answers only asks once.
+  if(session?.review&&session.status==='active'&&answered&&typeof confirmPeleja==='function'){
+   confirmPeleja('Sair da rodada de erros?',()=>{stopClock();finishClose();},{description:`Você respondeu ${answered} de ${order().length}. Esta rodada não fica guardada; da próxima vez, os seus erros aparecem de novo.`,accept:'Sair'});
+   return;
+  }
+  if(session?.status==='active'&&!session.review&&(answered||Object.keys(session.answers).length)){
    stopClock();
    leave.querySelector('#solverLeaveText').textContent=`Você respondeu ${answered} de ${order().length}. Guarde para continuar de onde parou, ou descarte para começar do zero na próxima vez.`;
    leave.showModal();leave.querySelector('#solverKeep').focus();
@@ -481,7 +539,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    return;
   }
   stopClock();
-  if(session?.status==='active')Promise.resolve(client.rpc('quiz_session_delete',{p_id:session.id})).catch(()=>{}); // nothing answered: nothing to keep
+  if(session?.status==='active'&&!session.review)Promise.resolve(client.rpc('quiz_session_delete',{p_id:session.id})).catch(()=>{}); // nothing answered: nothing to keep
   finishClose();
  }
  leave.querySelector('#solverKeep').onclick=async()=>{try{await flush();toast('Progresso guardado. Continue quando quiser.','info');}catch{toast('Não foi possível guardar o progresso.','info');}finishClose();};
