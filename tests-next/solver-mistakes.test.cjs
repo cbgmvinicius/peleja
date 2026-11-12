@@ -64,7 +64,7 @@ const done=(answers,at)=>{const a=Object.fromEntries(Object.entries(answers).map
  const read=calls.filter(([n])=>n==='quiz_sessions_mine').map(([,a])=>a.p_set);
  for(const id of ['set-exam','set-1','set-2'])assert.ok(read.includes(id),'reads '+id);
  const mistakesButton=$('solverMistakes');assert.ok(mistakesButton,'button in the exam menu');assert.equal(mistakesButton.disabled,false);
- assert.equal($('solverMistakesCount').textContent,'3');assert.ok($('solverStart'),'Começar stays');
+ assert.equal($('solverMistakesCount').textContent,'3');assert.ok(mistakesButton.querySelector('svg'),'target icon');assert.match(mistakesButton.textContent,/^Erros3$/);assert.ok($('solverStart'),'Começar stays');
  assert.equal(mistakesButton.previousElementSibling.textContent,'Cancelar');assert.equal(mistakesButton.nextElementSibling,$('solverStart'),'between Cancelar and Começar');
  const starts=count(calls,'quiz_session_start');
  mistakesButton.click();await tick(80);

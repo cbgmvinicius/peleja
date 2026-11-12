@@ -15,6 +15,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.8 5a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.7 18.5Z"/><path d="M13.8 7l3.2 3.2"/></svg>',
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M7 7l1 12h8l1-12M9 7V4h6v3"/></svg>',
+  target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M10.3 10.3l3.4 3.4M13.7 10.3l-3.4 3.4"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   wrong:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>'
  };
@@ -178,7 +179,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   clocks.append(minutes);clocks.onchange=()=>{minutes.hidden=clocks.querySelector('input:checked').value!=='timer';if(!minutes.hidden)animateIn(minutes,-4);};
   body.append(modes,advanced,clocks,el('div',{id:'solverHistory'}));
   // Exams: "Só meus erros" sits beside "Começar" and uses the mode and clock chosen above.
-  const mistakesButton=material.kind==='exam'?el('button',{type:'button',className:(setInfo?'editor-cancel':'primary')+' solver-mistakes',id:'solverMistakes',disabled:true,onclick:()=>startReview()},el('span',{textContent:'Só meus erros'}),el('small',{id:'solverMistakesCount'})):null;
+  const mistakesButton=material.kind==='exam'?el('button',{type:'button',className:(setInfo?'editor-cancel':'primary')+' solver-mistakes',id:'solverMistakes',disabled:true,onclick:()=>startReview()},el('span',{className:'solver-mistakes-icon',innerHTML:ICON.target}),el('span',{textContent:'Erros'}),el('small',{id:'solverMistakesCount'})):null;
   const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),...(mistakesButton?[mistakesButton]:[]),...(setInfo?[el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()})]:[]));
   mistakes=[];if(mistakesButton)loadMistakes();
   await refreshSetupDetails();
@@ -284,7 +285,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   mistakes=rows;
   button.disabled=!mistakes.length;$s('solverMistakesCount').textContent=String(mistakes.length);
   button.title=mistakes.length?`${plural(mistakes.length,'questão errada','questões erradas')} nas listas da prova e dos assuntos dela`:'Nenhum erro nas listas respondidas desta prova';
-  button.setAttribute('aria-label',`Só meus erros: ${button.title}`);
+  button.setAttribute('aria-label',`Erros: ${button.title}`);
   if(!setInfo){$s('solverMinutes').value=Math.max(1,Math.round((mistakes.length||10)*1.5));$s('solverMistakesLead').textContent=mistakes.length?'Esta prova ainda não tem lista própria. Resolva os seus erros nas listas dos assuntos dela.':'Esta prova ainda não tem lista própria, e você ainda não errou questões nas listas dos assuntos dela.';}
  }
  async function startReview(subset,forced){

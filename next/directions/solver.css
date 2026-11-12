@@ -211,3 +211,4 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 .solver-mistakes small:empty{display:none}
 #solverDialog .solver-custom-check[hidden]{display:none}
 @media(max-width:640px){#solverDialog .solver-mistakes{flex-basis:100%;order:-1;justify-content:center}}
+.solver-mistakes-icon{display:inline-grid}.solver-mistakes svg{width:18px;height:18px;flex:none}
