@@ -452,3 +452,5 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .solver .pomo-mini{position:absolute;right:16px;bottom:82px}
 @media (max-width:640px){.pomo-mini{right:10px;bottom:84px}.solver .pomo-mini{right:10px;bottom:78px}}
 @media (prefers-reduced-motion:reduce){.pomo-mini,.pomo-mini-dot{animation:none!important}}
+/* the legend bubble (heatmap, ranking, solver): hidden must win over its display:flex */
+.pomo-day-tip[hidden]{display:none!important}
