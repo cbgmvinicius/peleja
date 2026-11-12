@@ -186,3 +186,15 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 .app .solver-past-open{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:6px 8px;margin:-6px 0 -6px -8px;border-radius:10px;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}
 .app .solver-past-open:hover{background:var(--soft)}
 .solver-past-open span{flex:1;min-width:0}
+/* pausing the clock: the question is covered until Continuar */
+.app .solver-clock{display:inline-flex;align-items:center;gap:6px;border:0;font:inherit;font-size:14px;cursor:pointer}
+.app .solver-clock:disabled{cursor:default;opacity:1}
+.solver-clock svg{width:12px;height:12px}
+.app .solver-clock:not(:disabled):hover{filter:brightness(.96)}
+.solver-clock[data-paused=true]{background:var(--button);color:var(--onbutton)}
+.solver-shell{position:relative}
+.solver-veil{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(6px);text-align:center;padding:24px}
+.solver-veil[hidden]{display:none}
+.solver-veil strong{font-size:22px;font-weight:600}
+.solver-veil p{margin:0 0 6px;color:var(--muted);font-size:14px}
+.solver .solver-veil .primary{min-height:46px;padding:0 30px;font-size:16px;border-radius:14px}

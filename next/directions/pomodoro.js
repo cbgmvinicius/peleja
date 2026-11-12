@@ -438,6 +438,7 @@
   $('pomoPlay').innerHTML=icon(running?I.pause:I.play);$('pomoPlay').setAttribute('aria-label',running?'Pausar':t.status==='paused'?'Continuar':'Começar');
   draw();if(running&&!frame)frame=requestAnimationFrame(loop);
   updateOngoing();
+  globalThis.PELEJA_POMODORO_CHANGED?.(); // the mini player follows every change
  }
 
  // ---------- sheets and dialogs ----------
@@ -698,7 +699,7 @@
    flush();pull();
   },
   detach(){client=null;getUser=()=>null;saveSettings=null;lastSent='';},
-  state:()=>state,elapsed,actions,advance,render,outbox,pull,
+  state:()=>state,elapsed,actions,advance,render,outbox,pull,planned,fmt,modeName,
   rpc:(name,args)=>client?client.rpc(name,args):Promise.resolve({error:{message:'offline'}}),from:table=>client?.from(table),save,user:()=>getUser(),page,
   reset(){state=read('__none__',DEFAULTS);for(const k of ['config','sound','prefs','timer'])state[k]={...DEFAULTS[k]};fixBlock();save();render();}
  };

@@ -21,7 +21,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  let pending=new Map(),hintOpen=new Set(),sets=[],material=null,setInfo=null,questions=[],session=null,history=[],position=0,screen='setup',reviewing=false;
  let clockStart=0,clockBase=0,clockTimer=0,saveTimer=0,busy=false,resultFilter='all';
  const dialog=document.createElement('dialog');dialog.id='solverDialog';dialog.className='solver';dialog.setAttribute('aria-labelledby','solverTitle');
- dialog.innerHTML='<div class="solver-shell"><header class="solver-top"><div class="solver-place"><span class="editor-kicker" id="solverKicker"></span><h2 id="solverTitle"></h2></div><div class="solver-clock" id="solverClock" hidden></div><button type="button" class="icon" id="solverClose" aria-label="Fechar">✕</button></header><div class="solver-progress" id="solverProgress" hidden><span></span></div><div class="solver-body" id="solverBody"></div><footer class="solver-foot editor-footer" id="solverFoot"></footer></div>';
+ dialog.innerHTML='<div class="solver-shell"><header class="solver-top"><div class="solver-place"><span class="editor-kicker" id="solverKicker"></span><h2 id="solverTitle"></h2></div><button type="button" class="solver-clock" id="solverClock" hidden></button><button type="button" class="icon" id="solverClose" aria-label="Fechar">✕</button></header><div class="solver-progress" id="solverProgress" hidden><span></span></div><div class="solver-body" id="solverBody"></div><footer class="solver-foot editor-footer" id="solverFoot"></footer></div>';
  app.append(dialog);
  const $s=id=>dialog.querySelector('#'+id);
  const message=error=>String(error?.message||error||'').replace(/^Error:\s*/,'')||'Não foi possível concluir. Tente novamente.';
@@ -90,15 +90,37 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  async function loadSets(){const r=await client.rpc('question_sets_list');if(r.error)throw r.error;sets=Array.isArray(r.data)?r.data:[];render();}
 
  // ---------- clock ----------
+ // The clock pauses with a tap during a question: the question is covered until "Continuar" (no reading
+ // with the time stopped), and the saved time leaves the pause out.
+ const CLOCK_ICON={pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="5.5" width="3.4" height="13" rx="1.2" fill="currentColor"/><rect x="13.6" y="5.5" width="3.4" height="13" rx="1.2" fill="currentColor"/></svg>',
+  play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8v12.4c0 .7.8 1.2 1.4.8l9.4-6.2c.6-.4.6-1.2 0-1.6L9.4 5c-.6-.4-1.4.1-1.4.8Z" fill="currentColor"/></svg>'};
+ let clockPaused=false;
+ const veil=el('div',{className:'solver-veil',id:'solverVeil',hidden:true},el('strong',{textContent:'Pausado'}),el('p',{textContent:'A questão volta quando você continuar.'}),el('button',{type:'button',className:'primary',id:'solverUnpause',textContent:'Continuar',onclick:()=>unpauseClock()}));
+ dialog.querySelector('.solver-shell').append(veil);
+ const canPause=()=>screen==='question'&&session?.status==='active';
+ function pauseClock(){
+  if(clockPaused||!canPause())return;
+  stopClock();clockPaused=true;flush().catch(()=>{});
+  veil.style.top=$s('solverBody').offsetTop+'px';$s('solverBody').inert=true;$s('solverFoot').inert=true;veil.hidden=false;tick();$s('solverUnpause').focus();
+ }
+ function unpauseClock(){
+  if(!clockPaused)return;
+  clockPaused=false;$s('solverBody').inert=false;$s('solverFoot').inert=false;veil.hidden=true;startClock();
+ }
+ function clearPause(){clockPaused=false;veil.hidden=true;$s('solverBody').inert=false;$s('solverFoot').inert=false;}
+ $s('solverClock').onclick=()=>clockPaused?unpauseClock():pauseClock();
  const elapsed=()=>clockBase+(clockStart?Date.now()-clockStart:0);
  const fmt=ms=>{const t=Math.floor(Math.abs(ms)/1000),h=Math.floor(t/3600),m=Math.floor(t/60)%60,s=t%60;return (h?h+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0'))+':'+String(s).padStart(2,'0');};
  function tick(){
   const node=$s('solverClock');if(!session){node.hidden=true;return;}
-  node.hidden=false;
-  if(session.clock==='timer'){const left=session.timerSeconds*1000-elapsed();node.dataset.over=String(left<0);node.textContent=left<0?'+'+fmt(left):fmt(left);node.title=left<0?'Tempo esgotado':'Tempo restante';}
-  else{node.dataset.over='false';node.textContent=fmt(elapsed());node.title='Tempo decorrido';}
+  node.hidden=false;let text,label;
+  if(session.clock==='timer'){const left=session.timerSeconds*1000-elapsed();node.dataset.over=String(left<0);text=left<0?'+'+fmt(left):fmt(left);label=left<0?'Tempo esgotado':'Tempo restante';}
+  else{node.dataset.over='false';text=fmt(elapsed());label='Tempo decorrido';}
+  const pausable=canPause();node.dataset.paused=String(clockPaused);node.disabled=!pausable&&!clockPaused;
+  const html=(pausable||clockPaused?CLOCK_ICON[clockPaused?'play':'pause']:'')+`<span>${text}</span>`;if(node.innerHTML!==html)node.innerHTML=html;
+  node.title=clockPaused?'Pausado · tocar para continuar':pausable?`${label} · tocar para pausar`:label;node.setAttribute('aria-label',node.title+' · '+text);
  }
- function startClock(){if(clockStart)return;clockStart=Date.now();clearInterval(clockTimer);clockTimer=setInterval(tick,250);tick();}
+ function startClock(){if(clockPaused)clearPause();if(clockStart)return;clockStart=Date.now();clearInterval(clockTimer);clockTimer=setInterval(tick,250);tick();}
  function stopClock(){if(clockStart){clockBase=elapsed();clockStart=0;}clearInterval(clockTimer);clockTimer=0;tick();}
 
  // ---------- persistence ----------
@@ -114,7 +136,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const input=el('input',{type:'radio',name,value,checked});const card=el('label',{className:'solver-choice'},input,el('span',{className:'solver-choice-text'},el('strong',{textContent:title}),el('small',{textContent:text})));return card;
  }
  async function renderSetup(){
-  hideTip();
+  hideTip();clearPause();
   screen='setup';session=null;stopClock();clockBase=0;
   $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.kind==='exam'?`Prova inteira · ${material.title}`:material.title;$s('solverProgress').hidden=true;tick();
   const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
@@ -417,7 +439,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  // ---------- result ----------
  function status(q){const a=answerOf(q);return a.o==null?'skipped':isCorrect(q,a.o)?'right':'wrong';}
  function renderResult(){
-  screen='result';reviewing=false;stopClock();
+  clearPause();screen='result';reviewing=false;stopClock();
   const all=order(),counts={right:0,wrong:0,skipped:0};all.forEach(q=>counts[status(q)]++);
   const total=all.length,pct=Math.round(counts.right/total*100);
   $s('solverKicker').textContent=session.mode==='prova'?'RESULTADO DA PROVA':'RESULTADO DO TREINO';$s('solverProgress').hidden=true;
