@@ -17,4 +17,16 @@ w.openSettings();await tick();w.$('accountOldPassword').value='autofilled';w.pre
 w.previewPrefs.dark=false;w.openSettings();await tick();const field=w.$('accountNameEdit');field.dispatchEvent(new w.KeyboardEvent('keydown',{key:'x',bubbles:true}));field.value='Outro';w.closeSettings();assert.equal(w.eval('confirms.length'),1);assert.equal(w.eval('closed'),1);
 w.previewPrefs.dark=true;w.closeSettings();const [title,discard,options]=w.eval('confirms[1]');assert.match(title,/Descartar/);assert.match(options.description,/aparência/);discard();assert.equal(w.previewPrefs.dark,false);assert.equal(w.eval('closed'),2);
 console.log('PASS settings close ignores autofill, asks only after typing, and discarding reverts appearance');
+// Photo: saved as soon as it is chosen; any image the browser can open (HEIC with an empty type too); a format it
+// cannot open says so; removing saves right away.
+w.HTMLCanvasElement.prototype.getContext=()=>({fillRect(){},drawImage(){},set fillStyle(v){}});w.HTMLCanvasElement.prototype.toDataURL=()=>'data:image/jpeg;base64,QUJD';
+const pick=async file=>{Object.defineProperty(w.$('accountPhotoFile'),'files',{value:[file],configurable:true});w.$('accountPhotoFile').dispatchEvent(new w.Event('change'));await tick();await tick();};
+w.createImageBitmap=async()=>({width:400,height:300,close(){}});photo=null;
+await pick(new w.File(['x'],'IMG_0001.HEIC',{type:''}));
+assert.equal(photo,'data:image/jpeg;base64,QUJD','saved without pressing Salvar');assert.match(w.$('accountFeedback').textContent,/Foto atualizada/);
+w.createImageBitmap=async()=>{throw Error('no')};w.Image=class{set src(v){}decode(){return Promise.reject(Error('no'))}};photo='before';
+await pick(new w.File(['x'],'foto.heic',{type:'image/heic'}));
+assert.equal(photo,'before','nothing saved');assert.match(w.$('accountFeedback').textContent,/não abre esse formato/);
+w.$('accountRemovePhoto').click();await tick();assert.equal(photo,null,'removing saves right away');assert.match(w.$('accountFeedback').textContent,/Foto removida/);
+console.log('PASS profile photo: saved on choose, HEIC/empty type accepted when it decodes, clear message when it cannot, remove saves');
 profile.reset();assert.equal(w.$('accountDialog').hidden,true);assert.equal(w.$('accountEmail').value,'');console.log('PASS own profile save/failure, password confirmation, current-password check, email confirmation, logout cleanup');w.close();})().catch(e=>{console.error(e);w.close();process.exitCode=1});
