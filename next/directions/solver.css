@@ -205,3 +205,10 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 .solver-shell{min-width:0;max-width:100%}
 .solver-body{overflow-x:hidden}
 .solver-body :is(p,li,label,span,strong){overflow-wrap:break-word}
+/* "Só meus erros" (exams): the count rides in a small pill inside the button. */
+.solver-mistakes{display:inline-flex;align-items:center;gap:8px}
+.solver-mistakes small{min-width:1.7em;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,transparent);font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;text-align:center}
+.solver-mistakes small:empty{display:none}
+#solverDialog .solver-custom-check[hidden]{display:none}
+@media(max-width:640px){#solverDialog .solver-mistakes{flex-basis:100%;order:-1;justify-content:center}}
+.solver-mistakes-icon{display:inline-grid}.solver-mistakes svg{width:18px;height:18px;flex:none}
