@@ -29,13 +29,34 @@ const extraCatalog={
 extraCatalog.yokubi=PELEJA_YOKUBI;
 const extraWatched={cardio:new Set(),english:new Set(),yokubi:new Set()};let extraActive=null,extraQuery='',extraPending=false,extraExpanded=new Set();
 const scheduledExtra=PELEJA_COURSES.modules.filter(m=>m.scheduled).flatMap(m=>m.lessons),extraAnchor=scheduledExtra.findIndex(l=>l.id===PELEJA_COURSES.anchorLesson);
-// Approved retrospective pause: Oct 19–Nov 1. Stable lesson IDs preserve every watched mark.
-function cardioScheduledDate(index){
- const original=new Date(Date.parse(PELEJA_COURSES.anchorDate+'T12:00:00Z')+(index-extraAnchor)*86400000);
- if(original.toISOString().slice(0,10)>='2026-10-19')original.setUTCDate(original.getUTCDate()+14);
- return original.toISOString().slice(0,10);
+// CardioPapers: one new lesson a day, except in exam weeks (Monday to Sunday with any exam in the Peleja),
+// past and future. Counting from the original first day (Sep 27), every lesson skips the exam weeks.
+// The weeks of Oct 19 and Oct 26 were the approved pause before this rule and stay paused. Lesson IDs are stable,
+// so every watched mark is kept when dates move.
+const CARDIO_PAUSED_WEEKS=['2026-10-19','2026-10-26'];
+const cardioDay=t=>new Date(t).toISOString().slice(0,10);
+function cardioMonday(date){const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return cardioDay(d);}
+function cardioExamDates(){return (typeof facultyRecords!=='undefined'&&Array.isArray(facultyRecords)?facultyRecords:[]).map(e=>e?.date).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')).sort();}
+function cardioSchedule(examDates){
+ const paused=new Set([...CARDIO_PAUSED_WEEKS,...examDates.map(cardioMonday)]),out=new Map();
+ const day=new Date(Date.parse(PELEJA_COURSES.anchorDate+'T12:00:00Z')-extraAnchor*86400000);
+ for(const lesson of scheduledExtra){
+  while(paused.has(cardioMonday(cardioDay(day))))day.setUTCDate(day.getUTCDate()+1);
+  out.set(lesson.id,cardioDay(day));day.setUTCDate(day.getUTCDate()+1);
+ }
+ return out;
 }
-const extraDates=new Map(scheduledExtra.map((lesson,i)=>[lesson.id,cardioScheduledDate(i)]));
+// Lesson dates follow the exams: they are worked out again whenever the exam dates change (an exam added,
+// moved or removed, or the account's exams loading), wherever a date is read.
+let cardioSignature=null;
+class CardioDates extends Map{
+ sync(){const dates=cardioExamDates(),sig=dates.join(',');if(sig===cardioSignature)return;cardioSignature=sig;Map.prototype.clear.call(this);for(const [k,v] of cardioSchedule(dates))Map.prototype.set.call(this,k,v);}
+ get(k){this.sync();return super.get(k);}
+ has(k){this.sync();return super.has(k);}
+ entries(){this.sync();return super.entries();}
+ [Symbol.iterator](){this.sync();return super[Symbol.iterator]();}
+}
+const extraDates=new CardioDates();
 const extraHeart='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6c-2.4-2.4-6.2-1.7-8.8 1.4-2.6-3.1-6.4-3.8-8.8-1.4C-1.4 9.2 5.4 16 12 21c6.6-5 13.4-11.8 8.8-16.4Z"/><path d="M3 12h5l2-4 3 8 2-4h6"/></svg>';
 app.querySelector('main').insertAdjacentHTML('beforeend','<section id="extraPage" aria-label="Cursos extras" hidden></section>');
 function extraAllowed(key){return key==='cardio'||canEditDemoStructure();}
