@@ -425,7 +425,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .app .pomo-goal-notes{display:flex;align-items:center;gap:10px;width:100%;margin:4px 0 14px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:transparent;color:inherit;text-align:left;font-size:14px}
 .pomo-goal-notes span:nth-child(2){flex:1}.pomo-goal-notes b{color:var(--accent);font-weight:600}.pomo-dialog .pomo-goal-notes svg{width:18px;height:18px}
 /* Mini Pomodoro: floating player while a session is on outside the Pomodoro tab (also over the solver) */
-.pomo-mini{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 8px;border-radius:999px;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 10px 30px rgba(30,40,30,.16),0 2px 6px rgba(30,40,30,.08);font-size:13px;animation:pomo-mini-in .26s cubic-bezier(.22,1,.36,1)}
+.pomo-mini{position:relative;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 8px;border-radius:999px;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 10px 30px rgba(30,40,30,.16),0 2px 6px rgba(30,40,30,.08);font-size:13px;animation:pomo-mini-in .26s cubic-bezier(.22,1,.36,1)}
 @keyframes pomo-mini-in{from{opacity:0;transform:translateY(10px)}}
 .app .pomo-mini-info{display:flex;align-items:center;gap:9px;padding:4px 8px 4px 4px;border-radius:999px;background:transparent;color:inherit;text-align:left}
 .app .pomo-mini .pomo-mini-info:not(:disabled):not([aria-disabled="true"]):hover{background:var(--soft)}
@@ -448,9 +448,22 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-mini[data-small=true] :is(.pomo-mini-sets,.pomo-mini-actions){display:none}
 .pomo-mini[data-small=true] .pomo-mini-time{font-size:15px}
 .pomo-mini[hidden],.pomo-mini [hidden]{display:none!important} /* its own display:flex must never beat hidden */
-/* over the solver it still lives in the dialog (top layer, clickable) but sits in the corner of the screen */
-/* on a phone the solver fills the screen: stay above its footer (Próxima) */
-@media (max-width:640px){.pomo-mini{right:10px;bottom:84px}.solver .pomo-mini{bottom:84px}}
+/* It never floats over the page: it takes a place of its own in each view (data-dock, set by pomodoro-mini.js).
+   header: in the top bar, before Sincronizar (desktop/tablet) · solver-top: in the solver's header, before the clock
+   solver-row: a thin row under the solver's header (phone) · strip: a bar right above the phone tab bar, with
+   the page, the "+" button and the toasts moved up by its height (html.has-pomo-mini). */
+.pomo-mini[data-dock=header],.pomo-mini[data-dock=solver-top]{box-shadow:none;flex:none}
+.pomo-mini[data-dock=header] .pomo-mini-sets,.pomo-mini[data-dock=solver-top] .pomo-mini-sets{display:none}
+.pomo-mini[data-dock=solver-row]{margin:0 18px 10px;box-shadow:none;justify-content:space-between}
+.pomo-mini[data-dock=strip]{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;justify-content:space-between}
+.pomo-mini[data-dock=solver-row] .pomo-mini-info,.pomo-mini[data-dock=strip] .pomo-mini-info{flex:1;min-width:0}
+.pomo-mini[data-dock=solver-row] .pomo-mini-text,.pomo-mini[data-dock=strip] .pomo-mini-text{flex-direction:row;align-items:baseline;gap:8px}
+@media (max-width:760px){
+ html.has-pomo-mini .app{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+ html.has-pomo-mini .app #new{bottom:calc(144px + env(safe-area-inset-bottom))}
+ html.has-pomo-mini .app #eventMenu{bottom:calc(210px + env(safe-area-inset-bottom))}
+ html.has-pomo-mini .app .toast{bottom:calc(146px + env(safe-area-inset-bottom))}
+}
 @media (prefers-reduced-motion:reduce){.pomo-mini,.pomo-mini-dot{animation:none!important}}
 /* the legend bubble (heatmap, ranking, solver): hidden must win over its display:flex */
 .pomo-day-tip[hidden]{display:none!important}

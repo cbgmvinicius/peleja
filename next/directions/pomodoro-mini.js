@@ -1,5 +1,5 @@
-// Mini Pomodoro: while a session is on and the Pomodoro tab is not showing, a small floating player in the
-// bottom-right corner shows the phase, the time and the set, with Pausar/Continuar, Pular and Concluir (like
+// Mini Pomodoro: while a session is on and the Pomodoro tab is not showing, a small player in a
+// place of its own (top bar, a bar above the phone tabs, or the solver's header) shows the phase, the time and the set, with Pausar/Continuar, Pular and Concluir (like
 // the phone notification). It also works over the question solver: an open modal dialog sits in the top
 // layer, so the player moves inside it while it is open.
 (()=>{
@@ -28,18 +28,30 @@
  const home=()=>document.querySelector('.app')||document.body;
  home().append(mini);
 
- // An open modal dialog (the question solver) is the top layer: the player lives inside it meanwhile.
+ // It never floats over buttons: each view gives it a place of its own (see data-dock in pomodoro.css).
+ // An open modal dialog (the question solver) is the top layer, so meanwhile it lives inside it.
+ const phone=globalThis.matchMedia?.('(max-width:760px)')||{matches:false};
  function place(){
-  const host=document.querySelector('#solverDialog[open]')||home();
-  if(mini.parentElement!==host)host.append(mini);
+  const solver=document.querySelector('#solverDialog[open]'),actions=document.querySelector('header .header-actions');
+  let host=home(),before=null,dock='strip';
+  if(solver&&phone.matches){host=solver.querySelector('.solver-shell')||solver;before=solver.querySelector('.solver-progress');dock='solver-row';}
+  else if(solver){host=solver.querySelector('.solver-top')||solver;before=solver.querySelector('#solverClock');dock='solver-top';}
+  else if(!phone.matches&&actions){host=actions;before=actions.querySelector('#refresh')||actions.firstChild;dock='header';}
+  if(before&&before.parentElement!==host)before=null;
+  if(mini.parentElement!==host||(before&&mini.nextSibling!==before))host.insertBefore(mini,before);
+  mini.dataset.dock=dock;
+  return dock;
  }
  // A failure never leaves a half-drawn player on screen: it hides and says why in the console.
  function paint(){try{draw();}catch(error){mini.hidden=true;console.error('Miniatura do Pomodoro:',error);}}
  function draw(){
   const t=P.state().timer,c=P.state().config,running=t.status==='running';
   const show=t.status!=='idle'&&(P.page.hidden||!!document.querySelector('#solverDialog[open]'));
-  mini.hidden=!show;if(!show)return;
-  place();
+  mini.hidden=!show;
+  const dock=show?place():null;
+  // on a phone the bar above the tabs takes room: the page, "+" and toasts move up by its height
+  document.documentElement.classList.toggle('has-pomo-mini',dock==='strip');
+  if(!show)return;
   const planned=P.planned(t.mode),e=P.elapsed(),over=t.mode==='focus'&&c.flow&&e>planned;
   mini.dataset.mode=t.mode;mini.dataset.status=t.status;mini.dataset.small=String(small);
   mode.textContent=t.status==='paused'?'Pausado':t.mode==='focus'?(c.flow?'Foco · flow':'Foco'):P.modeName[t.mode];
@@ -52,6 +64,7 @@
   info.setAttribute('aria-label',`${mode.textContent}, ${time.textContent}, ${sets.textContent}`);
  }
  globalThis.PELEJA_POMODORO_CHANGED=paint;
+ phone.addEventListener?.('change',paint);
  setInterval(()=>{if(P.state().timer.status!=='idle'||!mini.hidden)paint();},500);
  // the Pomodoro tab showing or hiding, and dialogs opening or closing
  new MutationObserver(paint).observe(P.page,{attributes:true,attributeFilter:['hidden']});

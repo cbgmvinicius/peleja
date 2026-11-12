@@ -4,8 +4,9 @@ const root=path.join(__dirname,'../next/directions'),html=fs.readFileSync(path.j
 const tick=(ms=40)=>new Promise(r=>setTimeout(r,ms));
 const MIN=60000,START=Date.parse('2026-11-05T12:00:00Z'),SESSION='0f1e2d3c-4b5a-4968-8776-655443322110';
 
-async function app(session){
+async function app(session,{phone=false}={}){
  const dom=new JSDOM(html,{runScripts:'outside-only',pretendToBeVisual:true,url:'http://localhost:8786/directions/#pomodoro'}),w=dom.window;
+ w.matchMedia=query=>({matches:phone&&/max-width:\s*760px/.test(query),media:query,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}});
  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;Object.defineProperty(w,'crypto',{value:require('crypto').webcrypto});
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  let clock=START;w.PELEJA_NOW=()=>clock;
@@ -38,6 +39,9 @@ async function app(session){
  // Another tab: the player shows the phase, the time and the set.
  $('navLibrary').click();await tick(80);
  assert.equal(mini().hidden,false);assert.equal(mini().dataset.mode,'focus');assert.match(mini().textContent,/Foco/);assert.match(mini().textContent,/25:00|24:5\d/);assert.match(mini().textContent,/série 1 de 4/);
+ // Desktop/tablet: in the top bar, right before Sincronizar (never floating over a button).
+ assert.equal(mini().parentElement.className,'header-actions');assert.equal(mini().nextElementSibling.id,'refresh');assert.equal(mini().dataset.dock,'header');
+ assert.equal(a.w.document.documentElement.classList.contains('has-pomo-mini'),false,'no room taken on desktop');
  // The buttons drive the timer.
  mini().querySelector('.pomo-mini-toggle').click();await tick(40);assert.equal(P.state().timer.status,'paused');assert.equal(mini().dataset.status,'paused');assert.match(mini().textContent,/Pausado/);
  assert.equal(mini().querySelector('.pomo-mini-skip').hidden,true,'skip only while running');
@@ -45,8 +49,9 @@ async function app(session){
  a.advance(2*MIN);mini().querySelector('.pomo-mini-skip').click();await tick(40);assert.equal(P.state().timer.mode,'short','skip ends the focus');assert.equal(mini().dataset.mode,'short');
  // Over the question solver (a modal dialog in the top layer) the player moves inside it, and back out on close.
  const d=a.w.document.getElementById('solverDialog');assert.ok(d,'solver dialog present');
- d.setAttribute('open','');await tick(60);assert.equal(mini().parentElement,d,'inside the open solver');
- d.removeAttribute('open');await tick(60);assert.notEqual(mini().parentElement,d,'back on the page');
+ d.setAttribute('open','');await tick(60);assert.ok(d.contains(mini()),'inside the open solver');
+ assert.equal(mini().parentElement,d.querySelector('.solver-top'),'in the solver header');assert.equal(mini().nextElementSibling.id,'solverClock','before the clock');
+ d.removeAttribute('open');await tick(60);assert.ok(!d.contains(mini()),'back on the page');assert.equal(mini().dataset.dock,'header');
  // Folding keeps only the time.
  mini().querySelector('.pomo-mini-fold').click();assert.equal(mini().dataset.small,'true');
  // Concluir ends the session (it asks first while sets are left) and the player goes away.
@@ -61,6 +66,15 @@ async function app(session){
  P.actions.stop();await tick(40);assert.equal(mini().hidden,true);
  // Hidden must win over the player's own display:flex (it showed an empty shell on the Pomodoro tab).
  assert.match(fs.readFileSync(path.join(root,'pomodoro.css'),'utf8'),/\.pomo-mini\[hidden\][^{]*\{display:none!important\}/);
- console.log('PASS Pomodoro mini player: hidden idle and on its tab, phase/time/set, pause/continue/skip, inside the solver dialog, fold, finish');
+ // Phone: a bar right above the tab bar, and the page, "+" and toasts make room for it; in the solver, a row under its header.
+ const b=await app(null,{phone:true}),pm=()=>b.$('pomoMini'),doc=b.w.document.documentElement;
+ b.w.showPomodoro();b.P.actions.toggle();await tick(80);b.$('navLibrary').click();await tick(80);
+ assert.equal(pm().hidden,false);assert.equal(pm().dataset.dock,'strip');assert.ok(!pm().closest('header'),'not in the hidden top bar');assert.equal(doc.classList.contains('has-pomo-mini'),true);
+ const sd=b.w.document.getElementById('solverDialog');sd.setAttribute('open','');await tick(60);
+ assert.equal(pm().dataset.dock,'solver-row');assert.equal(pm().nextElementSibling,sd.querySelector('.solver-progress'),'row above the progress bar');assert.equal(doc.classList.contains('has-pomo-mini'),false);
+ sd.removeAttribute('open');await tick(60);b.P.actions.stop();await tick(60);assert.equal(doc.classList.contains('has-pomo-mini'),false,'room given back when it goes away');
+ const css=fs.readFileSync(path.join(root,'pomodoro.css'),'utf8');assert.doesNotMatch(css.match(/\.pomo-mini\{[^}]*\}/)[0],/position:fixed/,'never floating on desktop');
+ assert.match(css,/html\.has-pomo-mini \.app #new\{bottom:/);
+ console.log('PASS Pomodoro mini player: hidden idle and on its tab, phase/time/set, pause/continue/skip, top bar / solver header / phone bar above the tabs with room made, fold, finish');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});
