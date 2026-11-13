@@ -568,8 +568,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  $s('solverClose').onclick=close;
  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
  // Keyboard: 1–5 act on A–E like a tap (select when confirming, mark at once on click), Enter confirms, ← → move.
- dialog.addEventListener('keydown',event=>{
-  if(screen!=='question'||event.target.closest('input,textarea')||event.ctrlKey||event.metaKey||event.altKey)return;
+ // Listens on the page, not the dialog: answering or moving redraws the question and the focus falls to <body>.
+ document.addEventListener('keydown',event=>{
+  if(!dialog.open||leave.open||document.querySelector('#confirmDialog[open]')||event.defaultPrevented)return;
+  if(screen!=='question'||event.target.closest?.('input,textarea,select,[contenteditable=true]')||event.ctrlKey||event.metaKey||event.altKey)return;
   if(/^[1-5]$/.test(event.key)){
    const q=order()[position],o=session.layout.options[q]?.[Number(event.key)-1];
    if(reviewing||clockPaused||o==null||revealed(q)||answerOf(q).x?.includes(o))return;

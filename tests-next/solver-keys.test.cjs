@@ -42,7 +42,7 @@ const radio=(p,name,value)=>{const r=p.q(`input[name=${name}][value=${value}]`);
 
 (async()=>{
  const p=await app();const {w,$,q,qa,state}=p;
- const press=(key,extra={})=>{$('solverBody').dispatchEvent(new w.KeyboardEvent('keydown',{key,bubbles:true,...extra}));return tick();};
+ const press=(key,extra={})=>{w.document.activeElement?.blur?.();w.document.body.dispatchEvent(new w.KeyboardEvent('keydown',{key,bubbles:true,...extra}));return tick();};
  const current=()=>state.sessions[0];
  const layoutQ=()=>{const s=current();return s.layout.questions[Number(q('#solverKicker').textContent.match(/(\d+) \//)[1])-1];};
  // A choice saved back when Treino asked for confirmation is read as the new Treino (on click).

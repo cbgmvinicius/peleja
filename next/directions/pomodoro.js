@@ -367,7 +367,7 @@
  <div class="pomo-center"><span class="pomo-mode" id="pomoMode">Foco</span><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-set-line" id="pomoSetLine"></span><p class="pomo-flash" id="pomoIdleLabel" hidden></p><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 9.5h1.5a2.5 2.5 0 0 1 0 5H16"/></svg><span>Começar pausa</span></button></div></div>
  <div class="pomo-swap">
   <div class="pomo-plan-wrap" id="pomoConfig" role="group" aria-label="Plano da sessão"><div class="pomo-plan"><button type="button" data-duration="focus"><span class="pomo-plan-icon">${icon(I2.stopwatch)}</span><span><b id="pomoFocusMin"></b><small>foco</small></span></button><button type="button" data-duration="short"><span class="pomo-plan-icon">${icon(I2.cup)}</span><span><b id="pomoShortMin"></b><small>pausa</small></span></button></div>
-  <div class="pomo-plan-chips"><button type="button" class="pomo-plan-chip" id="pomoPlanSets">${icon(I2.stack)}<span id="pomoChipSets"></span></button><span class="pomo-plan-chip" id="pomoChipFocus">${icon(I.clock)}<span></span></span><span class="pomo-plan-chip" id="pomoChipEnd">${icon(I.flag)}<span class="pomo-chip-long"></span><span class="pomo-chip-short" aria-hidden="true"></span></span></div></div>
+  <div class="pomo-plan-chips"><span class="pomo-plan-chip" id="pomoPlanSets">${icon(I2.stack)}<span id="pomoChipSets"></span></span><span class="pomo-plan-chip" id="pomoChipFocus">${icon(I.clock)}<span></span></span><span class="pomo-plan-chip" id="pomoChipEnd">${icon(I.flag)}<span class="pomo-chip-long"></span><span class="pomo-chip-short" aria-hidden="true"></span></span></div></div>
   <div class="pomo-goal" id="pomoGoal" hidden><div class="pomo-goal-top"><span class="pomo-count" id="pomoGoalTitle"><span>Série </span><b id="pomoDone">1</b><span id="pomoTarget"> de 4</span></span><span class="pomo-long-pill" id="pomoLongPill"></span><button type="button" class="pomo-skip" id="pomoSkip">Pular ${icon(I.skip)}</button></div>
   <div class="pomo-segments" id="pomoSegments"></div><p class="pomo-left"><b id="pomoLeft"></b> · <span id="pomoNudge"></span></p></div>
  </div>
@@ -409,7 +409,7 @@
  function paintPlanChips(){
   const c=state.config,end=new Date(now()+planMinutes(c)*60000),start=new Date(now());
   const clock=`${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}`,nextDay=end.toDateString()!==start.toDateString();
-  $('pomoChipSets').textContent=`${c.targetSets} ${c.targetSets===1?'série':'séries'}`;$('pomoPlanSets').setAttribute('aria-label',`${$('pomoChipSets').textContent}: mudar as séries`);
+  $('pomoChipSets').textContent=`${c.targetSets} ${c.targetSets===1?'série':'séries'}`;
   $('pomoChipFocus').lastElementChild.textContent=`${hm(c.focusMin*c.targetSets)} de foco`;
   // phones get the short form so the three pills fit on one line
   $('pomoChipEnd').querySelector('.pomo-chip-long').textContent=`Termina ${nextDay?'amanhã ':'às '}${clock}`;$('pomoChipEnd').querySelector('.pomo-chip-short').textContent=`até ${clock}`;
@@ -608,7 +608,6 @@
  $('pomoSkip').onclick=()=>actions.skip();
  $('pomoSideLeft').onclick=()=>state.timer.status==='idle'?openSound():actions.discard();
  $('pomoSideRight').onclick=()=>state.timer.status==='idle'?openSets():actions.finish();
- $('pomoPlanSets').onclick=openSets;
  $('pomoFlowBreak').onclick=()=>actions.startBreak();
  $('pomoTask').onclick=()=>{if(state.timer.status==='idle')openTask();};
  $('pomoNotesChip').onclick=()=>openNotes();

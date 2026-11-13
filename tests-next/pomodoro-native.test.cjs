@@ -77,7 +77,7 @@ async function app(){
  // Blocking other apps during focus (Android app only): in the Séries sheet under "Pausa longa", off by default.
  assert.equal(w.PELEJA_POMODORO_SETTINGS.querySelector('#pomoBlockCard'),null,'no longer in Configurações');
  P.state().prefs.notify=true;P.state().config.flow=false;P.actions.stop();await tick();
- const D=$('pomoDialog');$('pomoPlanSets').click();await tick(40);
+ const D=$('pomoDialog');$('pomoSideRight').click();await tick(40);
  const card=D.querySelector('#pomoBlockCard');assert.ok(card,'section in the Séries sheet');
  assert.ok(card.previousElementSibling.querySelector('#pomoLongOn'),'right under Pausa longa');
  assert.equal(D.querySelector('#pomoBlockApps').hidden,true);
