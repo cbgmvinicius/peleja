@@ -141,7 +141,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  }
  async function renderSetup(){
   hideTip();clearPause();
-  screen='setup';session=null;stopClock();clockBase=0;
+  screen='setup';session=null;renderedKey='';stopClock();clockBase=0;
   $s('solverKicker').textContent='RESOLVER QUESTÕES';$s('solverTitle').textContent=material.kind==='exam'?`Prova inteira · ${material.title}`:material.title;$s('solverProgress').hidden=true;tick();
   const body=$s('solverBody'),list=setsFor(material);body.replaceChildren();
   // A session in progress comes first; the new-session choices below step back while it exists.
@@ -354,6 +354,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
 
  // ---------- question ----------
  function revealed(q){return reviewing||(cfg().reveal==='each'&&answerOf(q).o!=null);}
+ // Which control had the focus, by kind and option row, to give it back after a redraw without scrolling.
+ let renderedKey='';
+ function focusKey(body){const a=document.activeElement;if(!a||!body.contains(a))return null;const li=a.closest('.solver-option');return {cls:[...a.classList].find(c=>c.startsWith('solver-'))||'',row:li?[...li.parentElement.children].indexOf(li):-1};}
+ function restoreFocus(body,k){if(!k)return;const li=k.row>=0?body.querySelectorAll('.solver-option')[k.row]:body;const t=li?.querySelector('.'+k.cls)||(k.row>=0?li?.querySelector('.solver-pick'):null);try{t?.focus({preventScroll:true});}catch{}}
  function renderQuestion(dir=0){
   hideTip();
   screen='question';const q=order()[position],item=questions[q],answer=answerOf(q),show=revealed(q),total=order().length;
@@ -393,7 +397,11 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   if(tools.childElementCount)content.append(tools);
   if(hintPanel)content.append(hintPanel);
   if(show&&cfg().reveal==='each'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
-  body.replaceChildren(content);body.scrollTop=0;
+  // Same question redrawn (scissors, marking, confirming, hint): keep the scroll and the focus where they were,
+  // so a tap never throws the question back to the top (phones). A new question starts at the top.
+  const key=`${position}:${reviewing}:${session.id}`,same=key===renderedKey,keep=same?{top:body.scrollTop,focus:focusKey(body)}:null;renderedKey=key;
+  body.replaceChildren(content);
+  if(keep){body.scrollTop=keep.top;restoreFocus(body,keep.focus);}else body.scrollTop=0;
   if(dir)motion(content,[{opacity:0,transform:`translateX(${dir*14}px)`},{opacity:1,transform:'none'}],{duration:240,easing:EASE});
   renderQuestionFoot();
  }
@@ -492,7 +500,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  // ---------- result ----------
  function status(q){const a=answerOf(q);return a.o==null?'skipped':isCorrect(q,a.o)?'right':'wrong';}
  function renderResult(){
-  clearPause();screen='result';reviewing=false;stopClock();
+  clearPause();screen='result';reviewing=false;renderedKey='';stopClock();
   const all=order(),counts={right:0,wrong:0,skipped:0};all.forEach(q=>counts[status(q)]++);
   const total=all.length,pct=Math.round(counts.right/total*100);
   $s('solverKicker').textContent=session.mode==='prova'?'RESULTADO DA PROVA':'RESULTADO DO TREINO';$s('solverProgress').hidden=true;

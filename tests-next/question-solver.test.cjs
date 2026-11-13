@@ -62,7 +62,10 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  assert.equal(q('#solverKicker').textContent,'1 / 3');assert.equal(q('.solver-stem').textContent,'Q1 <b>agente</b>?','stem stays text');
  // Scissors: strike and lock an option, then bring it back.
  let options=qa('.solver-option');const wrongLi=options.find(li=>optionText(li)==='Candida');
- wrongLi.querySelector('.solver-cut').click();await tick();
+ // Phones: the scissors keep the question where it was (no jump to the top) and the focus on the same scissors.
+ let scrolled=0;Object.defineProperty($('solverBody'),'scrollTop',{configurable:true,get:()=>scrolled,set:v=>{scrolled=v;}});scrolled=180;
+ wrongLi.querySelector('.solver-cut').focus();wrongLi.querySelector('.solver-cut').click();await tick();
+ assert.equal(scrolled,180,'scissors keep the scroll');assert.ok(w.document.activeElement.classList.contains('solver-cut'),'focus stays on the scissors');
  let cut=qa('.solver-option').find(li=>optionText(li)==='Candida');assert.ok(cut.hasAttribute('data-cut'));assert.equal(cut.querySelector('.solver-pick').disabled,true);
  // Hint toggles.
  assert.equal(q('.solver-hint').hidden,true,'hint hidden until asked');q('.solver-hint-toggle').click();assert.equal(q('.solver-hint').hidden,false);
@@ -75,10 +78,10 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  options=qa('.solver-option');assert.equal(options.find(li=>optionText(li)==='Malassezia').dataset.state,'right');
  assert.equal(qa('.solver-why').length,3,'all comments shown');assert.ok(options.every(li=>li.querySelector('.solver-pick').disabled));assert.equal(q('.solver-cut'),null);
  // Q2 wrong, Q3 skipped.
- qa('#solverFoot button').find(b=>b.textContent==='Próxima').click();await tick();
+ qa('#solverFoot button').find(b=>b.textContent==='Próxima').click();await tick();assert.equal(scrolled,0,'a new question starts at the top');
  assert.equal($('solverConfirm').disabled,true);qa('.solver-option').find(li=>optionText(li)==='Nistatina').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
  assert.equal(qa('.solver-option').find(li=>optionText(li)==='Nistatina').dataset.state,'wrong');assert.equal(qa('.solver-option').find(li=>optionText(li)==='Griseofulvina').dataset.state,'right');
- qa('#solverFoot button').find(b=>b.textContent==='Próxima').click();await tick();
+ qa('#solverFoot button').find(b=>b.textContent==='Próxima').click();await tick();assert.equal(scrolled,0,'a new question starts at the top');
  assert.equal(q('#solverKicker').textContent,'3 / 3');
  qa('#solverFoot button').find(b=>b.textContent==='Finalizar').click();await tick();
  assert.equal($('confirmDialog').open,true,'skipped questions need confirmation');$('confirmAccept').click();await tick(120);
