@@ -129,7 +129,8 @@
   const switcher=el('div',{className:'pomo-period',role:'group'});switcher.setAttribute('aria-label','Período');
   for(const [key,[label]] of Object.entries(PERIODS)){const b=el('button',{type:'button',textContent:label,onclick:()=>{period=key;draw();}});b.setAttribute('aria-pressed',String(key===period));switcher.append(b);}
   const tiles=el('div',{className:'pomo-tiles'},
-   tile('Foco total',s.total?dur(s.total):'0 min',s.active?`${days(s.active)} com foco · média ${dur(s.total/s.active)}/dia`:'Sem foco no período'),
+   tile('Foco total',s.total?dur(s.total):'0 min',s.active?`${days(s.active)} com foco`:'Sem foco no período'),
+   tile('Média por dia',s.active?dur(s.total/s.active):'—',s.active?`nos ${days(s.active)} com foco`:null),
    tile('Sessões',String(s.count),s.flowExtra?`+${dur(s.flowExtra)} no flow`:null),
    tile('Horário de pico',s.peak==null?'—':`${pad(s.peak)}h`,s.peak==null?null:`entre ${pad(s.peak)}h e ${pad((s.peak+1)%24)}h`));
   panel.replaceChildren(head,streakCard(st),lastWeekCard(st.byDay),el('div',{className:'pomo-period-row'},el('h3',{textContent:'Resumo'}),switcher),tiles,tasksCard(s),yearCard(st.byDay));

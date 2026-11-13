@@ -403,8 +403,6 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const source=session.review?{id:reviewItems[q].setId,i:reviewItems[q].index,title:reviewItems[q].title}:{id:setInfo.id,i:q,title:setInfo.title};
   if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(source.id,source.i,`${source.title} · Questão ${source.i+1}`)}));
   if(tools.childElementCount)content.append(tools);
-  // keyboard help, shown only where there is a keyboard and a fine pointer (see solver.css)
-  content.append(el('p',{className:'solver-keys',textContent:reviewing||show?'← → trocam de questão':cfg().confirm?'1–5 selecionam · Enter confirma · ← → trocam de questão':'1–5 marcam · ← → trocam de questão'}));
   if(hintPanel)content.append(hintPanel);
   if(show&&cfg().reveal==='each'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
   // Same question redrawn (scissors, marking, confirming, hint): keep the scroll and the focus where they were,
@@ -568,8 +566,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  $s('solverClose').onclick=close;
  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
  // Keyboard: 1–5 act on A–E like a tap (select when confirming, mark at once on click), Enter confirms, ← → move.
- dialog.addEventListener('keydown',event=>{
-  if(screen!=='question'||event.target.closest('input,textarea')||event.ctrlKey||event.metaKey||event.altKey)return;
+ // Listens on the page, not the dialog: answering or moving redraws the question and the focus falls to <body>.
+ document.addEventListener('keydown',event=>{
+  if(!dialog.open||leave.open||document.querySelector('#confirmDialog[open]')||event.defaultPrevented)return;
+  if(screen!=='question'||event.target.closest?.('input,textarea,select,[contenteditable=true]')||event.ctrlKey||event.metaKey||event.altKey)return;
   if(/^[1-5]$/.test(event.key)){
    const q=order()[position],o=session.layout.options[q]?.[Number(event.key)-1];
    if(reviewing||clockPaused||o==null||revealed(q)||answerOf(q).x?.includes(o))return;

@@ -42,7 +42,7 @@ mine=[block('a',[11,5],9,50,'Hematologia',25),block('b',[11,5],10,25,'Hematologi
  assert.equal(p.mineCalls.length,1);
  const tiles=[...w.document.querySelectorAll('.pomo-tile')].map(t=>t.textContent);
  // week: Oct 30 .. Nov 5 → 50+25+25+40+25 = 165 min in 5 sessions over 4 days
- assert.match(tiles[0],/Foco total2h 45min/);assert.match(tiles[0],/4 dias/);
+ assert.match(tiles[0],/Foco total2h 45min/);assert.match(tiles[0],/4 dias com foco$/);assert.match(tiles[1],/^Média por dia41 minnos 4 dias com foco$/,'average per focus day in its own tile');tiles.splice(1,1);
  assert.match(tiles[1],/^Sessões5/);assert.match(tiles[1],/[+]25 min no flow/);
  assert.match(tiles[2],/Horário de pico09h/);
  // Streak hero: lit today, 3 days, record 5, next milestone 7; the week shows Tue-Thu lit.

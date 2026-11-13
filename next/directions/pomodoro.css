@@ -268,7 +268,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-insights-head h2{margin:0}
 .pomo-period-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
 .pomo-period-row h3{margin:0;font-size:15px;font-weight:600}
-.pomodoro[data-view=insights] .pomo-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pomodoro[data-view=insights] .pomo-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
 /* last 7 days */
 .pomo-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .pomo-card-head span{font-size:13px;color:var(--muted)}
@@ -288,7 +288,6 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
  .pomo-streak-top{grid-row:auto}
  .pomo-streak-week{grid-column:1;justify-content:space-between}
  .pomodoro[data-view=insights] .pomo-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
- .pomodoro[data-view=insights] .pomo-tiles .pomo-tile:first-child{grid-column:1/-1}
  .pomo-days{gap:6px}.pomo-days-track{height:110px}
 }
 .pomodoro .pomo-insights-head{display:block}
@@ -471,6 +470,5 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-plan-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}
 .app .pomo-plan-chip{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:5px 12px 5px 9px;border-radius:999px;background:var(--soft);color:var(--ink);font-size:13px;font-weight:500;white-space:nowrap}
 .pomodoro .pomo-plan-chip svg{width:16px;height:16px;flex:none;color:var(--muted)}
-.app button.pomo-plan-chip:hover{background:color-mix(in srgb,var(--accent) 14%,var(--soft))}
 .pomo-chip-short{display:none}
 @media (max-width:520px){.pomo-chip-long{display:none}.pomo-chip-short{display:inline}.pomo-plan-chips{gap:6px}.app .pomo-plan-chip{padding:5px 10px 5px 8px;font-size:12.5px}}

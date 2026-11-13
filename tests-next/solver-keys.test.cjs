@@ -42,7 +42,7 @@ const radio=(p,name,value)=>{const r=p.q(`input[name=${name}][value=${value}]`);
 
 (async()=>{
  const p=await app();const {w,$,q,qa,state}=p;
- const press=(key,extra={})=>{$('solverBody').dispatchEvent(new w.KeyboardEvent('keydown',{key,bubbles:true,...extra}));return tick();};
+ const press=(key,extra={})=>{w.document.activeElement?.blur?.();w.document.body.dispatchEvent(new w.KeyboardEvent('keydown',{key,bubbles:true,...extra}));return tick();};
  const current=()=>state.sessions[0];
  const layoutQ=()=>{const s=current();return s.layout.questions[Number(q('#solverKicker').textContent.match(/(\d+) \//)[1])-1];};
  // A choice saved back when Treino asked for confirmation is read as the new Treino (on click).
@@ -66,17 +66,14 @@ const radio=(p,name,value)=>{const r=p.q(`input[name=${name}][value=${value}]`);
  await press('9');assert.equal(q('.solver-why'),null,'no option 9');
  // a struck-out option ignores its number
  qa('.solver-option')[0].querySelector('.solver-cut').click();await tick();await press('1');assert.equal(q('.solver-why'),null,'struck out: ignored');
- assert.match(q('.solver-keys').textContent,/1–5 marcam/);
+ assert.equal(q('.solver-keys'),null,'no shortcuts line on screen');
  // ---- Personalizar > Com confirmação: a number only selects; Enter records it ----
  $('solverClose').click();await tick(60);if($('solverLeave').open){$('solverDiscard').click();await tick(80);}
  q('[data-solve]').click();await tick(120);radio(p,'solverMode','prova');pickOpt(p,'solverOpt-confirm','true');
  $('solverStart').click();await tick(80);
  await press('2');assert.equal(qa('.solver-option')[1].dataset.state,'chosen','selected, not answered');assert.equal(Object.keys(current().answers).length,0);
- assert.match(q('.solver-keys').textContent,/1–5 selecionam · Enter confirma/);
  await press('Enter');await tick(20);assert.match(q('#solverKicker').textContent,/^2 \/ 3/,'Enter records and moves on (key at the end)');
  await press('ArrowLeft');assert.equal(qa('.solver-option')[1].dataset.state,'marked');
- // The keys line hides on touch screens (CSS media query).
- assert.match(fs.readFileSync(path.join(root,'solver.css'),'utf8'),/@media \(hover:hover\) and \(pointer:fine\)\{\.solver-keys\{display:block\}\}/);
  console.log('PASS solver keys: 1–5 mark on click / select with confirmation (shuffled, struck-out and answered ignored, no Ctrl), Enter confirms, arrows move, quick modes on click, old saved Treino migrates');
  w.close();
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>setTimeout(()=>process.exit(),50));
