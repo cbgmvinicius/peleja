@@ -1,5 +1,8 @@
 globalThis.PELEJA_INSTALL_DASHBOARD=({client,getUser,getName})=>{
  let rows=null,generation=0,failed=false;
+ // CardioPapers lessons due until today, from the schedule here (pause + exam weeks): the server counts every
+ // member's goal over exactly these, so the whole ranking uses the same schedule.
+ const cardioDueIds=()=>{const today=localQuestionDate();return scheduledExtra.filter(l=>extraDates.get(l.id)<=today).map(l=>l.id);};
  dashboardSubjectCodes=()=>{
   const exams=dashboardUpcoming(),date=exams.find(e=>e.date)?.date;
   return [...new Set(exams.filter(e=>!dashboardNextOnly||(date&&e.date===date)).flatMap(e=>e.materialCodes))].filter(code=>data.some(m=>m.code===code));
@@ -24,6 +27,6 @@ globalThis.PELEJA_INSTALL_DASHBOARD=({client,getUser,getName})=>{
  renderDashboard=()=>{originalRender();$('dashboardPage').querySelector('.dashboard-comparison-context>span:last-child')?.remove();};
  return {
   reset(){generation++;rows=null;failed=false;$('dashboardPage').replaceChildren();},
-  async load(){const ticket=++generation,owner=getUser();try{const [result,privacy]=await Promise.all([client.rpc('study_progress_next',{p_day:localQuestionDate()}),Promise.resolve(client.rpc('ranking_privacy_list')).catch(()=>({data:[]}))]);if(ticket!==generation||owner!==getUser())return;if(result.error||!Array.isArray(result.data))throw Error('Comparativo indisponível');const mode=new Map((Array.isArray(privacy?.data)?privacy.data:[]).map(p=>[p.userId,p.mode]));rows=result.data.filter(r=>r.user_id===owner||mode.get(r.user_id)!=='hidden').map(r=>r.user_id!==owner&&mode.get(r.user_id)==='anonymous'?{...r,name:'Anônimo',anonymous:true}:r);failed=false;}catch{if(ticket!==generation||owner!==getUser())return;rows=null;failed=true;}renderDashboard();return !failed;}
+  async load(){const ticket=++generation,owner=getUser();try{const [result,privacy]=await Promise.all([client.rpc('study_progress_next',{p_day:localQuestionDate(),p_due:cardioDueIds()}),Promise.resolve(client.rpc('ranking_privacy_list')).catch(()=>({data:[]}))]);if(ticket!==generation||owner!==getUser())return;if(result.error||!Array.isArray(result.data))throw Error('Comparativo indisponível');const mode=new Map((Array.isArray(privacy?.data)?privacy.data:[]).map(p=>[p.userId,p.mode]));rows=result.data.filter(r=>r.user_id===owner||mode.get(r.user_id)!=='hidden').map(r=>r.user_id!==owner&&mode.get(r.user_id)==='anonymous'?{...r,name:'Anônimo',anonymous:true}:r);failed=false;}catch{if(ticket!==generation||owner!==getUser())return;rows=null;failed=true;}renderDashboard();return !failed;}
  };
 };
