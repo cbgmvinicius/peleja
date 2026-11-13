@@ -403,8 +403,6 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const source=session.review?{id:reviewItems[q].setId,i:reviewItems[q].index,title:reviewItems[q].title}:{id:setInfo.id,i:q,title:setInfo.title};
   if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(source.id,source.i,`${source.title} · Questão ${source.i+1}`)}));
   if(tools.childElementCount)content.append(tools);
-  // keyboard help, shown only where there is a keyboard and a fine pointer (see solver.css)
-  content.append(el('p',{className:'solver-keys',textContent:reviewing||show?'← → trocam de questão':cfg().confirm?'1–5 selecionam · Enter confirma · ← → trocam de questão':'1–5 marcam · ← → trocam de questão'}));
   if(hintPanel)content.append(hintPanel);
   if(show&&cfg().reveal==='each'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
   // Same question redrawn (scissors, marking, confirming, hint): keep the scroll and the focus where they were,
