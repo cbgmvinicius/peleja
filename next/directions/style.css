@@ -639,3 +639,20 @@ body.review-dark{background:#141413;color:#f1eee7}
 @media(prefers-reduced-motion:reduce){html:not([data-peleja-motion=on]) .exam-countdown{animation:none}}
 html[data-peleja-motion=off] .exam-countdown{animation:none}
 .dashboard-exam-heading .exam-countdown{margin-left:0}
+/* Simulado > Desempenho: everything on one screen on desktop/tablet (score and numbers on one line, one line per area),
+   and the classification on the right picks whose performance shows on the left. */
+.performance-summary{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.performance-personal .performance-summary .performance-score{margin:0;line-height:1}
+#performanceContent .performance-summary .stats{flex:1;min-width:220px;margin:0;padding:0}
+#performanceContent .performance-bar{margin:12px 0 18px}
+#performanceContent .mock-areas{margin-bottom:18px}#performanceContent .chart-heading{margin-bottom:6px}
+#performanceContent .area-chart-row{display:grid;grid-template-columns:minmax(0,12em) minmax(0,1fr) auto;align-items:center;gap:12px;margin-top:9px}
+#performanceContent .area-chart-label{margin:0;min-width:0}#performanceContent .area-chart-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#performanceContent .area-chart-counts{margin:0;gap:10px;font-size:11px;white-space:nowrap}
+#performanceContent .area-chart-counts span:first-child{color:var(--chart-correct-ink)}#performanceContent .area-chart-counts span+span{color:var(--chart-wrong-ink)}
+.performance-who{display:flex;align-items:center;gap:10px;min-width:0}.performance-who span{overflow-wrap:anywhere}.performance-who .ranking-avatar{width:28px;height:28px;flex:0 0 28px}
+#performanceContent [data-performance-person]{cursor:pointer;transition:background-color .15s}
+#performanceContent [data-performance-person]:hover{background:var(--soft)}
+#performanceContent [data-performance-person].is-selected{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent)}
+#performanceContent [data-performance-person]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+@container(max-width:700px){#performanceContent .area-chart-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}#performanceContent .area-chart-label{grid-row:1;grid-column:1}#performanceContent .area-chart-counts{grid-row:1;grid-column:2}#performanceContent .area-chart-track{grid-row:2;grid-column:1/-1}}

@@ -36,11 +36,12 @@ function mockPersonAvatar(person){
   const photo=typeof mockAvatars!=='undefined'?mockAvatars[person.name]:null;
   return photo?`<img class="ranking-avatar" src="${photo}" alt="" width="36" height="36">`:`<span class="ranking-avatar avatar-initial" aria-hidden="true">${escapeHtml(person.name.trim().charAt(0))}</span>`;
 }
-function mockClassification(participants,general=false){
+const mockPersonKey=p=>String(p?.userId||p?.name||'');
+function mockClassification(participants,general=false,selected=null){
   const ranked=[...participants].filter(p=>p.q>0).sort((a,b)=>b.c/b.q-a.c/a.q||a.name.localeCompare(b.name,'pt-BR'));
   if(!ranked.length)return '<p class="performance-missing">Nenhum resultado neste período.</p>';
   if(general)return `<div class="ranking-table-wrap"><table class="ranking-table"><thead><tr><th scope="col">#</th><th scope="col">Pessoa</th><th scope="col">Aproveitamento</th><th scope="col">Acertos</th><th scope="col">Questões</th><th scope="col">Simulados</th></tr></thead><tbody>${ranked.map(person=>{const rank=ranked.findIndex(p=>p.c*person.q===person.c*p.q)+1,pct=person.c/person.q*100;return `<tr data-ranking-person="${escapeHtml(person.name)}" class="${person.me?'is-me':''}"><td>${rank}º</td><th scope="row"><span class="ranking-person">${mockPersonAvatar(person)}<span>${escapeHtml(person.name)}${person.me?'<small>Você</small>':''}</span></span></th><td><div class="ranking-pct"><b data-motion-value="${pct}" data-motion-format="percent">${pct.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b><span><i data-motion-bar style="width:${pct}%"></i></span></div></td><td><span class="ranking-mobile-label">Acertos</span><span data-motion-value="${person.c}">${person.c}</span></td><td><span class="ranking-mobile-label">Questões</span><span data-motion-value="${person.q}">${person.q}</span></td><td><span class="ranking-mobile-label">Simulados</span><span data-motion-value="${person.count}">${person.count}</span></td></tr>`;}).join('')}</tbody></table></div>`;
-  return `<section class="mock-comparison" aria-label="Classificação do simulado"><h3>Neste simulado</h3><ol>${ranked.map(person=>{const rank=ranked.findIndex(p=>p.c*person.q===person.c*p.q)+1;return `<li class="${person.me?'is-me':''}"><span class="mock-place">${rank}º</span><strong class="ranking-person">${mockPersonAvatar(person)}<span>${escapeHtml(person.name)}${person.me?'<small>Você</small>':''}</span></strong><b>${(person.c/person.q*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b></li>`;}).join('')}</ol></section>`;
+  return `<section class="mock-comparison" aria-label="Classificação do simulado"><h3>Neste simulado</h3><ol>${ranked.map(person=>{const rank=ranked.findIndex(p=>p.c*person.q===person.c*p.q)+1;const pick=selected!=null,on=pick&&mockPersonKey(person)===selected;return `<li class="${person.me?'is-me':''}${on?' is-selected':''}"${pick?` data-performance-person="${escapeHtml(mockPersonKey(person))}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${escapeHtml(person.me?'Ver o meu desempenho':'Ver o desempenho de '+person.name)}"`:''}><span class="mock-place">${rank}º</span><strong class="ranking-person">${mockPersonAvatar(person)}<span>${escapeHtml(person.name)}${person.me?'<small>Você</small>':''}</span></strong><b>${(person.c/person.q*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}%</b></li>`;}).join('')}</ol></section>`;
 }
 let mockRankingPeriod='all',mockRankingArea='all';
 const rankingAreaNames=['Clínica Médica','Cirurgia','Pediatria','Ginecologia e Obstetrícia','Medicina Preventiva'];
@@ -73,17 +74,46 @@ function renderGeneralRanking(){
 }
 function showGeneralRanking(){showMockView('performancePage','navPerformance');renderGeneralRanking();}
 let performanceAnimation=null,performanceClosing=false,performanceOpener=null;
-function showMockPerformance(id=performanceId){
+// The left panel shows one person's result in this simulation: mine by default, or whoever is picked in the
+// classification on the right (their score, questions and areas). Only my own result can be added or edited.
+let performancePerson=null;
+function performancePanel(e,person){
+  const me=!person||person.me,q=me?e.q:person.q,c=me?e.c:person.c,areas=((me?e.areas:person.areas)||[]).filter(a=>a.q>0);
+  const percent=c==null||!q?null:Math.round(c/q*100),label=a=>a.name.replace('Medicina Preventiva / Saúde Coletiva','Medicina Preventiva');
+  const title=me?'<h3>Meu desempenho</h3>':`<h3 class="performance-who">${mockPersonAvatar(person)}<span>Desempenho de ${escapeHtml(person.name)}</span></h3>`;
+  const breakdown=areas.length?`<section class="mock-areas area-chart"><div class="chart-heading"><h3>Por grande área</h3><div class="chart-legend"><span>Acertos</span><span>Erros</span></div></div>${areas.map(a=>`<div class="area-chart-row"><div class="area-chart-label"><span>${escapeHtml(label(a))}</span><b>${Math.round(a.c/a.q*100)}%</b></div><div class="area-chart-track" role="img" aria-label="${escapeHtml(label(a))}: ${a.c} acertos e ${a.w} erros em ${a.q} questões"><span class="area-chart-correct" style="width:${a.c/a.q*100}%"></span><span class="area-chart-wrong" style="width:${a.w/a.q*100}%"></span></div><div class="area-chart-counts"><span>${a.c} acertos</span><span>${a.w} erros</span></div></div>`).join('')}</section>`:'';
+  const body=percent==null?'<p class="performance-missing">Resultado ainda não registrado.</p>':`<div class="performance-summary"><strong class="performance-score">${percent}%</strong><div class="stats"><span>Questões<b>${q}</b></span><span class="correct">Acertos<b>${c}</b></span><span class="wrong">Erros<b>${q-c}</b></span></div></div><div class="performance-bar" role="img" aria-label="${percent}% de acertos"><span style="width:${percent}%"></span></div>${breakdown}`;
+  const action=me?`<button type="button" id="performanceResult" class="primary">${e.c==null?'Adicionar resultado':'Editar resultado'}</button>`:'<button type="button" id="performanceMine" class="editor-cancel">Voltar ao meu</button>';
+  return `<div class="performance-personal" data-showing="${me?'me':'other'}">${title}${body}${action}</div>`;
+}
+function showMockPerformance(id=performanceId,person=undefined){
   const e=mockExams.find(x=>x.id===id);if(!e)return;
-  performanceId=id;closeMockMenu();performanceOpener=document.activeElement;performanceAnimation?.cancel();performanceClosing=false;
-  const dialog=$('performanceDialog');dialog.classList.remove('is-closing');dialog.setAttribute('aria-label','Desempenho: '+e.name);
-  const percent=e.c==null?null:Math.round(e.c/e.q*100),areas=(e.areas||[]).map(a=>({...a}));
-  
-  const breakdown=areas.length?`<section class="mock-areas area-chart"><div class="chart-heading"><h3>Por grande área</h3><div class="chart-legend"><span>Acertos</span><span>Erros</span></div></div>${areas.filter(a=>a.q>0).map(a=>`<div class="area-chart-row"><div class="area-chart-label"><span>${escapeHtml(a.name.replace('Medicina Preventiva / Saúde Coletiva','Medicina Preventiva'))}</span><b>${Math.round(a.c/a.q*100)}%</b></div><div class="area-chart-track" role="img" aria-label="${escapeHtml(a.name.replace('Medicina Preventiva / Saúde Coletiva','Medicina Preventiva'))}: ${a.c} acertos e ${a.w} erros em ${a.q} questões"><span class="area-chart-correct" style="width:${a.c/a.q*100}%"></span><span class="area-chart-wrong" style="width:${a.w/a.q*100}%"></span></div><div class="area-chart-counts"><span>${a.c} acertos</span><span>${a.w} erros</span></div></div>`).join('')}</section>`:'';
-  $('performanceContent').innerHTML=`<div class="performance-personal"><h3>Meu desempenho</h3>${percent==null?'<p class="performance-missing">Resultado ainda não registrado.</p>':`<strong class="performance-score">${percent}%</strong><div class="performance-bar" role="img" aria-label="${percent}% de acertos"><span style="width:${percent}%"></span></div><div class="stats"><span>Questões<b>${e.q}</b></span><span class="correct">Acertos<b>${e.c}</b></span><span class="wrong">Erros<b>${e.q-e.c}</b></span></div>${breakdown}`}<button type="button" id="performanceResult" class="primary">${percent==null?'Adicionar resultado':'Editar resultado'}</button></div>${mockClassification(mockParticipants(e))}`;
-  $('performanceResult').onclick=()=>closeMockPerformance(()=>openMock(e.id,true));
+  const switching=$('performanceDialog').open&&id===performanceId&&person!==undefined;
+  if(id!==performanceId||(!$('performanceDialog').open&&person===undefined))performancePerson=null;
+  if(person!==undefined)performancePerson=person;
+  performanceId=id;closeMockMenu();
+  const dialog=$('performanceDialog');
+  const people=mockParticipants(e),mine=people.find(p=>p.me),selected=people.find(p=>mockPersonKey(p)===performancePerson&&!p.me)||null;
+  if(!selected)performancePerson=null;
+  $('performanceContent').innerHTML=performancePanel(e,selected)+mockClassification(people,false,selected?mockPersonKey(selected):mockPersonKey(mine));
+  $('performanceResult')?.addEventListener('click',()=>closeMockPerformance(()=>openMock(e.id,true)));
+  $('performanceMine')?.addEventListener('click',()=>showMockPerformance(id,null));
+  if(switching){
+   // a pick keeps the focus in the list and only the left panel moves
+   const back=[...$('performanceContent').querySelectorAll('[data-performance-person]')].find(li=>li.dataset.performancePerson===(selected?mockPersonKey(selected):mockPersonKey(mine)));
+   if(document.activeElement===document.body||!dialog.contains(document.activeElement))back?.focus({preventScroll:true});
+   // one column (phone): the panel is above the list, so bring it into view
+   if(getComputedStyle($('performanceContent')).gridTemplateColumns.trim().split(/\s+/).length<2)dialog.scrollTo?.({top:0,behavior:matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+   motion($('performanceContent').querySelector('.performance-personal'),[{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:200,easing:'ease-out'});
+   return;
+  }
+  performanceOpener=document.activeElement;performanceAnimation?.cancel();performanceClosing=false;
+  dialog.classList.remove('is-closing');dialog.setAttribute('aria-label','Desempenho: '+e.name);
   if(!dialog.open)dialog.showModal();$('performanceClose').focus();performanceAnimation=motion(dialog,[{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'ease-out'});
 }
+// Picking someone in the classification (click, Enter or Space).
+$('performanceContent').addEventListener('click',event=>{const li=event.target.closest('[data-performance-person]');if(!li)return;showMockPerformance(performanceId,li.dataset.performancePerson);});
+$('performanceContent').addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const li=event.target.closest('[data-performance-person]');if(!li)return;event.preventDefault();showMockPerformance(performanceId,li.dataset.performancePerson);});
 function closeMockPerformance(done=null){
   if(performanceClosing||!$('performanceDialog').open)return;
   const dialog=$('performanceDialog'),style=getComputedStyle(dialog),start={opacity:style.opacity,transform:style.transform};performanceClosing=true;performanceAnimation?.cancel();dialog.classList.add('is-closing');
