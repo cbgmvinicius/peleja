@@ -472,3 +472,8 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomodoro .pomo-plan-chip svg{width:16px;height:16px;flex:none;color:var(--muted)}
 .pomo-chip-short{display:none}
 @media (max-width:520px){.pomo-chip-long{display:none}.pomo-chip-short{display:inline}.pomo-plan-chips{gap:6px}.app .pomo-plan-chip{padding:5px 10px 5px 8px;font-size:12.5px}}
+/* Notifications: why they cannot show yet, and the one action that fixes it */
+.pomo-notify-note{display:flex;align-items:center;gap:12px;margin:-4px 0 6px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,#c58a3c 12%,var(--surface));font-size:13px;line-height:1.35}
+.pomo-notify-note p{margin:0;flex:1;color:var(--ink)}
+.app .pomo-notify-fix{flex:none;padding:7px 12px;border-radius:999px;background:var(--button);color:var(--onbutton);font-size:13px;font-weight:600}
+.pomo-notify-note[hidden],.pomo-notify-fix[hidden]{display:none}

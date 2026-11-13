@@ -417,8 +417,8 @@
  function render(){
   const t=state.timer,c=state.config,active=t.status!=='idle',running=t.status==='running';
   page.dataset.mode=t.mode;page.dataset.status=t.status;page.dataset.active=String(active);
-  $('pomoTaskName').textContent=state.task||'No que você vai focar?';$('pomoTask').classList.toggle('is-empty',!state.task);$('pomoTask').disabled=active;
-  $('pomoTask').setAttribute('aria-label',active?'Tarefa: '+(state.task||'sem nome'):'Escolher a tarefa');
+  $('pomoTaskName').textContent=state.task||'No que você vai focar?';$('pomoTask').classList.toggle('is-empty',!state.task);$('pomoTask').disabled=false;$('pomoTask').dataset.locked=String(t.status==='running');
+  $('pomoTask').setAttribute('aria-label',t.status==='running'?'Tarefa: '+(state.task||'sem nome')+'. Pause para trocar':t.status==='paused'?'Trocar a tarefa':'Escolher a tarefa');
   $('pomoStatus').dataset.on=String(running);$('pomoStatus').lastElementChild.textContent=running?'Ativo':'Parado';
   const none=!state.sound.enabled,muted=!none&&state.sound.muted,name=SOUNDS.find(s=>s[0]===state.sound.id)?.[1]||'Sem som';
   $('pomoSoundChip').innerHTML=icon(none||muted?I.mute:I.sound)+`<span>${none?'Sem som':muted?'Mudo':name}</span>`;
@@ -497,6 +497,17 @@
  function syncRoutines(){saveRoutines?.(state.templates.map(t=>({id:String(t.id).slice(0,60),name:t.name,focusMin:t.focusMin,shortMin:Math.max(1,t.shortMin),targetSets:t.targetSets,longEnabled:!!t.longEnabled,longMin:t.longMin,longEvery:Math.max(1,t.longEvery)})));}
  const describe=t=>`${t.focusMin} + ${t.shortMin} min · ${t.targetSets}×`;
  const configOf=()=>{const c=state.config;return {focusMin:c.focusMin,shortMin:c.shortMin,targetSets:c.targetSets,longEnabled:c.longEnabled,longMin:c.longMin,longEvery:c.longEvery};};
+ // With the session paused the task can be renamed: only the name (a routine would change the times mid-session).
+ // The focus in progress is saved under the new name when it ends.
+ function renameTask(){
+  const input=el('input',{type:'text',maxLength:80,value:state.task,placeholder:'Ex.: Hematologia, PR2.2, Revisão…',id:'pomoTaskInput',autocomplete:'off'});
+  const done=()=>{const name=input.value.trim().slice(0,80);if(name!==state.task){state.task=name;touch();applied();updateOngoing();globalThis.toast?.('Tarefa trocada','edit');}dialog.close();};
+  const clear=el('button',{type:'button',className:'pomo-input-clear',innerHTML:icon(I2.close),onclick:()=>{input.value='';input.focus();clear.hidden=true;}});clear.setAttribute('aria-label','Limpar');clear.hidden=!input.value;
+  const setTask=el('button',{type:'button',className:'pomo-input-go',id:'pomoSetTask',textContent:'Ok',onclick:done});
+  input.oninput=()=>{clear.hidden=!input.value;};input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();done();}};
+  openSheet('task','Trocar a tarefa','Vale para o foco em andamento e os próximos.',el('div',{className:'pomo-input'},input,clear,setTask));
+  setTimeout(()=>input.focus(),60);
+ }
  function openTask(){
   const input=el('input',{type:'text',maxLength:80,value:state.task,placeholder:'Ex.: Hematologia, PR2.2, Revisão…',id:'pomoTaskInput',autocomplete:'off'});
   const clear=el('button',{type:'button',className:'pomo-input-clear',innerHTML:icon(I2.close),onclick:()=>{input.value='';input.focus();sync();}});clear.setAttribute('aria-label','Limpar');
@@ -609,7 +620,7 @@
  $('pomoSideLeft').onclick=()=>state.timer.status==='idle'?openSound():actions.discard();
  $('pomoSideRight').onclick=()=>state.timer.status==='idle'?openSets():actions.finish();
  $('pomoFlowBreak').onclick=()=>actions.startBreak();
- $('pomoTask').onclick=()=>{if(state.timer.status==='idle')openTask();};
+ $('pomoTask').onclick=()=>{const s=state.timer.status;if(s==='idle')openTask();else if(s==='paused')renameTask();else globalThis.toast?.('Pause para trocar a tarefa','info');};
  $('pomoNotesChip').onclick=()=>openNotes();
  $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled)return;state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
  for(const b of page.querySelectorAll('[data-duration]'))b.onclick=()=>openDuration(b.dataset.duration);
@@ -645,10 +656,47 @@
  const notifyRow=switchRow('Notificações do Pomodoro: o timer em andamento, com Pausar ou Pular e Concluir, e um aviso quando um foco ou pausa terminar',state.prefs.notify,'pomoPrefNotify');notifyRow.classList.add('settings-row');
  card.append(effects,notifyRow);settingsPanel.append(card);
  effects.querySelector('input').onchange=e=>{state.prefs.effects=e.target.checked;save();};
- notifyRow.querySelector('input').onchange=async e=>{
-  if(e.target.checked&&!native&&typeof Notification!=='undefined'&&Notification.permission!=='granted'){const p=await Notification.requestPermission().catch(()=>'denied');if(p!=='granted'){e.target.checked=false;globalThis.toast?.('O navegador não permitiu avisos','info');}}
-  state.prefs.notify=e.target.checked;save();if(e.target.checked&&!native)await worker();updateOngoing();
+ // Whether the notifications can show at all, right under the switch: allowed (nothing), not asked yet
+ // ("Permitir"), blocked in the browser (how to unblock) or off for the Peleja app on Android ("Permitir" / "Abrir ajustes").
+ const notifyNote=el('div',{className:'pomo-notify-note',id:'pomoNotifyNote',hidden:true},el('p'),el('button',{type:'button',className:'pomo-notify-fix',id:'pomoNotifyFix'}));
+ notifyRow.after(notifyNote);
+ const nativeCall=(name,args={})=>cap?.nativePromise?cap.nativePromise('PelejaTimer',name,args):Promise.reject(Error('sem app'));
+ async function permission(){
+  if(native){try{const s=await nativeCall('notifyStatus');return s?.granted?'granted':s?.canAsk?'default':'native-denied';}catch{return 'native-unknown';}}
+  return typeof Notification==='undefined'?'unsupported':Notification.permission;
+ }
+ async function askPermission(){
+  if(native){try{const s=await nativeCall('requestNotify');return s?.granted?'granted':'native-denied';}catch{return 'native-unknown';}}
+  if(typeof Notification==='undefined')return 'unsupported';
+  try{return await Notification.requestPermission();}catch{return 'denied';}
+ }
+ async function paintNotify(){
+  const p=await permission(),input=notifyRow.querySelector('input'),text=notifyNote.querySelector('p'),fix=notifyNote.querySelector('button');
+  const blocked=p==='denied'||p==='native-denied'||p==='unsupported';
+  input.checked=state.prefs.notify&&!blocked;
+  const msg={default:['Falta o navegador permitir os avisos.','Permitir'],denied:['Bloqueado neste navegador. Libere em Configurações do site (o ícone do cadeado ao lado do endereço) e volte aqui.',''],
+   unsupported:['Este navegador não mostra notificações.',''],'native-denied':['Notificações desligadas para o Peleja no Android.','Abrir ajustes'],'native-unknown':['Se as notificações não aparecerem, libere-as para o Peleja nas configurações do Android.','']}[p];
+  notifyNote.hidden=!msg||(!state.prefs.notify&&p==='default');
+  if(msg){text.textContent=msg[0];fix.textContent=msg[1];fix.hidden=!msg[1];notifyNote.dataset.state=p;}
+  return p;
+ }
+ notifyNote.querySelector('button').onclick=async()=>{
+  const p=notifyNote.dataset.state;
+  if(p==='native-denied'){const s=await nativeCall('notifyStatus').catch(()=>null);if(s?.canAsk)await askPermission();else await nativeCall('openNotifySettings').catch(()=>{});}
+  else{const r=await askPermission();if(r==='granted'){state.prefs.notify=true;save();if(!native)await worker();updateOngoing();}}
+  paintNotify();
  };
+ notifyRow.querySelector('input').onchange=async e=>{
+  if(e.target.checked){
+   let p=await permission();if(p==='default'||(native&&p==='native-denied'))p=await askPermission();
+   if(p!=='granted'&&p!=='native-unknown'){e.target.checked=false;state.prefs.notify=false;save();await paintNotify();notifyNote.hidden=false;return;}
+  }
+  state.prefs.notify=e.target.checked;save();if(e.target.checked&&!native)await worker();updateOngoing();paintNotify();
+ };
+ paintNotify();
+ // coming back from the browser's or Android's settings
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)paintNotify();});
+ globalThis.PELEJA_POMODORO_NOTIFY=paintNotify;
  // Android app only: block other apps while a focus is running (the native AppBlocker does the blocking).
  let paintBlock=()=>{};
  async function openAllowList(back){
