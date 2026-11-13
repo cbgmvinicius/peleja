@@ -71,12 +71,12 @@ const done=(answers,at)=>{const a=Object.fromEntries(Object.entries(answers).map
  assert.equal(count(calls,'quiz_session_start'),starts,'no list session is opened (and none is replaced)');
  assert.equal($('solverKicker').textContent,'SÓ MEUS ERROS · 1 / 3');
  assert.equal(q('.solver-stem').textContent,'Q3 transmissão?','Treino keeps the order: exam list first, then subjects in topic order');
- pick(p,'Gato');await tick();$('solverConfirm').click();await tick();
+ pick(p,'Gato');await tick();
  footButton(p,'Próxima').click();await tick();assert.equal(q('.solver-stem').textContent,'Q1 <b>agente</b>?');
- pick(p,'Candida');await tick();$('solverConfirm').click();await tick();
+ pick(p,'Candida');await tick();
  footButton(p,'Próxima').click();await tick();assert.equal(q('.solver-stem').textContent,'Q2 tratamento?');
  const saves=count(calls,'quiz_session_save');
- q('#solverFoot .solver-left').click();await tick();$('confirmAccept').click();await tick(150);
+ footButton(p,'Finalizar').click();await tick();$('confirmAccept').click();await tick(150);
  assert.equal(count(calls,'quiz_session_save'),saves,'the errors round is not saved');
  assert.equal(q('.solver-score strong').firstChild.textContent,'1/3');assert.doesNotMatch(q('.solver-score .solver-note').textContent,/estatísticas/,'never counts');
  // Redo the missed ones: same questions, nothing read again.
@@ -84,7 +84,7 @@ const done=(answers,at)=>{const a=Object.fromEntries(Object.entries(answers).map
  footButton(p,'Refazer erradas').click();await tick(80);
  assert.equal($('solverKicker').textContent,'SÓ MEUS ERROS · 1 / 2');assert.equal(count(calls,'quiz_sessions_mine'),reads);
  // Leaving with answers asks once (nothing to keep), then closes; nothing is deleted.
- pick(p,'Malassezia');await tick();$('solverConfirm').click();await tick();
+ pick(p,'Malassezia');await tick();
  $('solverClose').click();await tick();
  assert.equal($('solverLeave').open,false);assert.equal($('confirmDialog').open,true);assert.equal($('confirmTitle').textContent,'Sair da rodada de erros?');
  $('confirmAccept').click();await tick(120);

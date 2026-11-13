@@ -41,7 +41,7 @@
 .pomo-flash{margin:4px 0 0;font-size:14px;line-height:1.35;white-space:pre-line;color:var(--pomo-red-ink);font-weight:600}
 .app .pomo-flow-break{margin-top:6px;padding:7px 14px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
 /* plan bar (idle) */
-.pomo-plan{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:22px;background:var(--surface);overflow:hidden}
+.pomo-plan{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid var(--line);border-radius:22px;background:var(--surface);overflow:hidden}
 .app .pomo-plan button{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 8px;background:transparent;color:var(--ink);text-align:left;transition:background .18s}
 .app .pomo-plan button+button{border-left:1px solid var(--line)}
 .app .pomo-plan button:hover{background:var(--soft)}
@@ -467,3 +467,10 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 @media (prefers-reduced-motion:reduce){.pomo-mini,.pomo-mini-dot{animation:none!important}}
 /* the legend bubble (heatmap, ranking, solver): hidden must win over its display:flex */
 .pomo-day-tip[hidden]{display:none!important}
+/* Below the plan (idle): sets · focus time · end time, small pills like the ones in Sessions */
+.pomo-plan-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}
+.app .pomo-plan-chip{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:5px 12px 5px 9px;border-radius:999px;background:var(--soft);color:var(--ink);font-size:13px;font-weight:500;white-space:nowrap}
+.pomodoro .pomo-plan-chip svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.app button.pomo-plan-chip:hover{background:color-mix(in srgb,var(--accent) 14%,var(--soft))}
+.pomo-chip-short{display:none}
+@media (max-width:520px){.pomo-chip-long{display:none}.pomo-chip-short{display:inline}.pomo-plan-chips{gap:6px}.app .pomo-plan-chip{padding:5px 10px 5px 8px;font-size:12.5px}}

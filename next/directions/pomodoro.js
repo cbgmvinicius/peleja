@@ -366,7 +366,8 @@
  <div class="pomo-ring-wrap"><svg class="pomo-ring" id="pomoRing" viewBox="0 0 300 300" aria-hidden="true"><circle class="pomo-track" cx="150" cy="150" r="128"/><path class="pomo-progress" id="pomoProgress" d=""/></svg>
  <div class="pomo-center"><span class="pomo-mode" id="pomoMode">Foco</span><strong id="pomoTime" aria-live="off">25:00</strong><span class="pomo-set-line" id="pomoSetLine"></span><p class="pomo-flash" id="pomoIdleLabel" hidden></p><button type="button" class="pomo-flow-break" id="pomoFlowBreak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 9.5h1.5a2.5 2.5 0 0 1 0 5H16"/></svg><span>Começar pausa</span></button></div></div>
  <div class="pomo-swap">
-  <div class="pomo-plan" id="pomoConfig" role="group" aria-label="Plano da sessão"><button type="button" data-duration="focus"><span class="pomo-plan-icon">${icon(I2.stopwatch)}</span><span><b id="pomoFocusMin"></b><small>foco</small></span></button><button type="button" data-duration="short"><span class="pomo-plan-icon">${icon(I2.cup)}</span><span><b id="pomoShortMin"></b><small>pausa</small></span></button><button type="button" id="pomoPlanSets"><span class="pomo-plan-icon">${icon(I2.stack)}</span><span><b id="pomoSetsCount"></b><small id="pomoSetsWord">séries</small></span></button></div>
+  <div class="pomo-plan-wrap" id="pomoConfig" role="group" aria-label="Plano da sessão"><div class="pomo-plan"><button type="button" data-duration="focus"><span class="pomo-plan-icon">${icon(I2.stopwatch)}</span><span><b id="pomoFocusMin"></b><small>foco</small></span></button><button type="button" data-duration="short"><span class="pomo-plan-icon">${icon(I2.cup)}</span><span><b id="pomoShortMin"></b><small>pausa</small></span></button></div>
+  <div class="pomo-plan-chips"><button type="button" class="pomo-plan-chip" id="pomoPlanSets">${icon(I2.stack)}<span id="pomoChipSets"></span></button><span class="pomo-plan-chip" id="pomoChipFocus">${icon(I.clock)}<span></span></span><span class="pomo-plan-chip" id="pomoChipEnd">${icon(I.flag)}<span class="pomo-chip-long"></span><span class="pomo-chip-short" aria-hidden="true"></span></span></div></div>
   <div class="pomo-goal" id="pomoGoal" hidden><div class="pomo-goal-top"><span class="pomo-count" id="pomoGoalTitle"><span>Série </span><b id="pomoDone">1</b><span id="pomoTarget"> de 4</span></span><span class="pomo-long-pill" id="pomoLongPill"></span><button type="button" class="pomo-skip" id="pomoSkip">Pular ${icon(I.skip)}</button></div>
   <div class="pomo-segments" id="pomoSegments"></div><p class="pomo-left"><b id="pomoLeft"></b> · <span id="pomoNudge"></span></p></div>
  </div>
@@ -401,6 +402,18 @@
   if(left<=1)return [c.targetSets===1?'Série única':'Última série','fecha com chave de ouro'];
   return [`Faltam ${left}`,pick(FOCUS_LINES)];
  }
+ // Under the plan (idle): the sets (the Séries sheet), the focus time alone (focus × sets) and when the whole plan
+ // ends if started now (focus + the breaks between sets, long ones where they fall; none after the last set).
+ const hm=min=>{const h=Math.floor(min/60),m=min%60;return h?(m?`${h}h ${m}m`:`${h}h`):`${m} min`;};
+ function planMinutes(c=state.config){let total=c.focusMin*c.targetSets;for(let i=1;i<c.targetSets;i++)total+=c.longEnabled&&i%c.longEvery===0?c.longMin:c.shortMin;return total;}
+ function paintPlanChips(){
+  const c=state.config,end=new Date(now()+planMinutes(c)*60000),start=new Date(now());
+  const clock=`${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}`,nextDay=end.toDateString()!==start.toDateString();
+  $('pomoChipSets').textContent=`${c.targetSets} ${c.targetSets===1?'série':'séries'}`;$('pomoPlanSets').setAttribute('aria-label',`${$('pomoChipSets').textContent}: mudar as séries`);
+  $('pomoChipFocus').lastElementChild.textContent=`${hm(c.focusMin*c.targetSets)} de foco`;
+  // phones get the short form so the three pills fit on one line
+  $('pomoChipEnd').querySelector('.pomo-chip-long').textContent=`Termina ${nextDay?'amanhã ':'às '}${clock}`;$('pomoChipEnd').querySelector('.pomo-chip-short').textContent=`até ${clock}`;
+ }
  function render(){
   const t=state.timer,c=state.config,active=t.status!=='idle',running=t.status==='running';
   page.dataset.mode=t.mode;page.dataset.status=t.status;page.dataset.active=String(active);
@@ -420,7 +433,7 @@
   $('pomoFlowBreak').hidden=!(t.mode==='focus'&&c.flow&&active);
   // below the ring: the plan bar when idle, the series track while active
   $('pomoConfig').hidden=active;$('pomoGoal').hidden=!active;
-  $('pomoFocusMin').textContent=c.focusMin+' min';$('pomoShortMin').textContent=c.shortMin+' min';$('pomoSetsCount').textContent=String(c.targetSets);$('pomoSetsWord').textContent=c.targetSets===1?'série':'séries';
+  $('pomoFocusMin').textContent=c.focusMin+' min';$('pomoShortMin').textContent=c.shortMin+' min';paintPlanChips();
   const badge=c.longEnabled&&c.longEvery<c.targetSets;$('pomoLongPill').hidden=!badge;$('pomoLongPill').textContent=badge?`longa de ${c.longMin} min`:'';
   $('pomoDone').textContent=String(Math.min(t.setsDone+(t.mode==='focus'?1:0),c.targetSets)||1);$('pomoTarget').textContent=' de '+c.targetSets;
   $('pomoGoalTitle').firstElementChild.textContent=t.mode==='focus'?'Série ':'Feitas ';
@@ -601,6 +614,8 @@
  $('pomoNotesChip').onclick=()=>openNotes();
  $('pomoSoundChip').onclick=()=>{if(!state.sound.enabled)return;state.sound.muted=!state.sound.muted;save();render();syncSound(400);};
  for(const b of page.querySelectorAll('[data-duration]'))b.onclick=()=>openDuration(b.dataset.duration);
+ // the end time moves with the clock while the plan waits
+ setInterval(()=>{if(state.timer.status==='idle'&&!page.hidden)paintPlanChips();},30000);
  setInterval(()=>{if(state.timer.status==='running'){const before=state.timer.mode+state.timer.setsDone+state.timer.status;advance();if(before!==state.timer.mode+state.timer.setsDone+state.timer.status){render();syncSound();}else if(document.hidden)draw();}},500);
  // Back on the page: it shows the phase itself, so the "pausa/foco" notices already seen can go.
  const clearAlerts=()=>{if(native||!allowed())return;worker().then(reg=>reg?.getNotifications?.({tag:'peleja-pomodoro-alert'})).then(list=>(list||[]).forEach(n=>n.close())).catch(()=>{});};

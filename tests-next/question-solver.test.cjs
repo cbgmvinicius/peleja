@@ -37,6 +37,7 @@ async function app(){
  return {w,$,calls,state,remote,q:sel=>w.document.querySelector(sel),qa:sel=>[...w.document.querySelectorAll(sel)]};
 }
 const radio=(p,name,value)=>{const r=p.q(`input[name=${name}][value=${value}]`);r.checked=true;r.closest('fieldset').dispatchEvent(new p.w.Event('change',{bubbles:true}));};
+const pickOpt=(p,name,value)=>{const r=p.q(`input[name=${name}][value=${value}]`);r.checked=true;r.dispatchEvent(new p.w.Event('change',{bubbles:true}));};
 const optionText=li=>li.querySelector('.solver-text').textContent;
 
 (async()=>{
@@ -55,6 +56,8 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  row1.click();await tick(80);
  assert.equal($('solverDialog').open,true);assert.equal($('solverTitle').textContent,'D09 Micoses');
  assert.equal(q('.solver-rename'),null,'members cannot rename');
+ // Treino now marks on click; this run uses Personalizar > Com confirmação to cover that flow.
+ assert.equal(q('input[name=solverOpt-confirm][value=false]').checked,true,'Treino marks on click by default');pickOpt(p,'solverOpt-confirm','true');
  $('solverStart').click();await tick(80);
  const start=calls.find(([n])=>n==='quiz_session_start')[1];
  assert.deepEqual(start.p_layout.questions,[0,1,2],'training keeps question order');
@@ -152,7 +155,7 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
 
  // ---- Prova ----
  q('[data-solve]').click();await tick(120);
- radio(p,'solverMode','prova');radio(p,'solverClock','timer');assert.equal(q('.solver-minutes').hidden,false);
+ radio(p,'solverMode','prova');assert.equal(q('input[name=solverOpt-confirm][value=false]').checked,true,'Prova marks on click by default');pickOpt(p,'solverOpt-confirm','true');radio(p,'solverClock','timer');assert.equal(q('.solver-minutes').hidden,false);
  q('#solverMinutes').value='2';$('solverStart').click();await tick(80);
  const exam=calls.filter(([n])=>n==='quiz_session_start').at(-1)[1];assert.equal(exam.p_mode,'prova');assert.equal(exam.p_timer,120);
  assert.deepEqual([...exam.p_layout.questions].sort(),[0,1,2]);
@@ -181,9 +184,9 @@ const optionText=li=>li.querySelector('.solver-text').textContent;
  assert.equal(examSolve.parentElement.className,'faculty-actions');assert.ok(examSolve.previousElementSibling.matches('[data-exam-menu]'),'below Mais ações');assert.ok(examSolve.nextElementSibling.matches('[data-exam-result]'),'above the result target');
  examSolve.click();await tick(120);assert.equal($('solverTitle').textContent,'Prova inteira · PR2.1 · Dermatologia');
  // the last choice (Prova) is remembered; this one goes back to Treino
- assert.equal(q('input[name=solverMode][value=prova]').checked,true,'last mode remembered');radio(p,'solverMode','treino'); const before=state.sessions.length;$('solverStart').click();await tick(80);
+ assert.equal(q('input[name=solverOpt-reveal][value=end]').checked,true,'last choices remembered');assert.equal(q('input[name=solverOpt-confirm][value=true]').checked,true);radio(p,'solverMode','treino'); const before=state.sessions.length;$('solverStart').click();await tick(80);
  assert.equal(calls.filter(([n])=>n==='quiz_session_start').at(-1)[1].p_set,'set-exam');
- qa('.solver-option').find(li=>optionText(li)==='Malassezia').querySelector('.solver-pick').click();await tick();$('solverConfirm').click();await tick();
+ qa('.solver-option').find(li=>optionText(li)==='Malassezia').querySelector('.solver-pick').click();await tick();assert.equal($('solverConfirm'),null,'Treino: a tap answers');
  qa('#solverFoot button').find(b=>b.textContent==='Finalizar').click();await tick();$('confirmAccept').click();await tick(150);
  const sessionRound=(remote.payload.questionSessions||[]).find(r=>r.id.startsWith('quiz-'));
  assert.ok(sessionRound,'recorded as a round of the discipline');assert.equal(sessionRound.subject,'Dermatologia');assert.equal(sessionRound.questions,1);assert.equal(sessionRound.correct,1);

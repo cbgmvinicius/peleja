@@ -41,10 +41,18 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  const isCorrect=(q,o)=>o!=null&&!!questions[q]?.answerOptions[o]?.isCorrect;
  const order=()=>session.layout.questions;
  // ---------- how a session behaves ----------
- const PRESETS={treino:{confirm:true,reveal:'each',shuffleQuestions:false,shuffleOptions:true},prova:{confirm:true,reveal:'end',shuffleQuestions:true,shuffleOptions:true}};
+ // Both quick modes mark on click; "Com confirmação" stays one choice away in Personalizar.
+ const PRESETS={treino:{confirm:false,reveal:'each',shuffleQuestions:false,shuffleOptions:true},prova:{confirm:false,reveal:'end',shuffleQuestions:true,shuffleOptions:true}};
  const PREF='peleja-solver-v1';
  const prefs=()=>{try{return JSON.parse(localStorage.getItem(PREF)||'{}')||{};}catch{return {};}};
  const savePrefs=change=>{try{localStorage.setItem(PREF,JSON.stringify({...prefs(),...change}));}catch{}};
+ // Saved choices from when Treino/Prova asked for confirmation become the new presets once (so they are not
+ // shown as "Personalizado"); a confirmation picked in Personalizar later stays.
+ const savedSettings=()=>{
+  const p=prefs(),s=p.settings||{};if(p.clickDefault)return s;
+  const old=Object.values(PRESETS).some(v=>Object.keys(v).every(k=>k==='confirm'?s.confirm===true:v[k]===s[k]));
+  const next=old?{...s,confirm:false}:s;savePrefs({settings:next,clickDefault:true});return next;
+ };
  const presetOf=s=>Object.entries(PRESETS).find(([,v])=>Object.keys(v).every(k=>v[k]===s[k]))?.[0]||'custom';
  const settingsOf=s=>({...(PRESETS[s?.mode]||PRESETS.treino),...(s?.layout?.settings||{})});
  const modeLabel=s=>({treino:'Treino',prova:'Prova',custom:'Personalizado'})[presetOf(settingsOf(s))];
@@ -156,7 +164,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const modes=el('fieldset',{className:'solver-group solver-pair',id:'solverModes'},el('legend',{textContent:'Modo'}));
   modes.append(choice('solverMode','treino','Treino','Gabarito e comentários a cada resposta. Questões em sequência.',true),choice('solverMode','prova','Prova','Gabarito só ao finalizar. Questões e alternativas embaralhadas.',false));
   // Personalizar: each part on its own; touching one turns the mode into "Personalizado".
-  setupSettings={...PRESETS.treino,...(prefs().settings||{})};
+  setupSettings={...PRESETS.treino,...savedSettings()};
   const seg=(key,label,options)=>{const g=el('fieldset',{className:'solver-seg'},el('legend',{textContent:label}));for(const [value,text] of options){const input=el('input',{type:'radio',name:'solverOpt-'+key,value});g.append(el('label',{},input,el('span',{textContent:text})));}g.dataset.key=key;return g;};
   const advanced=el('details',{className:'solver-advanced',id:'solverAdvanced'},el('summary',{},el('span',{textContent:'Personalizar'}),el('span',{className:'solver-custom-check',id:'solverCustomNote',innerHTML:ICON.check,hidden:true,tabIndex:0})),
    el('div',{className:'solver-advanced-body'},
@@ -395,6 +403,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const source=session.review?{id:reviewItems[q].setId,i:reviewItems[q].index,title:reviewItems[q].title}:{id:setInfo.id,i:q,title:setInfo.title};
   if(globalThis.PELEJA_SUGGEST)tools.append(el('button',{type:'button',className:'solver-suggest',textContent:'Sugerir alteração',onclick:()=>globalThis.PELEJA_SUGGEST(source.id,source.i,`${source.title} · Questão ${source.i+1}`)}));
   if(tools.childElementCount)content.append(tools);
+  // keyboard help, shown only where there is a keyboard and a fine pointer (see solver.css)
+  content.append(el('p',{className:'solver-keys',textContent:reviewing||show?'← → trocam de questão':cfg().confirm?'1–5 selecionam · Enter confirma · ← → trocam de questão':'1–5 marcam · ← → trocam de questão'}));
   if(hintPanel)content.append(hintPanel);
   if(show&&cfg().reveal==='each'&&!reviewing&&answer.o!=null)content.dataset.result=isCorrect(q,answer.o)?'right':'wrong';
   // Same question redrawn (scissors, marking, confirming, hint): keep the scroll and the focus where they were,
@@ -557,8 +567,14 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  leave.addEventListener('cancel',event=>{event.preventDefault();leave.close();startClock();});
  $s('solverClose').onclick=close;
  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+ // Keyboard: 1–5 act on A–E like a tap (select when confirming, mark at once on click), Enter confirms, ← → move.
  dialog.addEventListener('keydown',event=>{
-  if(screen!=='question'||event.target.closest('input,textarea'))return;
+  if(screen!=='question'||event.target.closest('input,textarea')||event.ctrlKey||event.metaKey||event.altKey)return;
+  if(/^[1-5]$/.test(event.key)){
+   const q=order()[position],o=session.layout.options[q]?.[Number(event.key)-1];
+   if(reviewing||clockPaused||o==null||revealed(q)||answerOf(q).x?.includes(o))return;
+   event.preventDefault();choose(q,o);return;
+  }
   if(event.key==='ArrowRight')go(1);else if(event.key==='ArrowLeft')go(-1);else if(event.key==='Enter'&&$s('solverConfirm')&&!$s('solverConfirm').disabled&&!event.target.closest('button')){event.preventDefault();$s('solverConfirm').click();}
  });
  addEventListener('pagehide',()=>{if(session?.status==='active'){clockBase=elapsed();clockStart=clockStart&&Date.now();flush().catch(()=>{});}});
