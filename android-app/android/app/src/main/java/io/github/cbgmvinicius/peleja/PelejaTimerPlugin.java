@@ -5,9 +5,16 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
+import android.Manifest;
 import android.content.Intent;
+import android.os.Build;
+
+import androidx.core.app.NotificationManagerCompat;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
@@ -26,7 +33,7 @@ import java.util.List;
 import java.util.Set;
 
 /** The page's side of the native timer (next/directions/pomodoro.js): update the plan, stop, and drain the buttons. */
-@CapacitorPlugin(name = "PelejaTimer")
+@CapacitorPlugin(name = "PelejaTimer", permissions = { @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }) })
 public class PelejaTimerPlugin extends Plugin {
     private static volatile PelejaTimerPlugin current;
 
@@ -51,6 +58,43 @@ public class PelejaTimerPlugin extends Plugin {
         try { r.put("actions", new JSArray(TimerService.drain(getContext()).toString())); }
         catch (JSONException e) { r.put("actions", new JSArray()); }
         call.resolve(r);
+    }
+
+    // ---------- notifications: can they show, ask, or open the app's notification settings ----------
+    private JSObject notifyState() {
+        JSObject r = new JSObject();
+        boolean granted = NotificationManagerCompat.from(getContext()).areNotificationsEnabled();
+        PermissionState p = Build.VERSION.SDK_INT >= 33 ? getPermissionState("notifications") : PermissionState.GRANTED;
+        r.put("granted", granted && p == PermissionState.GRANTED);
+        // asking again only helps on Android 13+ while the system still shows the prompt
+        r.put("canAsk", Build.VERSION.SDK_INT >= 33 && (p == PermissionState.PROMPT || p == PermissionState.PROMPT_WITH_RATIONALE));
+        return r;
+    }
+
+    @PluginMethod
+    public void notifyStatus(PluginCall call) { call.resolve(notifyState()); }
+
+    @PluginMethod
+    public void requestNotify(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 33 || getPermissionState("notifications") == PermissionState.GRANTED) { call.resolve(notifyState()); return; }
+        requestPermissionForAlias("notifications", call, "notifyAnswered");
+    }
+
+    @PermissionCallback
+    private void notifyAnswered(PluginCall call) { call.resolve(notifyState()); }
+
+    /** The Peleja's own notification settings (where a "don't ask again" can be undone). */
+    @PluginMethod
+    public void openNotifySettings(PluginCall call) {
+        Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { getContext().startActivity(i); }
+        catch (RuntimeException e) {
+            try { getContext().startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getContext().getPackageName())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+            catch (RuntimeException ignored) { call.reject("Não deu para abrir as configurações"); return; }
+        }
+        call.resolve();
     }
 
     // ---------- blocking other apps during focus (AppBlocker) ----------

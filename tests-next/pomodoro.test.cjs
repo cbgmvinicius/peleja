@@ -82,7 +82,14 @@ async function app(){
  // Play: focus with the ambient at full volume; side buttons become Descartar / Concluir; task locked.
  $('pomoPlay').click();await settle();
  assert.equal($('pomoStatus').textContent,'Ativo');assert.equal($('pomoSoundChip').dataset.state,'playing');
- assert.match($('pomoSideLeft').textContent,/Descartar/);assert.match($('pomoSideRight').textContent,/Concluir/);assert.equal($('pomoTask').disabled,true);
+ assert.match($('pomoSideLeft').textContent,/Descartar/);assert.match($('pomoSideRight').textContent,/Concluir/);assert.equal($('pomoTask').dataset.locked,'true');
+ // Running: the task stays (a tap only says to pause). Paused: rename it, name only, no routines; the session goes on.
+ {const D=$('pomoDialog'),before=P.state().timer.setsDone;$('pomoTask').click();await new Promise(r=>setTimeout(r,30));assert.equal(D.open,false,'running: no sheet');
+  P.actions.toggle();await new Promise(r=>setTimeout(r,30));assert.equal(P.state().timer.status,'paused');assert.equal($('pomoTask').getAttribute('aria-label'),'Trocar a tarefa');
+  $('pomoTask').click();await new Promise(r=>setTimeout(r,30));assert.equal(D.open,true);assert.equal(D.querySelector('h2').textContent,'Trocar a tarefa');assert.equal(D.querySelector('.pomo-routines'),null,'no routines mid-session');
+  const old=P.state().task,at=P.state().timer.changedAt;$('pomoTaskInput').value='Cardio revisão';$('pomoSetTask').click();await new Promise(r=>setTimeout(r,30));
+  assert.equal(P.state().task,'Cardio revisão');assert.equal($('pomoTaskName').textContent,'Cardio revisão');assert.ok(P.state().timer.changedAt>at,'synced as a change');assert.equal(P.state().timer.status,'paused','the session is not restarted');assert.equal(P.state().timer.setsDone,before);
+  P.state().task=old;P.actions.toggle();await new Promise(r=>setTimeout(r,30));assert.equal(P.state().timer.status,'running');}
  assert.equal($('pomoConfig').hidden,true);assert.equal($('pomoGoal').hidden,false);assert.equal($('pomoDone').textContent,'1');assert.equal($('pomoTarget').textContent,' de 4');
  assert.match(ambient().src,/forest/);assert.equal(ambient().paused,false);assert.ok(ambient().volume>.95);
  // Pause: silent, status Parado, same button resumes; Skip only while running.
