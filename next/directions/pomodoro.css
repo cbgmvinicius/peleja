@@ -338,9 +338,11 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-avatar[data-live=paused]::after{border-color:var(--line);border-style:dashed}
 .pomo-board{list-style:none;margin:0;padding:6px;border:1px solid var(--line);border-radius:22px;background:var(--surface);display:flex;flex-direction:column}
 .pomo-board li{display:grid;grid-template-columns:32px auto minmax(0,1fr) minmax(110px,32%);align-items:center;gap:12px;padding:12px 12px;border-radius:16px}
-.pomo-board li+li{border-top:1px solid var(--line)}
-.pomo-board li.is-me{background:color-mix(in srgb,var(--accent) 9%,var(--surface));border-top-color:transparent}
-.pomo-board li.is-me+li{border-top-color:transparent}
+/* straight dividers between rows (a border on the rounded row itself curved at its ends) */
+.pomo-board li{position:relative}
+.pomo-board li+li::before{content:'';position:absolute;top:0;left:14px;right:14px;height:1px;background:var(--line);pointer-events:none}
+.pomo-board li.is-me{background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.pomo-board li.is-me::before,.pomo-board li.is-me+li::before{display:none}
 .pomo-place{font-size:14px;font-weight:600;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .pomo-board li[data-place="1"] .pomo-place{color:#c98a1f}.pomo-board li[data-place="2"] .pomo-place{color:#8d969a}.pomo-board li[data-place="3"] .pomo-place{color:#b2734b}
 .pomo-board-name{display:flex;flex-direction:column;min-width:0}
@@ -356,8 +358,8 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .pomo-ranking-empty strong{display:block;color:var(--ink);font-size:15px}.pomo-ranking-empty p{margin:6px 0 0}
 @media (max-width:760px){.pomo-board li{grid-template-columns:26px auto minmax(0,1fr) auto;gap:10px;padding:10px 8px}.pomo-board-bar{width:72px}.pomo-board-total strong{font-size:15px}.pomo-ranking .pomo-period{width:100%;overflow-x:auto}.app .pomo-ranking .pomo-period button{flex:1;padding:6px 8px}}
 .pomo-ranking-note{margin:0;padding:10px 14px;border-radius:14px;background:var(--soft);font-size:13px;color:var(--muted)}
-.pomo-board-gap{display:block!important;padding:2px 0!important;text-align:center;color:var(--muted);letter-spacing:2px;border-top:0!important}
-.pomo-board-gap+li{border-top-color:transparent!important}
+.pomo-board-gap{display:block!important;padding:2px 0!important;text-align:center;color:var(--muted);letter-spacing:2px}
+.pomo-board-gap::before,.pomo-board-gap+li::before{display:none}
 .app .pomo-board-more{display:block;margin:10px auto 0;padding:8px 16px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:13px;font-weight:600}
 /* Ranking: status icons with a tooltip and a visible ring while paused */
 .pomo-rank-tip{white-space:normal;width:max-content;max-width:240px;text-align:center;font-size:13px;line-height:1.35}
