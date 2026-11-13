@@ -43,6 +43,12 @@ async function app(){
 
  // Idle, like Sessions: invitation in the ring, duration cards, Som | Play | Séries.
  assert.match($('pomoSetLine').textContent,/Aperte o play/);assert.equal($('pomoConfig').hidden,false);assert.equal($('pomoGoal').hidden,true);
+ // Idle plan: Foco and Pausa only (the sets live in the Séries button and the first pill), then sets · focus time · end time.
+ {const PW=$('pomoConfig');assert.equal(PW.querySelectorAll('.pomo-plan button').length,2);assert.equal($('pomoChipSets').textContent,'4 séries');assert.equal($('pomoChipFocus').textContent,'1h 40m de foco','focus × sets, no breaks');
+  const end=new Date(w.PELEJA_NOW()+(4*25+3*5)*60000),hh=x=>String(x).padStart(2,'0');assert.equal($('pomoChipEnd').querySelector('.pomo-chip-long').textContent,`Termina ${end.getDate()!==new Date(w.PELEJA_NOW()).getDate()?'amanhã ':'às '}${hh(end.getHours())}:${hh(end.getMinutes())}`,'now + focus + the 3 short breaks between sets');
+  const c=P.state().config,keep={...c};Object.assign(c,{targetSets:8,longEnabled:true,longEvery:4,longMin:15});P.render();
+  const end2=new Date(w.PELEJA_NOW()+(8*25+6*5+15)*60000);assert.match($('pomoChipEnd').querySelector('.pomo-chip-long').textContent,new RegExp(`${hh(end2.getHours())}:${hh(end2.getMinutes())}$`),'a long break after set 4');assert.equal($('pomoChipFocus').textContent,'3h 20m de foco');
+  Object.assign(c,keep);P.render();}
  assert.match($('pomoSideLeft').textContent,/Som/);assert.match($('pomoSideRight').textContent,/Séries/);assert.equal($('pomoStatus').textContent,'Parado');
  assert.equal($('pomoSoundChip').disabled,true,'no sound chosen: the chip does nothing');
  // Duration card: slider 5..120 for focus.
