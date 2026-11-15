@@ -62,8 +62,8 @@
    $('facultyForm').querySelector('[type=submit]').disabled=active;
    decorate();
   }
-  async function saveChange(change,onSaved,errorId,onFailed){
-   const owner=currentSession?.user?.id,ticket=version;
+  async function saveChange(change,onSaved,errorId,onFailed,retried=false){
+   const owner=currentSession?.user?.id;let ticket=version;
    if(writer.busy||writer.blocked)return;
    try{
     const request=writer.save(change);setSaving(true);const saved=await request;
@@ -71,6 +71,16 @@
     pendingConflict=null;onSaved(saved);
    }catch(error){
     if(owner!==currentSession?.user?.id||ticket!==version)return;
+    // A dropped connection is not a conflict: fetch the cloud copy and send the change once more.
+    // Catalog changes are left out (a lost reply could create the same item twice).
+    if(!retried&&writer.blocked&&!String(error.message).includes('CONFLICT')&&!change.kind.startsWith('catalog-')){
+     const synced=await refresh(currentSession,true,true);
+     if(owner!==currentSession?.user?.id)return;
+     ticket=version;
+     if(synced&&!writer.blocked&&!writer.busy){setSaving(false);return saveChange(change,onSaved,errorId,onFailed,true);}
+    }
+    // The first try reached the server and only its reply was lost: the round is already gone.
+    if(retried&&!writer.blocked&&error.message==='Rodada não encontrada'){pendingConflict=null;onSaved(writer.snapshot);return;}
     onFailed?.();
     if(String(error.message).includes('CONFLICT'))pendingConflict={owner,change:structuredClone(change)};
     const text=String(error.message).includes('CONFLICT')?'Há mudanças em outro aparelho. Atualize antes de salvar novamente.':'Não foi possível confirmar o salvamento. Atualize para conferir antes de tentar novamente.';
@@ -192,7 +202,7 @@
     profileName=profile.data?.display_name||'Conta';isAdmin=profile.data?.role==='admin';app.dataset.previewRole=isAdmin?'admin':'participant';
     $('profile').textContent=(profile.data?.display_name||'Conta').slice(0,1).toLocaleUpperCase('pt-BR');$('profile').setAttribute('aria-label',`Perfil de ${profile.data?.display_name||'usuário'}`);
     $('refresh').title='Sincronizar';$('refresh').setAttribute('aria-label','Sincronizar');
-    writer.load(remote.data,session.user.id);if(!manual)showLibraryPage();render(); // a sync never changes the tab you are on
+    writer.load(remote.data,session.user.id);notice.querySelector('span').textContent='';if(!manual)showLibraryPage();render(); // a sync never changes the tab you are on
     renderFacultyPage();syncFilterControls();
     const results=await Promise.all([simulations.load(),dashboard.load(),courses.load()]);accountProfile.hydrate();
     if(ticket!==version)return;
@@ -225,7 +235,7 @@
   // fetch the latest data when the app comes back to the screen and every 5 minutes while it is open.
   // Quiet (no toast), and never over an open form, a save in progress or a pending conflict.
   function autoSync(force=false){
-   if(!currentSession||loading||writer.busy||writer.blocked||document.hidden||pendingConflict)return;
+   if(!currentSession||loading||writer.busy||document.hidden||pendingConflict)return;
    if(document.querySelector('dialog[open]'))return;
    if(!force&&Date.now()-lastSynced<60000)return;
    lastSynced=Date.now();refresh(currentSession,true,true);
@@ -233,6 +243,7 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoSync();});
   addEventListener('pageshow',event=>{if(event.persisted)autoSync(true);});
   addEventListener('focus',()=>autoSync());
+  addEventListener('online',()=>autoSync(true)); // back on the network: reload, which also lifts a blocked save
   setInterval(()=>autoSync(),5*60*1000);
   globalThis.PELEJA_AUTO_SYNC=autoSync;
   $('profileExit').onclick=()=>{closeProfileMenu();confirmPeleja('Sair da conta?',async()=>{
