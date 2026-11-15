@@ -17,7 +17,7 @@
  // No saved session is not an error: keep the splash and hand over to the access page, which returns to this route after sign-in.
  function toAccess(){status.textContent='Abrindo o acesso…';(globalThis.PELEJA_LEAVE||(url=>location.replace(url)))(accessUrl());}
  function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href=accessUrl();link.textContent='Ir para o acesso';gate.append(link);}
- function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
+ function loadScript(src,integrity){return new Promise((resolve,reject)=>{const script=document.createElement('script');if(integrity){script.integrity=integrity;script.crossOrigin='anonymous';}script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
  function decorate(){
   document.querySelectorAll('[data-study],[data-questions],[data-exam-result]').forEach(b=>{b.disabled=!!writer?.blocked||(b.hasAttribute('data-study')&&!!writer?.busy);});
   for(const card of document.querySelectorAll('[data-exam]')){
@@ -33,7 +33,7 @@
   await loadScript('../access/catalog-writes.js?v=2');
   await loadScript('../access/simulations.js?v=1');
   await loadScript('../access/personal-writes.js?v=catalog1-6');
-  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js','sha384-sLWJsCmP+Z4Qn+HgF7Hi64Djta4fZMu0fcgi3uUL3GFV/ubx2G86LPOuMf7+ZIyX');
   client=supabase.createClient(PELEJA_ACCESS_CONFIG.url,PELEJA_ACCESS_CONFIG.key,{auth:{storageKey:'peleja-next-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   writer=PELEJA_PERSONAL_WRITES.createPersonalWriter(client,()=>currentSession?.user?.id,()=>isAdmin);
   app.dataset.previewRole='participant';

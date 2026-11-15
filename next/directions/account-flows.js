@@ -8,7 +8,6 @@ app.insertAdjacentHTML('beforeend',`<div id="profileMenu" class="profile-menu" h
 <dialog id="previewExitDialog" class="settings-dialog" aria-labelledby="previewExitTitle"><div class="settings-heading"><h2 id="previewExitTitle">Até mais!</h2></div><p>A demonstração foi encerrada. Tua conta no site não foi alterada.</p><button class="primary" id="previewReturn">Voltar à prévia</button></dialog>
 `);
 $('profile').setAttribute('aria-haspopup','menu');$('profile').setAttribute('aria-expanded','false');$('profile').setAttribute('aria-label','Abrir menu do perfil');
-if(typeof mockAvatars!=='undefined'&&mockAvatars['Vinícius'])$('profile').innerHTML=`<img src="${mockAvatars['Vinícius']}" alt="Vinícius">`;
 const sidebarToggle=document.createElement('button');sidebarToggle.id='sidebarToggle';sidebarToggle.className='icon';sidebarToggle.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>';app.querySelector('header').prepend(sidebarToggle);
 function savePreviewPrefs(){try{localStorage.setItem(previewPrefsKey,JSON.stringify(previewPrefs));}catch{toast('Não foi possível salvar preferências neste navegador','settings');}}
 function applyPreviewPrefs(){
