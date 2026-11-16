@@ -10,11 +10,11 @@ create function auth.uid() returns uuid language sql stable as $$select nullif(c
 create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('email',current_setting('request.email',true))$$;
 grant usage on schema public,auth to authenticated,anon,service_role;
 grant execute on function auth.uid(),auth.jwt() to authenticated,anon,service_role;`);
-await db.exec(fs.readFileSync(path.join(root,'supabase-schema.sql'),'utf8').replace(/^\uFEFF/,''));
-await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/01-schema.sql'),'utf8').replace(/^\uFEFF/,''));
+await db.exec(fs.readFileSync(path.join(root,'supabase/02-upgrade.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/03-photos.sql'),'utf8'));
 console.log('PASS Base schema and upgrade execute');
-await db.exec(fs.readFileSync(path.join(root,'supabase-upgrade.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/02-upgrade.sql'),'utf8'));
 console.log('PASS Upgrade is rerunnable');
 await db.query(`insert into auth.users(id,email) values($1,'vinicius@peleja.invalid'),($2,'wilton@peleja.invalid')`,[A,B]);
 await db.query(`insert into public.account_handles values($1,'vinicius',true),($2,'wilton',true)`,[A,B]);
@@ -22,7 +22,7 @@ async function user(id){await db.exec('reset role');await db.query("select set_c
 async function rpc(name,params,casts){const placeholders=params.map((_,i)=>'$'+(i+1)+(casts?.[i]?'::'+casts[i]:''));return (await db.query(`select public.${name}(${placeholders}) as result`,params)).rows[0].result;}
 const ws={materials:[{id:'m',title:'Aula',subject:'Pediatria',questionEntries:[{id:'q',questions:10,correct:8,wrong:2}],notes:'PRIVATE',read:true}],exams:[{id:'e',subject:'Pediatria',type:'Prova',date:'2026-09-28',materialIds:['m'],total:10,correct:8,wrong:2}],simulations:[{id:'s',name:'Evento',date:'2026-09-28',questions:[{id:'q1',number:1,correctAnswer:'A',area:'Pediatria'},{id:'q2',number:2,correctAnswer:'B',area:'Cirurgia'}]}]};
 async function save(payload,revision,cat,publish){return rpc('save_workspace',[JSON.stringify(payload),revision,cat,publish,(await db.query('select auth.uid() id')).rows[0].id],['jsonb','bigint','bigint','boolean','uuid']);}
-await db.exec(fs.readFileSync(path.join(root,'supabase-photos.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/03-photos.sql'),'utf8'));
 await user(A); await rpc('save_profile_photo',['data:image/jpeg;base64,YQ=='],['text']);
 await user(B); assert.equal((await db.query('select * from public.profile_photos')).rows.length,1);
 await assert.rejects(()=>db.query('update public.profile_photos set image_data=$1 where user_id=$2',['data:image/jpeg;base64,Yg==',A]),/permission denied/);
@@ -32,7 +32,7 @@ assert.equal((await db.query('select * from public.profile_photos')).rows[0].use
 await assert.rejects(()=>rpc('save_profile_photo',['https://external.test/photo'],['text']),/check constraint/);
 await assert.rejects(()=>rpc('save_profile_photo',['data:image/jpeg;base64,'+'A'.repeat(60000)],['text']),/check constraint/);
 console.log('PASS Private photos: own update/remove only, invalid and oversized images rejected');
-await db.exec('reset role');await db.exec(fs.readFileSync(path.join(root,'supabase-profile-edit.sql'),'utf8'));
+await db.exec('reset role');await db.exec(fs.readFileSync(path.join(root,'supabase/11-profile-edit.sql'),'utf8'));
 await user(B);await db.query("update public.profiles set display_name='Wilton novo' where id=$1",[B]);
 assert.equal((await db.query('select display_name from public.profiles where id=$1',[B])).rows[0].display_name,'Wilton novo');
 assert.equal((await db.query("update public.profiles set display_name='Outro' where id=$1 returning id",[A])).rows.length,0);
@@ -100,8 +100,8 @@ await assert.rejects(()=>db.query('select * from public.profile_photos'),/permis
 await assert.rejects(()=>rpc('save_profile_photo',[null],['text']),/permission denied/);
 console.log('PASS Anonymous access denied');
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-courses.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-courses.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/04-courses.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/04-courses.sql'),'utf8'));
 await user(A);
 let courseState=await rpc('get_workspace',[],[]);
 const coursePayload={...courseState.payload,courses:[{id:'ecg-m06-01',watchedAt:'2026-10-12T15:00:00Z'}]};
@@ -119,8 +119,8 @@ assert.deepEqual((await rpc('get_workspace',[],[])).payload.courses,[]);
 console.log('PASS Courses migration reruns, old clients/backups preserve checks, new backups restore and duplicates rejected');
 
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-library.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-library.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/07-library.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/07-library.sql'),'utf8'));
 await user(A);
 const libraryState=await rpc('get_workspace',[],[]);
 const libraryPayload={...libraryState.payload,preferences:{libraryFilters:{ankiFilter:true}},exams:[{id:'override-only',performedOverride:false,total:null}]};
@@ -134,8 +134,8 @@ await assert.rejects(()=>save({...retained,preferences:[]},librarySave.revision,
 console.log('PASS Library migration reruns, old clients preserve visibility and explicit exam override, invalid preferences rejected');
 
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-sessions.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-sessions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/08-question-sessions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/08-question-sessions.sql'),'utf8'));
 await user(A);
 const qsState=await rpc('get_workspace',[],[]);
 const qSessions=[{id:'qs-1',subject:'Pediatria',specialty:'Neonatologia',date:'2026-10-22',questions:20,correct:15,wrong:5}];
@@ -160,8 +160,8 @@ assert.equal(Number((await db.query('select coalesce(sum(total),0) n from public
 console.log('PASS Standalone sessions aggregate once, preserve old clients, validate, isolate, restore and delete');
 
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-bank.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-bank.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/14-question-bank.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/14-question-bank.sql'),'utf8'));
 const C='00000000-0000-4000-8000-0000000000c3';
 await db.query(`insert into public.access_allowlist(email) values('membro@peleja.invalid') on conflict do nothing`);await db.query(`insert into auth.users(id,email) values($1,'membro@peleja.invalid')`,[C]);await db.query(`insert into public.account_handles values($1,'ulisses',true)`,[C]);
 await db.query(`update public.academic_catalog set payload=jsonb_set(payload,'{materials}',coalesce(payload->'materials','[]')||'[{"id":"qb-material","title":"Micoses","subject":"Dermatologia"}]')`);
@@ -199,8 +199,8 @@ await assert.rejects(()=>rpc('delete_question_set',[qbId],['uuid']),/Acesso nega
 await user(B);await assert.rejects(()=>rpc('question_sets_list',[],[]),/Acesso negado/);
 // Solver sessions over that set.
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-sessions.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-sessions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/15-quiz-sessions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/15-quiz-sessions.sql'),'utf8'));
 const qsCasts=['uuid','text','text','integer','jsonb'],layout={questions:[0],options:{'0':[1,0]}};
 await user(C);
 await assert.rejects(()=>rpc('quiz_session_start',[qbId,'treino','stopwatch',null,JSON.stringify({questions:[0],options:{'0':[0,0]}})],qsCasts),/Ordem das questões inválida/);
@@ -243,8 +243,8 @@ console.log('PASS Quiz sessions: layout validation, resume, server scoring, firs
 
 // Pomodoro focus blocks.
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/16-pomodoro.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/16-pomodoro.sql'),'utf8'));
 const pCasts=['uuid','text','timestamptz','timestamptz','integer','integer','integer'];
 const ago=min=>new Date(Date.now()-min*60000).toISOString();
 const blockId='00000000-0000-4000-8000-00000000b001';
@@ -266,8 +266,8 @@ console.log('PASS Pomodoro blocks: idempotent save, trimmed task, wall-time and 
 
 // Pomodoro ranking and live status.
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-ranking.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-ranking.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/17-pomodoro-ranking.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/17-pomodoro-ranking.sql'),'utf8'));
 const lCasts=['text','boolean','timestamptz','integer','timestamptz'];
 await user(C);
 await rpc('pomodoro_block_save',['00000000-0000-4000-8000-00000000b010','Cardio',ago(120),ago(70),50*60000,50*60000,0],pCasts);
@@ -296,8 +296,8 @@ await user(B);await assert.rejects(()=>rpc('pomodoro_ranking',[ago(60)],['timest
 console.log('PASS Pomodoro ranking: period totals, order, live status with 3-minute expiry, private tasks, inactive members and denial');
 // Pomodoro session shared between devices: newest press wins, private, sane times.
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-session.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-pomodoro-session.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/22-pomodoro-session.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/22-pomodoro-session.sql'),'utf8'));
 const sCasts=['jsonb','timestamptz'];
 await user(C);
 assert.equal(await rpc('pomodoro_session_get',[]),null);
@@ -317,8 +317,8 @@ console.log('PASS Pomodoro session: newest press wins, older press gets the newe
 
 // Ranking privacy: anonymous and hidden.
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-ranking-privacy.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-ranking-privacy.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/19-ranking-privacy.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/19-ranking-privacy.sql'),'utf8'));
 await user(C);await rpc('ranking_privacy_set',['anonymous'],['text']);
 await user(A);rank=await rpc('pomodoro_ranking',[ago(60*24)],['timestamptz']);
 const anon=rank.find(r=>r.anonymous);assert.equal(anon.name,'Anônimo');assert.notEqual(anon.userId,C);assert.equal(anon.totalMs,75*60000);assert.ok(!JSON.stringify(rank).includes(C),'the anonymous id never leaks');
@@ -335,10 +335,10 @@ console.log('PASS Ranking privacy: anonymous name and id, hidden out of others\'
 
 // Question editing (admin) and change suggestions (members).
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions-edit.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-question-suggestions-edit.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/18-question-suggestions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/18-question-suggestions.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/21-question-suggestions-edit.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/21-question-suggestions-edit.sql'),'utf8'));
 await user(A);const sgSet=await rpc('save_question_set',qbArgs(qbQuestions,'qb-material','b'.repeat(64)),qbCasts);
 const sgCasts=['uuid','integer','text','text'];
 await user(C);
@@ -390,8 +390,8 @@ console.log('PASS Question suggestions: member submit with kind and 500-char not
 
 // Which attempt counts: only the first finished attempt that covers the whole set.
 await db.exec('reset role');
-await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-counted.sql'),'utf8'));
-await db.exec(fs.readFileSync(path.join(root,'supabase-quiz-counted.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/20-quiz-counted.sql'),'utf8'));
+await db.exec(fs.readFileSync(path.join(root,'supabase/20-quiz-counted.sql'),'utf8'));
 await user(A);const twoQ=[qbQuestions[0],{...qbQuestions[0],question:'Segunda?'}];const cSet=await rpc('save_question_set',qbArgs(twoQ,'qb-material','c'.repeat(64)),qbCasts);
 await user(C);const saveCasts=['uuid','jsonb','bigint','boolean'];
 const part=await rpc('quiz_session_start',[cSet,'treino','stopwatch',null,JSON.stringify({questions:[1],options:{'1':[0,1]}})],qsCasts);

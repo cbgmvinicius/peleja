@@ -1,4 +1,4 @@
--- Private preferences, explicit exam overrides and admin-published AnKing selections.
+-- Private course progress; safe to rerun.
 begin;
 create or replace function public.save_workspace(p_payload jsonb,p_revision bigint,p_catalog_revision bigint,p_publish_catalog boolean,p_owner uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -50,7 +50,7 @@ begin
       v_materials:=v_materials||jsonb_build_array(jsonb_build_object(
         'id',v_item->>'id','title',v_item->>'title','subject',v_item->>'subject','classDate',v_item->>'classDate',
         'classOrder',v_item->'classOrder','code',v_item->>'code','period',v_item->>'period','area',v_item->>'area',
-        'specialty',v_item->>'specialty','standalone',v_item->'standalone','sketchyTags',coalesce(v_item->>'sketchyTags','')));
+        'driveUrl',v_item->>'driveUrl','notebookUrl',v_item->>'notebookUrl','specialty',v_item->>'specialty','standalone',v_item->'standalone','sketchyTags',coalesce(v_item->>'sketchyTags','')));
     end loop;
     for v_item in select value from jsonb_array_elements(p_payload->'exams') loop
       if jsonb_typeof(v_item->'materialIds') is distinct from 'array' then raise exception 'Vínculos inválidos'; end if;
@@ -177,14 +177,4 @@ begin
   return v_result;
 end;
 $$;
--- Copy only the administrator's queries into the shared catalog. Private workspaces stay intact.
-update public.academic_catalog c set payload=jsonb_set(c.payload,'{materials}',(
-  select coalesce(jsonb_agg(m || jsonb_build_object('sketchyTags',coalesce((
-    select item->>'sketchyTags' from public.user_workspace w
-    join public.account_handles h on h.user_id=w.user_id and h.username='vinicius'
-    cross join lateral jsonb_array_elements(w.payload->'materials') item
-    where item->>'id'=m->>'id' limit 1),m->>'sketchyTags','')) order by n),'[]')
-  from jsonb_array_elements(c.payload->'materials') with ordinality as entries(m,n)
-)),revision=revision+1,updated_at=now() where id and exists(
-  select 1 from jsonb_array_elements(c.payload->'materials') m where not (m ? 'sketchyTags'));
 commit;

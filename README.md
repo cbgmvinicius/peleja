@@ -48,10 +48,10 @@ Não há service worker de cache: o `sw.js` publicado só aposenta o do app anti
 
 ## Comparativo de estudos no painel
 
-Aplique `supabase-progress.sql` depois do esquema e da atualização principal, antes de publicar a interface. A função `study_progress` permite somente contas ativas e retorna totais de leitura e aulas vistas, sem abrir o histórico privado de outro usuário.
+Aplique `supabase/05-progress.sql` depois do esquema e da atualização principal, antes de publicar a interface. A função `study_progress` permite somente contas ativas e retorna totais de leitura e aulas vistas, sem abrir o histórico privado de outro usuário.
 
 Em Apostilas, o seletor alterna entre todas as provas pendentes (de hoje em diante ou sem data) e a próxima prova com data de cada pessoa. Provas já realizadas, com nota direta válida ou resultado são excluídas. Empates na próxima data incluem todas as avaliações daquele dia; apostilas repetidas contam uma vez. O painel mostra qual prova compõe o recorte. Apostilas sem prova vinculada não entram nesse comparativo.
 
 CardioPapers compara aulas vistas em todo o curso, incluindo os extras. Ao ampliar `courses-data.js`, atualize também a lista de IDs e o total na função SQL. Contas sem workspace são identificadas como sem dados sincronizados. O painel consulta os totais após salvar, ao retornar ao painel ou à janela e pelo botão Atualizar. Edições ainda não enviadas são indicadas; não são tratadas como já publicadas.
 
-O filtro de prova em Ranking → Apostilas requer `supabase-material-exams.sql` antes da publicação. Retorna apenas totais por usuário, área e tipo de prova do catálogo atual (incluindo provas passadas). Vínculos repetidos contam uma vez por tipo. “Todas as provas” mantém o total geral, incluindo apostilas sem vínculo. Não modifica históricos.
+O filtro de prova em Ranking → Apostilas requer `supabase/06-material-exams.sql` antes da publicação. Retorna apenas totais por usuário, área e tipo de prova do catálogo atual (incluindo provas passadas). Vínculos repetidos contam uma vez por tipo. “Todas as provas” mantém o total geral, incluindo apostilas sem vínculo. Não modifica históricos.

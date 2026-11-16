@@ -8,7 +8,7 @@ O calendário segue os 17 módulos numerados (121 aulas), incluindo fins de sema
 
 ## Instalação em projetos existentes
 
-Antes de publicar esta interface, execute `supabase-courses.sql` no projeto existente. A atualização substitui somente as funções de salvar/restaurar: não altera registros nem permissões. É repetível e preserva o campo `courses` quando um navegador ou backup antigo o omite. Instalações novas já recebem a mesma lógica em `supabase-upgrade.sql`.
+Antes de publicar esta interface, execute `supabase/04-courses.sql` no projeto existente. A atualização substitui somente as funções de salvar/restaurar: não altera registros nem permissões. É repetível e preserva o campo `courses` quando um navegador ou backup antigo o omite. Instalações novas já recebem a mesma lógica em `supabase/02-upgrade.sql`.
 
 Os backups novos incluem `courses`; uma lista vazia explícita restaura o progresso vazio. A importação de um backup antigo preserva os checks existentes. Nenhum check é publicado no catálogo acadêmico ou convertido em pontuação de ranking.
 

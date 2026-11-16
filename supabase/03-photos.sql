@@ -1,4 +1,4 @@
--- Run after supabase-upgrade.sql. Keeps photos private to active Peleja accounts.
+-- Run after supabase/02-upgrade.sql. Keeps photos private to active Peleja accounts.
 begin;
 create table if not exists public.profile_photos (
   user_id uuid primary key references auth.users(id) on delete cascade,
