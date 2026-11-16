@@ -38,6 +38,15 @@ assert.equal((await db.query('select display_name from public.profiles where id=
 assert.equal((await db.query("update public.profiles set display_name='Outro' where id=$1 returning id",[A])).rows.length,0);
 await assert.rejects(()=>db.query("update public.profiles set role='admin' where id=$1",[B]),/permission denied/);
 console.log('PASS Profile name edits stay scoped to owner and cannot change roles');
+// Admin comes from profiles.role on an active account, never from the username.
+{const admin=async()=>(await db.query('select public.is_peleja_admin() ok')).rows[0].ok,asOwner=async sql=>{await db.exec('reset role');await db.query(sql.text,sql.values);};
+await user(A);assert.equal(await admin(),true);await user(B);assert.equal(await admin(),false);
+await asOwner({text:"update public.profiles set role='admin' where id=$1",values:[B]});await user(B);assert.equal(await admin(),true,'a second admin works');
+await asOwner({text:'update public.account_handles set active=false where user_id=$1',values:[B]});await user(B);assert.equal(await admin(),false,'inactive account is not admin');
+await asOwner({text:"update public.profiles set role='member' where id=$1",values:[B]});await asOwner({text:'update public.account_handles set active=true where user_id=$1',values:[B]});
+await asOwner({text:"update public.profiles set role='member' where id=$1",values:[A]});await user(A);assert.equal(await admin(),false,'the username alone gives nothing');
+await asOwner({text:"update public.profiles set role='admin' where id=$1",values:[A]});await user(A);assert.equal(await admin(),true);await user(B);
+console.log('PASS Admin follows profiles.role on an active account: second admin, inactive denied, username alone denied');}
 
 await user(A);let saved=await save(ws,0,0,true);assert.equal(saved.revision,1);assert.equal(saved.catalog_revision,1);
 console.log('PASS Admin publishes canonical catalog and own result atomically');

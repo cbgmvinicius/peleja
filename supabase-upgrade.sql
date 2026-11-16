@@ -20,7 +20,8 @@ language sql stable security definer set search_path = '' as $$
 $$;
 create or replace function public.is_peleja_admin() returns boolean
 language sql stable security definer set search_path = '' as $$
-  select exists(select 1 from public.account_handles where user_id=auth.uid() and username='vinicius' and active);
+  -- Admin = profiles.role (members cannot write it) on an active account; the screen reads the same field.
+  select exists(select 1 from public.profiles p join public.account_handles h on h.user_id=p.id where p.id=auth.uid() and p.role='admin' and h.active);
 $$;
 drop policy if exists handles_read on public.account_handles;
 create policy handles_read on public.account_handles for select to authenticated using(public.has_peleja_access());
