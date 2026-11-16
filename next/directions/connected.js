@@ -17,7 +17,7 @@
  // No saved session is not an error: keep the splash and hand over to the access page, which returns to this route after sign-in.
  function toAccess(){status.textContent='Abrindo o acesso…';(globalThis.PELEJA_LEAVE||(url=>location.replace(url)))(accessUrl());}
  function fail(text){lockContent();gate.classList.add('entry-error');status.textContent=text;gate.querySelector('a')?.remove();const link=document.createElement('a');link.href=accessUrl();link.textContent='Ir para o acesso';gate.append(link);}
- function loadScript(src,integrity){return new Promise((resolve,reject)=>{const script=document.createElement('script');if(integrity){script.integrity=integrity;script.crossOrigin='anonymous';}script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
+ function loadScript(src,integrity){return new Promise((resolve,reject)=>{const script=document.createElement('script');if(integrity){script.integrity=integrity;script.crossOrigin='anonymous';}script.async=false;script.src=src;script.onload=resolve;script.onerror=()=>reject(Error('Falha ao carregar conexão'));document.head.append(script);});}
  function decorate(){
   document.querySelectorAll('[data-study],[data-questions],[data-exam-result]').forEach(b=>{b.disabled=!!writer?.blocked||(b.hasAttribute('data-study')&&!!writer?.busy);});
   for(const card of document.querySelectorAll('[data-exam]')){
@@ -27,13 +27,8 @@
   }
  }
  try{
-  await loadScript('../access/workspace.js?v=connected-2');
-  await loadScript('../access/projection.js?v=connected-1');
-  await loadScript('../access/config.js?v=connected-1');
-  await loadScript('../access/catalog-writes.js?v=2');
-  await loadScript('../access/simulations.js?v=1');
-  await loadScript('../access/personal-writes.js?v=catalog1-6');
-  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js','sha384-sLWJsCmP+Z4Qn+HgF7Hi64Djta4fZMu0fcgi3uUL3GFV/ubx2G86LPOuMf7+ZIyX');
+  // Downloaded together, run in this order (loadScript sets async=false).
+  await Promise.all([['../access/workspace.js?v=connected-2'],['../access/projection.js?v=connected-1'],['../access/config.js?v=connected-1'],['../access/catalog-writes.js?v=2'],['../access/simulations.js?v=1'],['../access/personal-writes.js?v=catalog1-6'],['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js','sha384-sLWJsCmP+Z4Qn+HgF7Hi64Djta4fZMu0fcgi3uUL3GFV/ubx2G86LPOuMf7+ZIyX']].map(a=>loadScript(...a)));
   client=supabase.createClient(PELEJA_ACCESS_CONFIG.url,PELEJA_ACCESS_CONFIG.key,{auth:{storageKey:'peleja-next-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   writer=PELEJA_PERSONAL_WRITES.createPersonalWriter(client,()=>currentSession?.user?.id,()=>isAdmin);
   app.dataset.previewRole='participant';
@@ -193,10 +188,10 @@
    if(!session){loading=false;toAccess();return;}
    status.textContent='Carregando sua Biblioteca e suas Provas…';
    try{
-    const access=await client.rpc('has_peleja_access');if(ticket!==version)return;
+    // One round trip instead of three; the access answer is still judged first.
+    const [access,profile,remote]=await Promise.all([client.rpc('has_peleja_access'),client.from('profiles').select('id,display_name,role').eq('id',session.user.id).maybeSingle(),client.rpc('get_workspace')]);if(ticket!==version)return;
     if(access.error||access.data!==true)throw Error('Sua conta ainda não está autorizada.');
-    const profile=await client.from('profiles').select('id,display_name,role').eq('id',session.user.id).maybeSingle();if(ticket!==version)return;if(profile.error)throw profile.error;
-    const remote=await client.rpc('get_workspace');if(ticket!==version)return;if(remote.error)throw remote.error;
+    if(profile.error)throw profile.error;if(remote.error)throw remote.error;
     confirmedPrefs={dark:false,motion:true,...remote.data.payload?.preferences?.pelejaNext};Object.assign(previewPrefs,confirmedPrefs);applyPreviewPrefs();
     hydrate(remote.data);
     profileName=profile.data?.display_name||'Conta';isAdmin=profile.data?.role==='admin';app.dataset.previewRole=isAdmin?'admin':'participant';
