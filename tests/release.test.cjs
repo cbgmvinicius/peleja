@@ -7,7 +7,7 @@ const config=(key,url='https://fixture.supabase.co')=>fs.writeFileSync(path.join
 const run=()=>spawnSync(process.execPath,[path.join(temp,'scripts/build-pages.mjs')],{encoding:'utf8',env:{...process.env,GITHUB_SHA:'testrelease123'}});
 config('');assert.notEqual(run().status,0);config('sb_secret_test_not_real');assert.notEqual(run().status,0);
 config('sb_publishable_test_not_real');
-for(const n of ['index.html','styles.css','courses-data.js','courses.js','english.js','english-data.js','progress.js','app.js','cloud.js','storage.js','ui.js','appearance.js','focus.js','questions.js','sw.js','academic-data.js','academic-data.json','manifest.webmanifest'])fs.copyFileSync(path.join(root,n),path.join(temp,n));
+for(const n of ['manifest.webmanifest'])fs.copyFileSync(path.join(root,n),path.join(temp,n));
 fs.cpSync(path.join(root,'assets'),path.join(temp,'assets'),{recursive:true});
 fs.writeFileSync(path.join(temp,'peleja-backup-personal.json'),'PRIVATE TEST FIXTURE');
 const built=run();assert.equal(built.status,0,built.stderr);
@@ -26,6 +26,7 @@ for(const page of ['next/directions/index.html','next/access/index.html']){
 const connected=fs.readFileSync(path.join(dest,'next/directions/connected.js'),'utf8');
 const loads=[...connected.matchAll(/'(\.\.\/access\/[^'?]+\.js)\?v=([^']+)'/g)];assert.ok(loads.length>=5);
 for(const [,file,v] of loads)assert.equal(v,sha(path.join(dest,'next/directions',file)),'script loaded by connected.js: '+file);
+for(const old of ['app.js','cloud.js','styles.css','academic-data.json'])assert(!fs.existsSync(path.join(dest,old)),'old app file published: '+old);assert(fs.readFileSync(path.join(dest,'index.html'),'utf8').includes('next/access/'));
 const sw=fs.readFileSync(path.join(dest,'sw.js'),'utf8');new (require('node:vm').Script)(sw);for(const part of ['caches.delete(','self.registration.unregister()','.navigate(tab.url)'])assert.ok(sw.includes(part),'sw.js: '+part);
 console.log('PASS Release stamps content hashes on every page and dynamically loaded script, and the commit on each page');
 console.log('PASS Release rejects missing/administrative keys, excludes personal files and refuses stale output reuse');

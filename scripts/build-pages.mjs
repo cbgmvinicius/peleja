@@ -16,11 +16,10 @@ if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.supabaseUrl||'') || !public
 const dest=path.join(root,'dist','public');
 await mkdir(path.dirname(dest),{recursive:true});
 await mkdir(dest); // Refuse reuse: no unrelated/private file can remain in the artifact.
-const files=['index.html','styles.css','courses-data.js','courses.js','english.js','english-data.js','progress.js','app.js','cloud.js','storage.js','ui.js','appearance.js','focus.js','questions.js','sw.js','supabase-config.js','academic-data.js','academic-data.json','manifest.webmanifest'];
+// The first Peleja (root app) is gone; the root keeps only a redirect, the manifest and its icons.
+const files=['manifest.webmanifest'];
 await mkdir(path.join(dest,'assets'));
-await mkdir(path.join(dest,'assets/fonts'));
-for (const name of ['GoogleSans-latin.woff2','OFL.txt','SOURCE.md']) files.push('assets/fonts/'+name);
-for (const name of ['peleja-icon-16.png','peleja-icon-32.png','peleja-icon-192.png','peleja-icon-512.png','peleja-icon-maskable-192.png','peleja-icon-maskable-512.png','apple-touch-icon.png','peleja-logo.svg','anking.png']) files.push('assets/'+name);
+for (const name of ['peleja-icon-16.png','peleja-icon-32.png','peleja-icon-192.png','peleja-icon-512.png','peleja-icon-maskable-192.png','peleja-icon-maskable-512.png','apple-touch-icon.png','peleja-logo.svg']) files.push('assets/'+name);
 for (const name of files) await copyFile(path.join(root,name),path.join(dest,name));
 // Connected release. Explicit manifest keeps development snapshots out of Pages.
 const nextFiles=JSON.parse(await readFile(path.join(root,'scripts/next-public-files.json'),'utf8'));

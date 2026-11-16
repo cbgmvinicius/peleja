@@ -4,7 +4,7 @@ Organizador de apostilas, provas, simulados e comparação de resultados. Cinco 
 
 ## Uso
 
-O modo local continua disponível abrindo `index.html` no computador. O histórico legado pertence a Vinícius. O modo publicado exige Supabase configurado e autenticação; não libera dados pessoais como visitante.
+O app em uso fica em `next/` (acesso em `next/access/`, telas em `next/directions/`). O primeiro Peleja, que ficava na raiz, foi removido; a raiz publicada só redireciona para `next/access/`. O site exige Supabase configurado e autenticação; não libera dados pessoais como visitante.
 
 Para ativar o site, siga [SUPABASE_SETUP.md](SUPABASE_SETUP.md). A configuração pública aponta para o projeto Peleja no Supabase. A publicação pelo GitHub Actions é manual e bloqueia configuração ausente ou chave administrativa. Abrir por `file://` mantém o modo pessoal local mesmo com o backend configurado; para levar esse histórico ao site, exporte o backup local e importe conectado como Vinícius.
 
@@ -35,9 +35,9 @@ npm test
 
 Os testes usam DOM simulado e PostgreSQL embarcado (PGlite). Aplicam os dois arquivos SQL, verificam permissões reais do banco, conflitos, conversão de resultados, backup/restauração, exclusões, paginação acima de mil registros e fluxos dos formulários. Não substituem validação visual em Android/iPhone nem teste com o serviço Supabase real.
 
-Arquivos principais: `app.js` (organizador), `storage.js` (propriedade/persistência local), `cloud.js` (contas e sincronização), `ui.js` (foco dos diálogos), `supabase-schema.sql` + `supabase-upgrade.sql` (banco). Os dois arquivos `academic-data` são somente a carga inicial e devem representar o mesmo catálogo; não sobrescrevem edições a cada abertura.
+Arquivos principais: `next/directions/` (telas), `next/access/` (login, leitura e gravação da conta), `supabase-*.sql` (banco), `tests/` (banco e build) e `tests-next/` (interface).
 
-O cache `peleja-v25.2` guarda somente uma lista explícita de arquivos públicos. Não intercepta API, respostas autenticadas ou GETs arbitrários. As atualizações não apagam o armazenamento pessoal. A operação online ainda precisa de rede para autenticação e dados compartilhados.
+Não há service worker de cache: o `sw.js` publicado só aposenta o do app antigo. `next/release-check.js` recarrega as páginas abertas quando sai uma versão nova.
 
 ## Publicação
 
