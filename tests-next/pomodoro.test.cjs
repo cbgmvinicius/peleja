@@ -134,6 +134,9 @@ async function app(){
  P.state().config.flow=false;P.render();p.advance(15*MIN);await tick(700);assert.equal(P.state().timer.mode,'focus');
  p.setFail(true);p.advance(25*MIN);await tick(700);assert.equal(saved.length,4);assert.equal(P.outbox().length,1);
  assert.equal(P.state().timer.status,'idle');assert.equal($('pomoDialog').dataset.kind,'goal');assert.match($('pomoDialog').textContent,/Plano cumprido!/);$('pomoDialog').close();
+ // Coming back online also syncs the account, and while idle the account's settings win. This test changes the
+ // config directly (no save), so the account copy is brought up to date first; otherwise a slow run gets the old series back.
+ {const account=p.remote.payload?.preferences?.pomodoroSettings;if(account)account.config={...P.state().config};}
  p.setFail(false);w.dispatchEvent(new w.Event('online'));await tick(80);assert.equal(saved.length,5);assert.equal(P.outbox().length,0);
  await settle();assert.ok(ambient().volume<.01,'no sound when idle');
 
