@@ -10,8 +10,8 @@ create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb 
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.uid',true),'')::uuid$$;
 create function auth.jwt() returns jsonb language sql stable as $$select '{}'::jsonb$$;
 grant usage on schema public,auth to authenticated,anon,service_role;`);
-await db.exec(read('supabase-schema.sql').replace(/^\uFEFF/,''));await db.exec(read('supabase-upgrade.sql'));
-await db.exec(read('supabase-material-exams.sql'));await db.exec(read('supabase-material-exams.sql'));
+await db.exec(read('supabase/01-schema.sql').replace(/^\uFEFF/,''));await db.exec(read('supabase/02-upgrade.sql'));
+await db.exec(read('supabase/06-material-exams.sql'));await db.exec(read('supabase/06-material-exams.sql'));
 await db.query("insert into auth.users(id,email) values($1,'vinicius@peleja.invalid'),($2,'wilton@peleja.invalid')",[A,B]);
 await db.query("insert into public.account_handles values($1,'vinicius',true),($2,'wilton',true)",[A,B]);
 const materials=[{id:'a',subject:'Clínica Médica III'},{id:'b',subject:'Pediatria'},{id:'c',subject:'Clínica Médica III'}];

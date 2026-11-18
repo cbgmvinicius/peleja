@@ -1,4 +1,4 @@
--- Private course progress; safe to rerun.
+-- Private preferences, explicit exam overrides and admin-published AnKing selections.
 begin;
 create or replace function public.save_workspace(p_payload jsonb,p_revision bigint,p_catalog_revision bigint,p_publish_catalog boolean,p_owner uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -26,6 +26,12 @@ begin
   if not (p_payload ? 'preferences') then
     p_payload:=p_payload||jsonb_build_object('preferences',coalesce(v_previous->'preferences','{}'::jsonb));
   end if;
+  if not (p_payload ? 'questionSessions') then
+    p_payload:=p_payload||jsonb_build_object('questionSessions',coalesce(v_previous->'questionSessions','[]'::jsonb));
+  end if;
+  if jsonb_typeof(p_payload->'questionSessions') is distinct from 'array' or jsonb_array_length(p_payload->'questionSessions')>3000 then raise exception 'Sessões inválidas'; end if;
+  if exists(select 1 from jsonb_array_elements(p_payload->'questionSessions') x where jsonb_typeof(x) is distinct from 'object' or coalesce(x->>'id','')='' or length(x->>'id')>200)
+    or (select count(*)<>count(distinct x->>'id') from jsonb_array_elements(p_payload->'questionSessions') x) then raise exception 'Sessões duplicadas ou sem ID'; end if;
   if jsonb_typeof(p_payload->'preferences') is distinct from 'object' or octet_length((p_payload->'preferences')::text)>10000 then raise exception 'Preferências inválidas'; end if;
   p_payload:=jsonb_set(p_payload,'{exams}',coalesce((select jsonb_agg(
     case when not (e ? 'performedOverride') and old ? 'performedOverride'
@@ -50,7 +56,7 @@ begin
       v_materials:=v_materials||jsonb_build_array(jsonb_build_object(
         'id',v_item->>'id','title',v_item->>'title','subject',v_item->>'subject','classDate',v_item->>'classDate',
         'classOrder',v_item->'classOrder','code',v_item->>'code','period',v_item->>'period','area',v_item->>'area',
-        'specialty',v_item->>'specialty','standalone',v_item->'standalone','sketchyTags',coalesce(v_item->>'sketchyTags','')));
+        'driveUrl',v_item->>'driveUrl','notebookUrl',v_item->>'notebookUrl','specialty',v_item->>'specialty','standalone',v_item->'standalone','sketchyTags',coalesce(v_item->>'sketchyTags','')));
     end loop;
     for v_item in select value from jsonb_array_elements(p_payload->'exams') loop
       if jsonb_typeof(v_item->'materialIds') is distinct from 'array' then raise exception 'Vínculos inválidos'; end if;
@@ -141,6 +147,18 @@ begin
           correct=public.material_area_results.correct+excluded.correct,wrong=public.material_area_results.wrong+excluded.wrong,updated_at=now();
     end loop;
   end loop;
+  for v_entry in select value from jsonb_array_elements(p_payload->'questionSessions') loop
+    if coalesce(trim(v_entry->>'subject'),'')='' or length(v_entry->>'subject')>120 or length(coalesce(v_entry->>'specialty',''))>120 then raise exception 'Disciplina ou especialidade inválida'; end if;
+    if coalesce(v_entry->>'date','') !~ '^\d{4}-\d{2}-\d{2}$' then raise exception 'Data inválida'; end if;
+    perform (v_entry->>'date')::date;
+    if coalesce(v_entry->>'questions','') !~ '^\d+$' or coalesce(v_entry->>'correct','') !~ '^\d+$' or coalesce(v_entry->>'wrong','') !~ '^\d+$' then raise exception 'Sessão de questões inválida'; end if;
+    v_total:=(v_entry->>'questions')::integer;v_correct:=(v_entry->>'correct')::integer;v_wrong:=(v_entry->>'wrong')::integer;
+    if v_total not between 1 and 100000 or v_correct<0 or v_wrong<0 or v_correct+v_wrong<>v_total then raise exception 'Sessão de questões inválida'; end if;
+    v_area:=public.peleja_area(null,v_entry->>'subject');
+    insert into public.material_area_results(user_id,area,total,correct,wrong) values(v_uid,v_area,v_total,v_correct,v_wrong)
+      on conflict(user_id,area) do update set total=public.material_area_results.total+excluded.total,
+        correct=public.material_area_results.correct+excluded.correct,wrong=public.material_area_results.wrong+excluded.wrong,updated_at=now();
+  end loop;
   update public.user_workspace set payload=p_payload,revision=revision+1,updated_at=now() where user_id=v_uid returning revision into v_revision;
   return jsonb_build_object('revision',v_revision,'catalog_revision',v_cat.revision);
 end;
@@ -155,7 +173,7 @@ begin
   foreach v_key in array array['answers','votes','manual'] loop
     if jsonb_typeof(v_attempts->v_key) is distinct from 'array' then raise exception 'Backup incompleto'; end if;
   end loop;
-  v_result:=public.save_workspace(jsonb_build_object('materials',p_backup->'materials','exams',p_backup->'exams','simulations',p_backup->'simulations') || case when p_backup ? 'preferences' then jsonb_build_object('preferences',p_backup->'preferences') else '{}'::jsonb end || case when p_backup ? 'courses' then jsonb_build_object('courses',p_backup->'courses') else '{}'::jsonb end,p_revision,p_catalog_revision,public.is_peleja_admin(),auth.uid());
+  v_result:=public.save_workspace(jsonb_build_object('materials',p_backup->'materials','exams',p_backup->'exams','simulations',p_backup->'simulations') || case when p_backup ? 'questionSessions' then jsonb_build_object('questionSessions',p_backup->'questionSessions') else '{}'::jsonb end || case when p_backup ? 'preferences' then jsonb_build_object('preferences',p_backup->'preferences') else '{}'::jsonb end || case when p_backup ? 'courses' then jsonb_build_object('courses',p_backup->'courses') else '{}'::jsonb end,p_revision,p_catalog_revision,public.is_peleja_admin(),auth.uid());
   delete from public.simulation_manual_results where user_id=auth.uid();
   delete from public.simulation_user_answers where user_id=auth.uid();
   delete from public.simulation_area_votes where user_id=auth.uid();
@@ -177,4 +195,5 @@ begin
   return v_result;
 end;
 $$;
+
 commit;

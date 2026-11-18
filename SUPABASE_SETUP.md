@@ -6,8 +6,8 @@ O projeto Peleja no plano gratuito está configurado em `https://vnncoohcmvvxgvv
 
 No SQL Editor, execute **nesta ordem**:
 
-1. `supabase-schema.sql`.
-2. `supabase-upgrade.sql`.
+1. `supabase/01-schema.sql`.
+2. `supabase/02-upgrade.sql`.
 
 O segundo arquivo é transacional e pode ser repetido. Em uma instalação existente, faça backup antes de atualizar; ambos devem ser aplicados antes de liberar acesso. Executar só o primeiro reativa o modelo antigo de autorização. Para upgrades desta versão, reaplique o segundo. O adaptador antigo de agregados não é suficiente para restaurar um histórico detalhado inexistente; preserve e importe o backup local de Vinícius.
 
@@ -73,4 +73,21 @@ Para conferir o pacote localmente, execute `node scripts/build-pages.mjs`. Ele r
 Antes de distribuir o endereço, validar em Android e iPhone: login/sair, menu, formulário longo com teclado aberto, criação de evento pelo administrador, resultado pessoal por participante, segunda sessão sem histórico alheio, edição em dois aparelhos, conflito, backup/restauração e atualização do aplicativo. A validação visual e o teste no Supabase real permanecem pendentes nesta entrega.
 
 ## Fotos dos perfis
-Após os dois SQLs anteriores, execute supabase-photos.sql. As fotos são reduzidas no navegador para JPEG quadrado de 160 px (até 60.000 caracteres) e ficam em profile_photos, acessíveis apenas às contas ativas. save_profile_photo altera exclusivamente a foto de auth.uid(); não modifica contas nem dados de estudo. Cada participante pode escolher ou remover a própria foto em Minha conta.
+Após os dois SQLs anteriores, execute supabase/03-photos.sql. As fotos são reduzidas no navegador para JPEG quadrado de 160 px (até 60.000 caracteres) e ficam em profile_photos, acessíveis apenas às contas ativas. save_profile_photo altera exclusivamente a foto de auth.uid(); não modifica contas nem dados de estudo. Cada participante pode escolher ou remover a própria foto em Minha conta.
+
+## Ordem dos arquivos SQL
+
+Os arquivos ficam em `supabase/` e são aplicados na ordem do número (`01-schema.sql`, `02-upgrade.sql`, ...). Um banco vazio com todos eles, nessa ordem, fica igual ao de produção.
+
+- Mudança nova no banco: crie o próximo número (`28-...sql`). Não edite um arquivo antigo para mudar uma função que um arquivo posterior redefine.
+- Não rode um arquivo antigo sozinho em produção: ele pode trazer de volta a versão velha de uma função.
+- `npm test` reconstrói o banco nessa ordem (`tests/sql-order.test.cjs`) e compara cada função com `supabase/functions.snapshot`. Mudou uma função de propósito? Rode `node tests/sql-order.test.cjs --update` e inclua o snapshot no PR.
+
+Para conferir se a produção ainda bate com o repositório, rode no SQL Editor e compare com `supabase/functions.snapshot`:
+
+```sql
+select string_agg(n.nspname||'.'||p.proname||'/'||p.pronargs||'='||left(md5(regexp_replace(p.prosrc,'s+','','g')),8),E'
+' order by 1)
+from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+where n.nspname in ('public','private') and p.proname<>'rls_auto_enable';
+```
