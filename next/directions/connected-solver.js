@@ -188,7 +188,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   body.append(modes,advanced,clocks,el('div',{id:'solverHistory'}));
   // Exams: "Só meus erros" sits beside "Começar" and uses the mode and clock chosen above.
   const mistakesButton=material.kind==='exam'?el('button',{type:'button',className:(setInfo?'editor-cancel':'primary')+' solver-mistakes',id:'solverMistakes',disabled:true,onclick:()=>startReview()},el('span',{className:'solver-mistakes-icon',innerHTML:ICON.target}),el('span',{textContent:'Erros'}),el('small',{id:'solverMistakesCount'})):null;
-  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),...(mistakesButton?[mistakesButton]:[]),...(setInfo?[el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()})]:[]));
+  const copyButton=mistakesButton?el('button',{type:'button',className:'editor-cancel solver-copy',id:'solverCopyMistakes',textContent:'Copiar erros',disabled:true,title:'Copiar as questões erradas em texto',onclick:copyMistakes}):null;
+  const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),...(mistakesButton?[copyButton,mistakesButton]:[]),...(setInfo?[el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()})]:[]));
   mistakes=[];if(mistakesButton)loadMistakes();
   await refreshSetupDetails();
  }
@@ -281,9 +282,35 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const r=await client.rpc('quiz_sessions_mine',{p_set:set.id});if(r.error)throw r.error;
   const done=(Array.isArray(r.data)?r.data:[]).filter(x=>x.status==='done'&&x.answered>x.correct);if(!done.length)return [];
   const full=await client.rpc('question_set',{p_id:set.id});if(full.error||!full.data)throw full.error||Error('Conjunto não encontrado');
-  const list=full.data.questions||[],wrong=new Set();
-  for(const s of done)for(const [k,a] of Object.entries(s.answers||{})){const q=list[Number(k)];if(a?.o!=null&&q?.answerOptions?.[a.o]&&!q.answerOptions[a.o].isCorrect)wrong.add(Number(k));}
-  return [...wrong].sort((a,b)=>a-b).map(index=>({setId:set.id,title:set.title,index,question:list[index]}));
+  // wrong: question index → the wrong options marked on it, newest attempt first
+  const list=full.data.questions||[],wrong=new Map();
+  done.sort((a,b)=>String(b.finishedAt||'').localeCompare(String(a.finishedAt||'')));
+  for(const s of done)for(const [k,a] of Object.entries(s.answers||{})){const i=Number(k),q=list[i];if(a?.o!=null&&q?.answerOptions?.[a.o]&&!q.answerOptions[a.o].isCorrect){const marked=wrong.get(i)||[];if(!marked.includes(a.o))marked.push(a.o);wrong.set(i,marked);}}
+  return [...wrong.keys()].sort((a,b)=>a-b).map(index=>({setId:set.id,title:set.title,index,question:list[index],marked:wrong.get(index)}));
+ }
+ // "Copiar erros": the exam's mistakes as plain text, one block per question in the same shape, to paste
+ // into Claude Code (/anki-apostila). Letters follow the original order of the options.
+ const clean=text=>String(text||'').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+ function mistakesText(rows,title){
+  const blocks=rows.map((m,n)=>{
+   const options=m.question.answerOptions,right=options.findIndex(o=>o.isCorrect);
+   return [`Questão ${n+1} (${m.title} · questão ${m.index+1})`,clean(m.question.question),'',
+    ...options.map((o,j)=>`${LETTERS[j]}) ${clean(o.text)}`),'',
+    `Marquei: ${m.marked.map(o=>LETTERS[o]).join(', ')}`,`Gabarito: ${LETTERS[right]}`,
+    ...(options[right]?.rationale?.trim()?[`Comentário do gabarito: ${clean(options[right].rationale)}`]:[])].join('\n');
+  });
+  return [`Questões que errei · ${title} (${rows.length})`,...blocks].join('\n\n---\n\n')+'\n';
+ }
+ async function copyText(text){
+  try{await navigator.clipboard.writeText(text);return;}catch{}
+  // older WebViews: a hidden textarea and the copy command
+  const area=el('textarea',{value:text,readOnly:true});area.style.cssText='position:fixed;opacity:0;top:0;left:0';dialog.append(area);area.select();
+  const ok=document.execCommand?.('copy');area.remove();if(!ok)throw Error('Não foi possível copiar. Tente de novo.');
+ }
+ async function copyMistakes(){
+  if(!mistakes.length)return;
+  try{await copyText(mistakesText(mistakes,material.title));toast(`${plural(mistakes.length,'questão copiada','questões copiadas')}`,'check');}
+  catch(error){toast(message(error),'info');}
  }
  async function loadMistakes(){
   const target=material;let rows;
@@ -292,6 +319,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   if(!rows){button.title='Não foi possível carregar os seus erros. Feche e abra de novo.';return;}
   mistakes=rows;
   button.disabled=!mistakes.length;$s('solverMistakesCount').textContent=String(mistakes.length);
+  const copy=$s('solverCopyMistakes');if(copy){copy.disabled=!mistakes.length;copy.title=mistakes.length?`Copiar ${plural(mistakes.length,'questão errada','questões erradas')} em texto (enunciado, alternativas, o que marquei e gabarito)`:'Nenhum erro para copiar';}
   button.title=mistakes.length?`${plural(mistakes.length,'questão errada','questões erradas')} nas listas da prova e dos assuntos dela`:'Nenhum erro nas listas respondidas desta prova';
   button.setAttribute('aria-label',`Erros: ${button.title}`);
   if(!setInfo){$s('solverMinutes').value=Math.max(1,Math.round((mistakes.length||10)*1.5));$s('solverMistakesLead').textContent=mistakes.length?'Esta prova ainda não tem lista própria. Resolva os seus erros nas listas dos assuntos dela.':'Esta prova ainda não tem lista própria, e você ainda não errou questões nas listas dos assuntos dela.';}
