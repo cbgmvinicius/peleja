@@ -170,7 +170,7 @@
  // phone could take seconds, e.g. when the cached copy has expired).
  const chimeUrls={};
  for(const n of ['session_start','session_end','session_stop'])Promise.resolve(globalThis.fetch?.(soundUrl(n))).then(r=>r?.ok?r.blob():null).then(b=>{if(b)chimeUrls[n]=URL.createObjectURL(b);}).catch(()=>{});
- function chime(name,volume=.9){if(!state.prefs.effects||replaying)return;try{const a=new Audio(chimeUrls[name]||soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
+ function chime(name,volume=.9){if(!state.prefs.effects||replaying||nativeRings())return;try{const a=new Audio(chimeUrls[name]||soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
  // ---------- notifications ----------
  // Through a small service worker: Android has no "new Notification()", and only a worker's
  // notification can carry buttons (Pausar / Pular / Concluir) that come back to this page.
@@ -239,7 +239,12 @@
    block:{on:!!state.prefs.block.on,allow:state.prefs.block.allow},
    endText:'Meta da sessão concluída!',flowText:'Tempo mínimo atingido. Siga no flow ou comece a pausa.'};
  }
+ // Android app with the page hidden (screen locked, minimized): the service changes the phase and rings. A plan
+ // sent from here would already be in the next phase and leave it silent, so it waits until the page is back
+ // (the service already applied any button pressed meanwhile).
+ function nativeRings(){return !!native&&!!state.prefs.notify&&document.hidden;}
  function nativeOngoing(){
+  if(nativeRings())return;
   const t=state.timer,on=state.prefs.notify&&t.status!=='idle';
   const sig=on?JSON.stringify([t,state.config,state.task,state.prefs.effects,state.prefs.block]):'off';
   if(sig===ongoingSig)return;ongoingSig=sig;

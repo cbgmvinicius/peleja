@@ -104,6 +104,19 @@ async function app(){
  assert.deepEqual(lastPlan().block,{on:true,allow:['com.spotify.music']},'the plan carries it');
  $('pomoPlay').click();await tick(40);assert.equal(lastPlan().paused,true);assert.equal(lastPlan().block.on,true);
  assert.deepEqual(JSON.parse(w.localStorage.getItem('peleja-pomodoro-v1')).prefs.block,{on:true,allow:['com.spotify.music']});
+ // Screen locked when the phase ends: the page still moves on (sound, saving) but leaves the plan and the
+ // chime to the native service, which rings; a plan already in the next phase would leave it silent.
+ P.state().prefs.effects=true;$('pomoPlay').click();await tick(40);assert.equal(P.state().timer.status,'running');
+ let hidden=true;Object.defineProperty(w.document,'hidden',{configurable:true,get:()=>hidden});
+ const sent=updates().length,heard=p.sounds.length;p.advance(26*MIN);await tick(700);
+ assert.equal(P.state().timer.mode,'short','hidden: the page keeps its own phase right');
+ assert.equal(updates().length,sent,'no plan sent while hidden');assert.equal(p.sounds.length,heard,'no chime: the service rings');
+ hidden=false;w.document.dispatchEvent(new w.Event('visibilitychange'));await tick(80);
+ assert.equal(lastPlan().segments[0].mode,'short','back on screen the plan follows');assert.equal(p.sounds.length,heard,'no late chime on return');
+ // Notifications off: no native timer, so the page chimes even hidden.
+ P.state().prefs.notify=false;P.render();await tick();hidden=true;
+ const heard2=p.sounds.length;p.advance(6*MIN);await tick(700);
+ assert.equal(P.state().timer.mode,'focus');assert.ok(p.sounds.length>heard2,'chimes itself');hidden=false;
  console.log('pomodoro native timer ok');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});
