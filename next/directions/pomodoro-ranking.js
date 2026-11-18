@@ -94,7 +94,7 @@
   const max=Math.max(...list.map(r=>r.shown),1);
   const switcher=el('div',{className:'pomo-period',role:'group'});switcher.setAttribute('aria-label','Período');
   for(const [key,label] of PERIODS){const b=el('button',{type:'button',textContent:label,onclick:()=>{period=key;rows=[];draw();load();}});b.setAttribute('aria-pressed',String(key===period));switcher.append(b);}
-  const head=el('div',{className:'pomo-ranking-head'},el('div',{},el('h2',{textContent:'Ranking de foco'}),el('p',{textContent:'Horas focadas no Pomodoro. O foco em andamento já conta.'})),switcher);
+  const head=el('div',{className:'pomo-ranking-head'},el('div',{},el('h2',{textContent:'Ranking de foco'})),switcher);
   const studying=list.filter(r=>r.live);
   const liveBox=studying.length?el('div',{className:'pomo-live'},el('h3',{},el('i',{className:'pomo-live-dot'}),studying.filter(r=>r.live.running&&r.live.mode==='focus').length?'Estudando agora':'Com o timer aberto'),
    el('div',{className:'pomo-live-list'},...studying.map(r=>el('div',{className:'pomo-live-person'},avatar(r),el('span',{className:'pomo-live-name'},el('b',{textContent:r.me?'Você':r.name}),statusIcon(r.live)))))):null;
