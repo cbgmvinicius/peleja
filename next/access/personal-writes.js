@@ -96,14 +96,19 @@ function createPersonalWriter(client,getIdentity,getAdmin=()=>false){
    const publish=change.kind.startsWith('catalog-');
    if(publish&&!getAdmin())throw Error('Apenas o administrador pode alterar o catálogo.');
    const prepared=publish?root.PELEJA_CATALOG_WRITES.prepareCatalogChange(snapshot,{...change,kind:change.kind.slice(8)}):null;
-   const draft=publish?prepared.payload:preparePersonalChange(snapshot,change),ticket=generation,owner=identity;
+   const draft=publish?prepared.payload:preparePersonalChange(snapshot,change),ticket=generation,owner=identity,sent={revision:snapshot.revision,catalog_revision:snapshot.catalog_revision};
    busy=true;
    try{
-    const result=await client.rpc('save_workspace',{p_owner:owner,p_payload:draft,p_revision:snapshot.revision,p_catalog_revision:snapshot.catalog_revision,p_publish_catalog:publish});
-    if(ticket!==generation||owner!==getIdentity())throw Error('A conta mudou durante o salvamento.');
+    const result=await client.rpc('save_workspace',{p_owner:owner,p_payload:draft,p_revision:sent.revision,p_catalog_revision:sent.catalog_revision,p_publish_catalog:publish});
+    if(owner!==identity||owner!==getIdentity())throw Error('A conta mudou durante o salvamento.');
     if(result.error)throw result.error;
     if(!Number.isInteger(result.data?.revision)||!Number.isInteger(result.data?.catalog_revision))throw Error('Confirmação incompleta do servidor.');
-    snapshot={...snapshot,...(publish?{catalog:prepared.catalog}:{}),payload:draft,revision:result.data.revision,catalog_revision:result.data.catalog_revision};return structuredClone(snapshot);
+    // A sync can reload the same account while this save is in flight. If it read the cloud before the save
+    // landed (same revision we sent), the save goes on top of it; otherwise the copy it read already has it.
+    // Dropping the save here left the next one a revision behind: a false CONFLICT that blocked every write.
+    if(ticket===generation||(snapshot.revision===sent.revision&&snapshot.catalog_revision===sent.catalog_revision))
+     snapshot={...snapshot,...(publish?{catalog:prepared.catalog}:{}),payload:draft,revision:result.data.revision,catalog_revision:result.data.catalog_revision};
+    return structuredClone(snapshot);
    }catch(error){if(ticket===generation)blocked=true;throw error;}
    finally{busy=false;}
   }

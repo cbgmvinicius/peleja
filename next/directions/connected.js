@@ -28,7 +28,7 @@
  }
  try{
   // Downloaded together, run in this order (loadScript sets async=false).
-  await Promise.all([['../access/workspace.js?v=connected-2'],['../access/projection.js?v=connected-1'],['../access/config.js?v=connected-1'],['../access/catalog-writes.js?v=2'],['../access/simulations.js?v=1'],['../access/personal-writes.js?v=catalog1-6'],['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js','sha384-sLWJsCmP+Z4Qn+HgF7Hi64Djta4fZMu0fcgi3uUL3GFV/ubx2G86LPOuMf7+ZIyX']].map(a=>loadScript(...a)));
+  await Promise.all([['../access/workspace.js?v=connected-2'],['../access/projection.js?v=connected-1'],['../access/config.js?v=connected-1'],['../access/catalog-writes.js?v=2'],['../access/simulations.js?v=1'],['../access/personal-writes.js?v=catalog1-7'],['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js','sha384-sLWJsCmP+Z4Qn+HgF7Hi64Djta4fZMu0fcgi3uUL3GFV/ubx2G86LPOuMf7+ZIyX']].map(a=>loadScript(...a)));
   client=supabase.createClient(PELEJA_ACCESS_CONFIG.url,PELEJA_ACCESS_CONFIG.key,{auth:{storageKey:'peleja-next-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   writer=PELEJA_PERSONAL_WRITES.createPersonalWriter(client,()=>currentSession?.user?.id,()=>isAdmin);
   app.dataset.previewRole='participant';
@@ -80,7 +80,9 @@
     if(String(error.message).includes('CONFLICT'))pendingConflict={owner,change:structuredClone(change)};
     const text=String(error.message).includes('CONFLICT')?'Há mudanças em outro aparelho. Atualize antes de salvar novamente.':'Não foi possível confirmar o salvamento. Atualize para conferir antes de tentar novamente.';
     if(errorId){$(errorId).textContent=text;$(errorId).hidden=false;}toast(text,'info');
-   }finally{if(owner===currentSession?.user?.id&&ticket===version){setSaving(false);if(writer.blocked)notice.querySelector('span').textContent='Atualize os dados antes de continuar';}}
+   }finally{
+    // Also after a sync that landed mid-save: it redrew the study buttons as disabled while the save was busy.
+    if(owner===currentSession?.user?.id){setSaving(false);if(writer.blocked)notice.querySelector('span').textContent='Atualize os dados antes de continuar';}}
   }
   const localToggle=toggleStudy;
   toggleStudy=button=>{
