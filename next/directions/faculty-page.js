@@ -104,12 +104,12 @@ function toggleFacultyTopics(button){
   if(animation)topicAnimations.set(panel,animation);
 }
 let topicHighlightTimer,topicHighlight,topicHighlightLayer;
-function revealFacultyTopic(code){
+function revealFacultyTopic(code,exam='all'){
   clearTimeout(topicHighlightTimer);topicHighlight?.cancel();topicHighlightLayer?.remove();
-  $('search').value='';$('subject').value='';$('exam').value='all';
+  $('search').value='';$('subject').value='';$('exam').value=exam;
   $('groupSpecialty').checked=false;
   showLibraryPage();if(typeof syncFilterControls==='function')syncFilterControls();
-  const row=[...document.querySelectorAll('[data-row]')].find(el=>el.dataset.row===code);if(!row)return;
+  const row=[...document.querySelectorAll('[data-row]')].find(el=>el.dataset.row===code);if(!row){if(exam!=='all')revealFacultyTopic(code);return;}
   row.tabIndex=-1;row.focus({preventScroll:true});row.scrollIntoView?.({behavior:reduceMotion()?'auto':'smooth',block:'center'});
   topicHighlightTimer=setTimeout(()=>{if($('libraryPage').hidden||!row.isConnected)return;
     const layer=document.createElement('span');layer.className='topic-arrival-highlight';layer.setAttribute('aria-hidden','true');row.append(layer);topicHighlightLayer=layer;

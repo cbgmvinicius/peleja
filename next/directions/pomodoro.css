@@ -21,12 +21,11 @@
 .pomo-status[data-on=true]{color:var(--accent);font-weight:600}
 .pomo-status[data-on=true] i{opacity:1;animation:pomo-pulse 2s ease-in-out infinite}
 @keyframes pomo-pulse{50%{opacity:.3}}
-.app .pomo-sound-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:transparent;color:var(--muted);font-size:13px;max-width:180px}
+.app .pomo-sound-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font-size:13px;max-width:180px}
 .pomo-sound-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pomodoro .pomo-sound-chip svg{width:16px;height:16px;flex:none}
-.app .pomo-sound-chip[data-state=playing]{color:var(--pomo-sand-ink);background:var(--pomo-sand)}
+.app .pomo-sound-chip[data-state=playing]{color:var(--pomo-sand-ink);background:var(--pomo-sand);border-color:transparent}
 .app .pomo-sound-chip:not(:disabled):hover{background:var(--soft)}
-.app .pomo-sound-chip:disabled{cursor:default}
-.pomo-meta>*+*{border-left:1px solid var(--line);border-radius:0 999px 999px 0}
+.app .pomo-sound-chip:disabled{cursor:default;border-color:color-mix(in srgb,var(--line) 60%,transparent)}
 /* ring */
 .pomo-ring-wrap{position:relative;aspect-ratio:1;justify-self:center;align-self:center}
 .pomodoro .pomo-ring{width:100%;height:100%}
@@ -398,7 +397,7 @@ html[data-peleja-motion=off] .pomodoro *{animation:none!important}
 .app .pomo-flow-break{display:inline-flex;align-items:center;gap:6px;transition:background .25s,color .25s,padding .25s,font-size .25s,box-shadow .25s}
 .pomo-flow-break svg{width:16px;height:16px}
 .app .pomo-flow-break[data-over=true]{padding:10px 20px;font-size:15px;background:var(--accent);color:var(--surface);animation:pomo-flow-glow 2s ease-in-out infinite}
-.app .pomo-flow-break[data-over=true]:hover{background:color-mix(in srgb,var(--accent) 88%,#000)}
+.app .pomo-flow-break[data-over=true]:hover{background:color-mix(in srgb,var(--accent) 82%,var(--ink));color:var(--surface)}
 @keyframes pomo-flow-glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 0%,transparent)}}
 @media (prefers-reduced-motion:reduce){.app .pomo-flow-break[data-over=true]{animation:none}}
 .pomo-block .pomo-block-perms{margin-top:8px}
