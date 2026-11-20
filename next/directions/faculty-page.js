@@ -65,7 +65,7 @@ $('facultyList').onclick=event=>{
   if(menu){const open=$('facultyMenu').hidden||facultyMenuId!==menu.dataset.examMenu;closeFacultyMenu();closeMenus();facultyMenuId=menu.dataset.examMenu;if(open){$('facultyMenu').hidden=false;positionMenu($('facultyMenu'),menu);menu.setAttribute('aria-expanded','true');$('facultyMenuEdit').focus();}return;}
   if(result){closeFacultyMenu();openFaculty(result.dataset.examResult,{resultOnly:true});return;}
   if(expand){toggleFacultyTopics(expand);return;}
-  const topic=event.target.closest('[data-topic]');if(topic)revealFacultyTopic(topic.dataset.topic);
+  const topic=event.target.closest('[data-topic]');if(topic)revealFacultyTopic(topic.dataset.topic,'next');
 };
 $('facultyMenuEdit').onclick=()=>{const id=facultyMenuId;closeFacultyMenu();openFaculty(id);};
 $('facultyMenuDelete').onclick=()=>{
@@ -109,7 +109,7 @@ function revealFacultyTopic(code,exam='all'){
   $('search').value='';$('subject').value='';$('exam').value=exam;
   $('groupSpecialty').checked=false;
   showLibraryPage();if(typeof syncFilterControls==='function')syncFilterControls();
-  const row=[...document.querySelectorAll('[data-row]')].find(el=>el.dataset.row===code);if(!row){if(exam!=='all')revealFacultyTopic(code);return;}
+  const row=[...document.querySelectorAll('[data-row]')].find(el=>el.dataset.row===code);if(!row){if(exam!=='all')revealFacultyTopic(code,exam==='next'?'pending':'all');return;}
   row.tabIndex=-1;row.focus({preventScroll:true});row.scrollIntoView?.({behavior:reduceMotion()?'auto':'smooth',block:'center'});
   topicHighlightTimer=setTimeout(()=>{if($('libraryPage').hidden||!row.isConnected)return;
     const layer=document.createElement('span');layer.className='topic-arrival-highlight';layer.setAttribute('aria-hidden','true');row.append(layer);topicHighlightLayer=layer;
