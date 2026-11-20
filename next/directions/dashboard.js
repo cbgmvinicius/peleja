@@ -70,7 +70,7 @@ function updateDashboardComparison(){
  transitionDashboardRanking(dashboardProgress());
 }
 $('dashboardPage').onclick=event=>{
- const topic=event.target.closest('[data-dashboard-topic]');if(topic){revealFacultyTopic(topic.dataset.dashboardTopic);return;}
+ const topic=event.target.closest('[data-dashboard-topic]');if(topic){revealFacultyTopic(topic.dataset.dashboardTopic,'next');return;}
  if(event.target.closest('[data-dashboard-exams]')){showFacultyPage();return;}
  const tabButton=event.target.closest('[data-dashboard-tab]');if(tabButton){dashboardCourse=tabButton.dataset.dashboardTab;updateDashboardComparison();return;}
  const course=event.target.closest('[data-dashboard-course]'),lesson=event.target.closest('[data-dashboard-lesson]'),pending=event.target.closest('[data-dashboard-pending]');
