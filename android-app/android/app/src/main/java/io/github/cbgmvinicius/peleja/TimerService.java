@@ -13,6 +13,8 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -310,7 +312,13 @@ public class TimerService extends Service {
 
     /** A short notice with sound when a phase starts; only when the app is not on screen (the page chimes then). */
     private void alert(String channel, String text) {
-        if (appVisible || text == null || text.isEmpty() || !canNotify()) return;
+        if (appVisible || text == null || text.isEmpty()) return;
+        // Notifications blocked (permission refused, or this kind turned off in the system settings): the notice
+        // cannot show and its sound would not play either, so the whistle plays here on its own.
+        if (!canNotify() || !channelOn(channel)) {
+            if (plan.optBoolean("effects", true)) ring(CH_FOCUS.equals(channel) ? R.raw.session_start : R.raw.session_end);
+            return;
+        }
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, channel)
             .setSmallIcon(R.drawable.ic_stat_peleja).setColor(0xFF506747)
             .setContentTitle("Peleja · Pomodoro").setContentText(text)
@@ -319,6 +327,26 @@ public class TimerService extends Service {
             .setTimeoutAfter(5 * 60 * 1000);
         if (!plan.optBoolean("effects", true)) b.setSilent(true);
         NotificationManagerCompat.from(this).notify(ID_ALERT, b.build());
+    }
+
+    private boolean channelOn(String id) {
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return false;
+        if (Build.VERSION.SDK_INT < 26) return true;
+        NotificationChannel c = getSystemService(NotificationManager.class).getNotificationChannel(id);
+        return c == null || c.getImportance() != NotificationManager.IMPORTANCE_NONE;
+    }
+
+    /** The whistle without a notification, at the notification volume (silent and vibrate modes still mute it). */
+    private void ring(int sound) {
+        try {
+            AudioAttributes attrs = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
+            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), sound, attrs, am.generateAudioSessionId());
+            if (mp == null) return;
+            mp.setOnCompletionListener(MediaPlayer::release);
+            mp.start();
+        } catch (RuntimeException ignored) { }
     }
 
     private static String fmt(long ms) {
