@@ -14,12 +14,13 @@ import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
+import android.media.AudioFocusRequest;
 import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -45,7 +46,9 @@ public class TimerService extends Service {
     static final String ACTION_UPDATE = "peleja.timer.UPDATE";
     static final String ACTION_TICK = "peleja.timer.TICK";
     static final String ACTION_BUTTON = "peleja.timer.BUTTON";
-    static final String CH_TIMER = "pomodoro_timer", CH_FOCUS = "pomodoro_focus", CH_BREAK = "pomodoro_break";
+    static final String CH_TIMER = "pomodoro_timer", CH_ALERT = "pomodoro_alert";
+    // channels of older versions, whose own sound depended on the ringer (silent or vibrate muted the whistle)
+    static final String[] OLD_CHANNELS = { "pomodoro_focus", "pomodoro_break" };
     static final int ID_TIMER = 41, ID_ALERT = 42;
     static final String PREFS = "peleja_timer";
     static final Object LOCK = new Object();
@@ -99,16 +102,14 @@ public class TimerService extends Service {
         timer.setDescription("O tempo da fase atual, com Pausar, Pular e Concluir");
         timer.setShowBadge(false);
         nm.createNotificationChannel(timer);
-        nm.createNotificationChannel(alertChannel(ctx, CH_FOCUS, "Começo do foco", R.raw.session_start));
-        nm.createNotificationChannel(alertChannel(ctx, CH_BREAK, "Começo da pausa e fim da sessão", R.raw.session_end));
-    }
-
-    private static NotificationChannel alertChannel(Context ctx, String id, String name, int sound) {
-        NotificationChannel c = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH);
-        c.setSound(Uri.parse("android.resource://" + ctx.getPackageName() + "/" + sound),
-            new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
-        c.enableVibration(true);
-        return c;
+        // The notice itself is silent: the whistle is played by ring(), as an alarm, so that it does not depend
+        // on the notification permission, this channel's settings, the ringer mode or Do Not Disturb.
+        NotificationChannel alert = new NotificationChannel(CH_ALERT, "Troca de fase", NotificationManager.IMPORTANCE_HIGH);
+        alert.setDescription("Aviso quando um foco ou uma pausa termina (o apito toca à parte, como alarme)");
+        alert.setSound(null, null);
+        alert.enableVibration(true);
+        nm.createNotificationChannel(alert);
+        for (String old : OLD_CHANNELS) nm.deleteNotificationChannel(old);
     }
 
     // ---------- lifecycle ----------
@@ -176,12 +177,12 @@ public class TimerService extends Service {
             long end = segStart + dur();
             if (now < end) return;
             if (seg().optBoolean("open")) { // flow: the focus goes on past the minimum until Pular
-                if (!flowNotified) { flowNotified = true; alert(CH_FOCUS, plan.optString("flowText")); }
+                if (!flowNotified) { flowNotified = true; alert(R.raw.session_start, plan.optString("flowText")); }
                 return;
             }
             segStart = end; idx++; flowNotified = false;
-            if (idx >= segments.length()) { alert(CH_BREAK, plan.optString("endText")); finishLocal(); return; }
-            alert("focus".equals(seg().optString("mode")) ? CH_FOCUS : CH_BREAK, seg().optString("startText"));
+            if (idx >= segments.length()) { alert(R.raw.session_end, plan.optString("endText")); finishLocal(); return; }
+            alert("focus".equals(seg().optString("mode")) ? R.raw.session_start : R.raw.session_end, seg().optString("startText"));
         }
     }
 
@@ -255,8 +256,12 @@ public class TimerService extends Service {
         if (paused || idx >= segments.length() || (seg().optBoolean("open") && flowNotified)) { am.cancel(tick()); return; }
         long at = segStart + dur();
         boolean exact = Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms();
-        if (exact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, tick());
-        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, tick());
+        // An alarm clock is the one alarm that Doze and the battery savers of Samsung, Xiaomi and co. never
+        // delay: the phase changes (and whistles) on the second, with the screen off for hours.
+        try {
+            if (exact) { am.setAlarmClock(new AlarmManager.AlarmClockInfo(at, openApp()), tick()); return; }
+        } catch (SecurityException ignored) { }
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, tick());
     }
 
     // ---------- notifications ----------
@@ -310,41 +315,45 @@ public class TimerService extends Service {
         return b.build();
     }
 
-    /** A short notice with sound when a phase starts; only when the app is not on screen (the page chimes then). */
-    private void alert(String channel, String text) {
+    /** The whistle and a short notice when a phase starts; only when the app is not on screen (the page chimes then). */
+    private void alert(int sound, String text) {
         if (appVisible || text == null || text.isEmpty()) return;
-        // Notifications blocked (permission refused, or this kind turned off in the system settings): the notice
-        // cannot show and its sound would not play either, so the whistle plays here on its own.
-        if (!canNotify() || !channelOn(channel)) {
-            if (plan.optBoolean("effects", true)) ring(CH_FOCUS.equals(channel) ? R.raw.session_start : R.raw.session_end);
-            return;
-        }
-        NotificationCompat.Builder b = new NotificationCompat.Builder(this, channel)
+        if (plan.optBoolean("effects", true)) ring(sound);
+        if (!canNotify()) return;
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CH_ALERT)
             .setSmallIcon(R.drawable.ic_stat_peleja).setColor(0xFF506747)
             .setContentTitle("Peleja · Pomodoro").setContentText(text)
             .setContentIntent(openApp()).setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setSilent(true)
             .setTimeoutAfter(5 * 60 * 1000);
-        if (!plan.optBoolean("effects", true)) b.setSilent(true);
         NotificationManagerCompat.from(this).notify(ID_ALERT, b.build());
     }
 
-    private boolean channelOn(String id) {
-        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return false;
-        if (Build.VERSION.SDK_INT < 26) return true;
-        NotificationChannel c = getSystemService(NotificationManager.class).getNotificationChannel(id);
-        return c == null || c.getImportance() != NotificationManager.IMPORTANCE_NONE;
-    }
-
-    /** The whistle without a notification, at the notification volume (silent and vibrate modes still mute it). */
+    /**
+     * The whistle, on the alarm stream: it plays with the phone on silent or vibrate and in Do Not Disturb
+     * (alarms are let through by default), at the alarm volume, like a kitchen timer. A wake lock keeps the
+     * CPU up until it ends, and music playing meanwhile is lowered for those seconds.
+     */
     private void ring(int sound) {
         try {
-            AudioAttributes attrs = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+            AudioAttributes attrs = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
             AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
-            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), sound, attrs, am.generateAudioSessionId());
+            Context app = getApplicationContext();
+            MediaPlayer mp = MediaPlayer.create(app, sound, attrs, am.generateAudioSessionId());
             if (mp == null) return;
-            mp.setOnCompletionListener(MediaPlayer::release);
+            mp.setWakeMode(app, PowerManager.PARTIAL_WAKE_LOCK);
+            AudioFocusRequest focus = null;
+            if (Build.VERSION.SDK_INT >= 26) {
+                focus = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attrs).build();
+                am.requestAudioFocus(focus);
+            }
+            final AudioFocusRequest held = focus;
+            mp.setOnCompletionListener(p -> {
+                p.release();
+                if (held != null && Build.VERSION.SDK_INT >= 26) am.abandonAudioFocusRequest(held);
+            });
             mp.start();
         } catch (RuntimeException ignored) { }
     }
