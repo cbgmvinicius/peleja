@@ -170,7 +170,47 @@
  // phone could take seconds, e.g. when the cached copy has expired).
  const chimeUrls={};
  for(const n of ['session_start','session_end','session_stop'])Promise.resolve(globalThis.fetch?.(soundUrl(n))).then(r=>r?.ok?r.blob():null).then(b=>{if(b)chimeUrls[n]=URL.createObjectURL(b);}).catch(()=>{});
- function chime(name,volume=.9){if(!state.prefs.effects||replaying||nativeRings())return;try{const a=new Audio(chimeUrls[name]||soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
+ // `at`: the moment of the phase change it marks; skipped when the audio clock already played it (below).
+ function chime(name,volume=.9,at){if(!state.prefs.effects||replaying||nativeRings()||onAudioClock(name,at))return;try{const a=new Audio(chimeUrls[name]||soundUrl(name));a.volume=volume;a.play?.()?.catch?.(()=>{});}catch{}}
+ // Phase-change chimes on the audio clock. With the screen off or the tab in the background the phone freezes
+ // this page's timers (advance() runs late, or only when the page is back) and Android Chrome does not let a
+ // hidden tab start a new <audio>. A sound already scheduled on a running AudioContext plays on time anyway,
+ // so the chimes of the phases ahead are queued there whenever the plan changes, and chime() then skips the
+ // one it would ring for that same moment. In the Android app with notifications on, the native service rings.
+ let queued=[],queuedSig='';
+ const clockChimes=()=>!!AC&&state.prefs.effects&&!(native&&state.prefs.notify);
+ function upcomingChimes(){
+  const t=state.timer,c=state.config,out=[];if(t.status!=='running')return out;
+  let at=now()-elapsed(),mode=t.mode,sets=t.setsDone;
+  for(let i=0;i<40;i++){
+   at+=planned(mode);
+   if(mode!=='focus'){out.push({at,name:'session_start',volume:.9});mode='focus';continue;}
+   if(c.flow){if(i>0||!t.flowNotified)out.push({at,name:'session_start',volume:.45});break;}
+   out.push({at,name:'session_end',volume:.9});
+   if(++sets>=c.targetSets)break;
+   mode=c.longEnabled&&sets%c.longEvery===0?'long':'short';
+  }
+  return out;
+ }
+ function queueChimes(){
+  const list=clockChimes()&&actx?.state==='running'?upcomingChimes().filter(x=>x.at>now()):[];
+  const sig=JSON.stringify(list.map(x=>[x.at,x.name]));if(sig===queuedSig)return;queuedSig=sig;
+  // the ones already played stay listed for a while, so a late advance() does not ring them again
+  const t=now(),kept=queued.filter(q=>q.at<=t&&q.src&&t-q.at<6*3600000);
+  for(const q of queued)if(!kept.includes(q))try{q.src?.stop();}catch{}
+  queued=kept;
+  for(const x of list){
+   const q={...x,src:null};queued.push(q);
+   bufferOf(x.name).then(buf=>{
+    if(!queued.includes(q)||actx.state!=='running')return;
+    const s=actx.createBufferSource(),g=actx.createGain();g.gain.value=x.volume;s.buffer=buf;s.connect(g);g.connect(actx.destination);
+    s.start(actx.currentTime+Math.max(0,(x.at-now())/1000));q.src=s;s.onended=()=>{try{g.disconnect();}catch{}};
+   }).catch(()=>{});
+  }
+ }
+ function onAudioClock(name,at){return at!=null&&actx?.state==='running'&&queued.some(q=>q.src&&q.name===name&&Math.abs(q.at-at)<1500);}
+ // Called from a tap (Começar/Continuar): the browser only lets audio start after one.
+ function wakeAudio(){if(!clockChimes())return;const ctx=audio();if(!ctx)return;for(const n of ['session_start','session_end'])bufferOf(n).catch(()=>{});Promise.resolve(ctx.resume?.()).then(()=>{queuedSig='';queueChimes();}).catch(()=>{});}
  // ---------- notifications ----------
  // Through a small service worker: Android has no "new Notification()", and only a worker's
  // notification can carry buttons (Pausar / Pular / Concluir) that come back to this page.
@@ -280,16 +320,16 @@
   const focusMs=state.config.flow||manual?e:Math.min(e,planned('focus'));recordBlock(focusMs,at);
   state.timer.setsDone++;
   if(state.timer.setsDone>=state.config.targetSets){
-   Object.assign(state.timer,{status:'idle',mode:'focus',accMs:0,runningSince:0,flowNotified:false});chime('session_end');notify('Meta da sessão concluída!');
+   Object.assign(state.timer,{status:'idle',mode:'focus',accMs:0,runningSince:0,flowNotified:false});chime('session_end',.9,manual?null:at);notify('Meta da sessão concluída!');
    save();render();syncSound();openGoalReached();return;
   }
   const isLong=state.config.longEnabled&&state.timer.setsDone%state.config.longEvery===0;
   const carry=!state.config.flow&&!manual?Math.max(0,e-planned('focus')):0;
-  startPhase(isLong?'long':'short',at,carry);chime('session_end');notify(isLong?'Hora da pausa longa.':'Hora da pausa curta.');save();
+  startPhase(isLong?'long':'short',at,carry);chime('session_end',.9,manual?null:at);notify(isLong?'Hora da pausa longa.':'Hora da pausa curta.');save();
  }
- function completeBreak({at=now()}={}){
+ function completeBreak({at=now(),manual=false}={}){
   const e=state.timer.status==='running'?state.timer.accMs+(at-state.timer.runningSince):state.timer.accMs;
-  startPhase('focus',at,Math.max(0,e-planned(state.timer.mode)));chime('session_start');notify('De volta ao foco.');save();
+  startPhase('focus',at,Math.max(0,e-planned(state.timer.mode)));chime('session_start',.9,manual?null:at);notify('De volta ao foco.');save();
  }
  // Catch up with whatever happened while the page was closed or in the background.
  function advance(){
@@ -297,7 +337,7 @@
   while(state.timer.status==='running'&&guard++<50){
    const e=elapsed(),p=planned(state.timer.mode);
    if(state.timer.mode==='focus'){
-    if(state.config.flow){if(e>=p&&!state.timer.flowNotified){state.timer.flowNotified=true;save();chime('session_start',.45);wave();notify('Tempo mínimo atingido. Siga no flow ou comece a pausa.');}break;}
+    if(state.config.flow){if(e>=p&&!state.timer.flowNotified){state.timer.flowNotified=true;save();chime('session_start',.45,state.timer.runningSince+(p-state.timer.accMs));wave();notify('Tempo mínimo atingido. Siga no flow ou comece a pausa.');}break;}
     if(e<p)break;completeFocus({at:state.timer.runningSince+(p-state.timer.accMs)});
    }else{if(e<p)break;completeBreak({at:state.timer.runningSince+(p-state.timer.accMs)});}
   }
@@ -315,8 +355,8 @@
   toggle(){
    const t=state.timer;touch();
    if(t.status==='running'){t.accMs=elapsed();t.status='paused';t.runningSince=0;chime('session_end',.7);}
-   else if(t.status==='paused'){t.status='running';t.runningSince=now();chime('session_start',.7);}
-   else{flash='';startPhase('focus');t.setsDone=0;t.sessionId=crypto.randomUUID();chime('session_start',.7);
+   else if(t.status==='paused'){t.status='running';t.runningSince=now();chime('session_start',.7);wakeAudio();}
+   else{flash='';startPhase('focus');t.setsDone=0;t.sessionId=crypto.randomUUID();chime('session_start',.7);wakeAudio();
     // the browser only asks for permission after a tap: the first play is that moment
     if(!native&&state.prefs.notify&&typeof Notification!=='undefined'&&Notification.permission==='default')Promise.resolve(Notification.requestPermission?.()).then(()=>{ongoingSig='';updateOngoing();}).catch(()=>{});}
    save();render();syncSound(t.status==='running'?1500:600);
@@ -324,7 +364,7 @@
   // Flow: "Começar pausa" ends the focus with the extra time counted.
   startBreak(){if(state.timer.mode!=='focus'||state.timer.status==='idle')return;touch();completeFocus({manual:true});render();syncSound();},
   // Skip ends the current phase now (a focus counts as a set), only while running.
-  skip(){if(state.timer.status!=='running')return;touch();if(state.timer.mode==='focus')completeFocus({manual:true});else completeBreak();render();syncSound();},
+  skip(){if(state.timer.status!=='running')return;touch();if(state.timer.mode==='focus')completeFocus({manual:true});else completeBreak({manual:true});render();syncSound();},
   // Discard: back to the start, the focus in progress is not kept.
   discard(){if(state.timer.status==='idle')return;touch();resetTimer();chime('session_stop',.6);save();render();syncSound(600);},
   // Finish: keeps what was focused; under a minute nothing counts; with sets left it asks first.
@@ -455,7 +495,7 @@
   $('pomoSideRight').innerHTML=`<span class="pomo-side-btn">${icon(active?I2.check:I2.stack)}</span><span>${active?'Concluir':'Séries'}</span>`;$('pomoSideRight').dataset.kind=active?'finish':'sets';
   $('pomoPlay').innerHTML=icon(running?I.pause:I.play);$('pomoPlay').setAttribute('aria-label',running?'Pausar':t.status==='paused'?'Continuar':'Começar');
   draw();if(running&&!frame)frame=requestAnimationFrame(loop);
-  updateOngoing();
+  updateOngoing();queueChimes();
   globalThis.PELEJA_POMODORO_CHANGED?.(); // the mini player follows every change
  }
 
