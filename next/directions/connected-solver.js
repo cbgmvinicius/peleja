@@ -171,7 +171,8 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
     seg('confirm','Marcar a resposta',[['false','Ao clicar'],['true','Com confirmação']]),
     seg('reveal','Gabarito e comentários',[['each','A cada resposta'],['end','No final']]),
     seg('shuffleQuestions','Questões',[['true','Embaralhadas'],['false','Em sequência']]),
-    seg('shuffleOptions','Alternativas',[['true','Embaralhadas'],['false','Na ordem']])));
+    seg('shuffleOptions','Alternativas',[['true','Embaralhadas'],['false','Na ordem']]),
+    ...(allowed()?[padSwitch()]:[])));
   const paintSettings=()=>{
    const preset=presetOf(setupSettings);
    for(const input of modes.querySelectorAll('input'))input.checked=input.value===preset;
@@ -192,6 +193,15 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const foot=$s('solverFoot');foot.replaceChildren(el('button',{type:'button',className:'editor-cancel',textContent:'Cancelar',onclick:close}),...(mistakesButton?[copyButton,mistakesButton]:[]),...(setInfo?[el('button',{type:'button',className:'primary',id:'solverStart',textContent:'Começar',onclick:()=>startOrConfirm()})]:[]));
   mistakes=[];if(mistakesButton)loadMistakes();
   await refreshSetupDetails();
+ }
+ // "Atalhos do controle" (administrator only): an 8BitDo Micro in keyboard mode answers with Enter/1/2/4/N and
+ // moves with ↑ ↓. Saved in this device's solver prefs; off, or for anyone else, the usual keys stay.
+ const padKeysOn=()=>allowed()&&prefs().padKeys===true;
+ function padSwitch(){
+  const input=el('input',{type:'checkbox',id:'solverPadKeys',checked:prefs().padKeys===true});input.setAttribute('role','switch');
+  input.onchange=()=>savePrefs({padKeys:input.checked});
+  const visual=el('span',{className:'switch-visual'});visual.setAttribute('aria-hidden','true');
+  return el('label',{className:'switch-option solver-pad-keys'},el('span',{textContent:'Atalhos do controle'}),input,visual);
  }
  // Administrators rename a list right here (the questions stay as they are).
  function renameButton(s){
@@ -594,10 +604,25 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  $s('solverClose').onclick=close;
  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
  // Keyboard: 1–5 act on A–E like a tap (select when confirming, mark at once on click), Enter confirms, ← → move.
+ // With "Atalhos do controle" on: Enter/1/2/4/N act on A–E (Enter no longer confirms), ↓ confirms when
+ // "Confirmar resposta" is enabled and otherwise goes to the next question, ↑ goes back; these never scroll or
+ // click the focused button. ← → still move.
  // Listens on the page, not the dialog: answering or moving redraws the question and the focus falls to <body>.
+ const PAD={Enter:0,'1':1,'2':2,'4':3,n:4,N:4};
+ const pickKey=index=>{
+  const q=order()[position],o=session.layout.options[q]?.[index];
+  if(reviewing||clockPaused||o==null||revealed(q)||answerOf(q).x?.includes(o))return;
+  choose(q,o);
+ };
  document.addEventListener('keydown',event=>{
   if(!dialog.open||leave.open||document.querySelector('#confirmDialog[open]')||event.defaultPrevented)return;
   if(screen!=='question'||event.target.closest?.('input,textarea,select,[contenteditable=true]')||event.ctrlKey||event.metaKey||event.altKey)return;
+  if(padKeysOn()){
+   if(event.key in PAD){event.preventDefault();pickKey(PAD[event.key]);return;}
+   if(event.key==='ArrowDown'){event.preventDefault();const c=$s('solverConfirm');if(c&&!c.disabled&&!reviewing)c.click();else go(1);return;}
+   if(event.key==='ArrowUp'){event.preventDefault();go(-1);return;}
+   if(/^[35]$/.test(event.key))return;
+  }
   if(/^[1-5]$/.test(event.key)){
    const q=order()[position],o=session.layout.options[q]?.[Number(event.key)-1];
    if(reviewing||clockPaused||o==null||revealed(q)||answerOf(q).x?.includes(o))return;
