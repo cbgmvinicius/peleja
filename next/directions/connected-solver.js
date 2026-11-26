@@ -197,9 +197,13 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  // "Atalhos do controle" (administrator only): an 8BitDo Micro in keyboard mode answers with Enter/1/2/4/N and
  // moves with ↑ ↓. Saved in this device's solver prefs; off, or for anyone else, the usual keys stay.
  const padKeysOn=()=>allowed()&&prefs().padKeys===true;
+ // With it on, each control shows the controller button that triggers it (icons in the Contanki style).
+ const PAD_LETTER_ICONS=['y','x','a','b','r'],PAD_LABELS={y:'Y',x:'X',a:'A',b:'B',r:'R',down:'direcional',up:'direcional'};
+ const padIcon=name=>padKeysOn()&&name?[el('img',{className:`solver-pad-icon pad-${name}`,src:`../assets/pad/${name}.png`,alt:'',title:`Controle: ${PAD_LABELS[name]}`})]:[];
+ const padMark=(button,name)=>{const icon=padIcon(name)[0];if(icon){button.classList.add('solver-pad-button');button.append(icon);}};
  function padSwitch(){
   const input=el('input',{type:'checkbox',id:'solverPadKeys',checked:prefs().padKeys===true});input.setAttribute('role','switch');
-  input.onchange=()=>savePrefs({padKeys:input.checked});
+  input.onchange=()=>{savePrefs({padKeys:input.checked});if(screen==='question')renderQuestion();};
   const visual=el('span',{className:'switch-visual'});visual.setAttribute('aria-hidden','true');
   return el('label',{className:'switch-option solver-pad-keys'},el('span',{textContent:'Atalhos do controle'}),input,visual);
  }
@@ -417,7 +421,7 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
    if(show)li.dataset.state=option.isCorrect?'right':chosen?'wrong':'idle';
    else if(selected===o)li.dataset.state='chosen';else if(chosen&&selected==null)li.dataset.state='marked';
    if(cut&&!show)li.dataset.cut='';
-   const pick=el('button',{type:'button',className:'solver-pick',disabled:show||cut},el('span',{className:'solver-letter',textContent:LETTERS[j]}),el('span',{className:'solver-text',textContent:option.text}));
+   const pick=el('button',{type:'button',className:'solver-pick',disabled:show||cut},el('span',{className:'solver-letter',textContent:LETTERS[j]}),el('span',{className:'solver-text',textContent:option.text}),...padIcon(PAD_LETTER_ICONS[j]));
    pick.setAttribute('aria-pressed',String(selected===o||(chosen&&selected==null)));pick.onclick=()=>choose(q,o);
    li.append(pick);
    if(!show){const scissors=el('button',{type:'button',className:'icon solver-cut',title:cut?'Trazer alternativa de volta':'Descartar alternativa'});scissors.innerHTML=ICON.cut;scissors.setAttribute('aria-pressed',String(!!cut));scissors.setAttribute('aria-label',`${cut?'Trazer de volta':'Descartar'} alternativa ${LETTERS[j]}`);scissors.onclick=()=>toggleCut(q,o);li.append(scissors);}
@@ -457,12 +461,14 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   const prev=el('button',{type:'button',className:'editor-cancel',textContent:'Anterior',disabled:position===0,onclick:()=>go(-1)});
   const next=last?null:el('button',{type:'button',className:'primary',textContent:'Próxima',onclick:()=>go(1)});
   if(reviewing){foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:'Voltar ao resultado',onclick:()=>renderResult()}),prev,...(next?[next]:[]));return;}
+  padMark(prev,'up');if(next)padMark(next,'down');
   const finish=el('button',{type:'button',className:last?'primary':'editor-cancel',textContent:session.mode==='prova'?'Finalizar prova':'Finalizar',onclick:askFinish});
   // A marked option still needs "Confirmar resposta": in training it reveals the key, in the exam it records the answer.
   const needsConfirm=cfg().confirm&&(cfg().reveal==='each'?answer.o==null:selected!=null&&selected!==answer.o);
   if(needsConfirm){
    const confirm=el('button',{type:'button',className:'primary',id:'solverConfirm',textContent:'Confirmar resposta',disabled:selected==null,onclick:()=>confirmAnswer(q)});
    const skip=last?null:el('button',{type:'button',className:'editor-cancel',textContent:'Próxima',onclick:()=>go(1)});
+   padMark(confirm,'down');
    foot.replaceChildren(el('button',{type:'button',className:'editor-cancel solver-left',textContent:finish.textContent,onclick:askFinish}),prev,...(skip?[skip]:[]),confirm);return;
   }
   foot.replaceChildren(...(last?[]:[finish]),prev,...(next?[next]:[finish]));
