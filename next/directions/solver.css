@@ -137,9 +137,9 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 /* Lists: cards with the last attempt; administrators rename inline */
 .solver-lists .solver-choice{align-items:center}
 .solver-lists .solver-choice-text{flex:1;min-width:0}
-.app .solver-rename{width:32px;height:32px;flex:none;display:inline-grid;place-items:center;border-radius:50%;color:var(--muted);margin-left:6px;vertical-align:middle}
-.app .solver-rename:hover{background:var(--soft);color:var(--ink)}
-.solver-rename svg{width:16px;height:16px}
+.app .solver-rename,.app .solver-rename-like{width:32px;height:32px;flex:none;display:inline-grid;place-items:center;border-radius:50%;color:var(--muted);margin-left:6px;vertical-align:middle}
+.app .solver-rename:hover,.app .solver-rename-like:hover{background:var(--soft);color:var(--ink)}
+.solver-rename svg,.solver-rename-like svg{width:16px;height:16px}
 .solver-rename-box{display:flex;gap:8px;align-items:center;margin:0 0 18px;flex-wrap:wrap}
 .solver-rename-input{flex:1 1 220px;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--accent);background:var(--surface);color:var(--ink);font:inherit}
 /* Personalizar: four two-sided choices */

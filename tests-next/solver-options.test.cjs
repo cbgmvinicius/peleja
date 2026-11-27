@@ -48,7 +48,7 @@ const starts=calls=>calls.filter(([n])=>n==='quiz_session_start').map(c=>c[1]);
  q('[data-row] [data-solve]').click();await tick(120);
  // two lists: cards to choose from, the admin can rename each
  const cards=qa('.solver-lists .solver-choice');assert.equal(cards.length,2);
- assert.equal(qa('.solver-rename').length,2,'admin sees the pencil');
+ assert.equal(qa('.solver-rename').length,2,'admin sees the pencil');assert.equal(qa('.solver-list-delete').length,2,'admin sees the trash');
  cards[0].querySelector('.solver-rename').click();await tick();
  const input=$('solverRenameInput');assert.equal(input.value,'Micoses');input.value='Micoses · lista A';$('solverRenameSave').click();await tick(80);
  const rename=calls.find(([n])=>n==='question_set_update')[1];assert.deepEqual(rename,{p_id:'set-1',p_title:'Micoses · lista A',p_questions:null});

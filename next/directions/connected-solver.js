@@ -156,10 +156,10 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
   body.append(el('div',{id:'solverResume'}),el('p',{className:'solver-section-title solver-new-title',id:'solverNewTitle',textContent:'Ou comece uma nova',hidden:true}));
   if(list.length>1){
    const group=el('fieldset',{className:'solver-group solver-lists'},el('legend',{textContent:'Lista'}));
-   list.forEach(s=>{const card=choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id);card.dataset.set=s.id;if(allowed())card.append(renameButton(s));group.append(card);});
+   list.forEach(s=>{const card=choice('solverSet',s.id,s.title,plural(s.count,'questão','questões'),s.id===setInfo.id);card.dataset.set=s.id;if(allowed())card.append(renameButton(s),deleteButton(s));group.append(card);});
    group.onchange=async()=>{const c=group.querySelector('input[name=solverSet]:checked'),next=c&&list.find(s=>s.id===c.value);if(!next||next.id===setInfo.id)return;setInfo=next;savePrefs({lists:{...(prefs().lists||{}),[material.key]:setInfo.id}});await refreshSetupDetails();};
    body.append(group);lastAttempts(list,group);
-  }else if(setInfo){const lead=el('p',{className:'solver-lead',id:'solverListLead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões'));if(allowed())lead.append(renameButton(setInfo));body.append(lead);}
+  }else if(setInfo){const lead=el('p',{className:'solver-lead',id:'solverListLead'},el('strong',{textContent:setInfo.title}),' · '+plural(setInfo.count,'questão','questões'));if(allowed())lead.append(renameButton(setInfo),deleteButton(setInfo));body.append(lead);}
   else body.append(el('p',{className:'solver-lead',id:'solverMistakesLead',textContent:'Esta prova ainda não tem lista própria.'}));
   const modes=el('fieldset',{className:'solver-group solver-pair',id:'solverModes'},el('legend',{textContent:'Modo'}));
   modes.append(choice('solverMode','treino','Treino','Gabarito e comentários a cada resposta. Questões em sequência.',true),choice('solverMode','prova','Prova','Gabarito só ao finalizar. Questões e alternativas embaralhadas.',false));
@@ -197,6 +197,18 @@ globalThis.PELEJA_INSTALL_SOLVER=({client,saveChange,allowed=()=>false})=>{
  function renameButton(s){
   const b=el('button',{type:'button',className:'icon solver-rename',title:'Renomear lista',innerHTML:ICON.pencil});b.setAttribute('aria-label',`Renomear ${s.title}`);
   b.onclick=e=>{e.preventDefault();e.stopPropagation();renameList(s,b);};
+  return b;
+ }
+ // ...and delete it (attempts on it go too: quiz_sessions cascade on the server).
+ function deleteButton(s){
+  const b=el('button',{type:'button',className:'icon solver-rename-like solver-list-delete',title:'Apagar lista',innerHTML:ICON.trash});b.setAttribute('aria-label',`Apagar ${s.title}`);
+  b.onclick=e=>{e.preventDefault();e.stopPropagation();confirmPeleja('Apagar esta lista?',async()=>{
+   const r=await client.rpc('delete_question_set',{p_id:s.id});if(r.error){toast(message(r.error),'info');return;}
+   sets=sets.filter(x=>x.id!==s.id);toast('Lista apagada','trash');
+   if(setInfo?.id===s.id)setInfo=setsFor(material)[0]||null;
+   if(!setInfo&&!reviewSetsFor(material).length){finishClose();return;}
+   renderSetup();
+  },{description:`“${s.title}” e suas ${plural(s.count,'questão','questões')} saem do Peleja, junto com as tentativas de todos nessa lista.`,accept:'Apagar',destructive:true});};
   return b;
  }
  function renameList(s,button){
