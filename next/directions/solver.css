@@ -212,3 +212,7 @@ html[data-peleja-motion=off] :is(.solver-progress span,.solver-option,.solver-cl
 #solverDialog .solver-custom-check[hidden]{display:none}
 @media(max-width:640px){#solverDialog .solver-mistakes{flex-basis:100%;order:-1;justify-content:center}}
 .solver-mistakes-icon{display:inline-grid}.solver-mistakes svg{width:18px;height:18px;flex:none}
+.solver-pad-keys{justify-content:space-between;min-height:40px;font-size:13px;color:var(--ink)}
+.solver-pad-icon{flex:none;width:auto;height:24px;margin-left:auto;align-self:center;pointer-events:none}.solver-pad-icon.pad-r{height:18px}
+.solver-pad-button{display:inline-flex;align-items:center;gap:8px}.solver-pad-button .solver-pad-icon{height:20px;margin-left:0}
+.app:not(.dark) .solver-pad-icon{filter:drop-shadow(0 0 .6px #0009) drop-shadow(0 1px 1.5px #0003)}
